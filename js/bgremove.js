@@ -37,7 +37,7 @@ export function bgStatus(model = 1) {
 const cache = new Map();
 const MASK_KEEP = typeof navigator !== 'undefined' && /iP(hone|ad|od)|Android/.test(navigator.userAgent) ? 24 : 90;
 const prev = new Map();
-const work = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+const work = typeof document !== 'undefined' ? document.createElement('canvas') : (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(320, 320) : null); // Worker: OffscreenCanvas
 
 /**
  * Máscara da pessoa (canvas com alfa) para o canvas de origem, ou null se o modelo ainda não estiver pronto.
@@ -91,7 +91,7 @@ export function personMask(source, { model = 1, key, layerKey, t = 0, smooth = 0
     for (let i = 0; i < arr.length; i++) arr[i] = arr[i] * (1 - smooth) + pv.arr[i] * smooth;
   }
   prev.set(layerKey, { arr, w, h, t });
-  const c = document.createElement('canvas');
+  const c = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(1, 1);
   c.width = w; c.height = h;
   const ctx = c.getContext('2d');
   const img = ctx.createImageData(w, h);

@@ -1,11 +1,12 @@
 import { srcBlob, getImage } from './media.js';
+import { fontsForWorker } from './fonts.js';
 import { flatLayers } from './state.js';
 
 // ---- Cliente do Worker de renderização (render-worker.js), usado pela EXPORTAÇÃO e pela PRÉ-RENDERIZAÇÃO da prévia:
 // o motor roda fora da tela principal — a interface não trava e o .exe não mostra "não está respondendo". Camadas/efeitos que dependem da página (texto com fontes, Remover fundo, Element 3D,
 // Tracery) continuam na tela principal; se o Worker falhar em qualquer quadro, a exportação segue sem ele.
-const WK_LAYERS = new Set(['video', 'image', 'shape', 'solid', 'rect', 'ellipse', 'adjustment', 'group', 'audio', 'null', 'camera']);
-const WK_BAD_FX = new Set(['bgRemove', 'element3d', 'tracery']);
+const WK_LAYERS = new Set(['video', 'image', 'text', 'shape', 'solid', 'rect', 'ellipse', 'adjustment', 'group', 'audio', 'null', 'camera']);
+const WK_BAD_FX = new Set(['element3d', 'tracery']);
 export function workerEligible(project) {
   if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' || typeof VideoDecoder === 'undefined' || !('transferToImageBitmap' in OffscreenCanvas.prototype)) return false;
   for (const l of flatLayers(project.layers)) {
@@ -44,6 +45,7 @@ export function startRenderWorker(project, width, height, scale, opts = {}) {
     setTimeout(() => { if (!ready) { try { w.terminate(); } catch { /* ok */ } resolve(null); } }, 20000);
     (async () => {
       const media = { images: {}, blobs: {} }, transfer = [];
+      const fonts = await fontsForWorker(flatLayers(project.layers).filter((l) => l.type === 'text').map((l) => l.props?.fontFamily));
       for (const l of flatLayers(project.layers)) {
         const src = l.props?.src;
         if (!src) continue;
@@ -55,7 +57,7 @@ export function startRenderWorker(project, width, height, scale, opts = {}) {
           media.images[src] = bm; transfer.push(bm);
         }
       }
-      w.postMessage({ type: 'init', project, width, height, scale, media, mode: opts.mode || 'export' }, transfer);
+      w.postMessage({ type: 'init', project, width, height, scale, media, fonts, mode: opts.mode || 'export' }, transfer);
     })().catch(() => { try { w.terminate(); } catch { /* ok */ } resolve(null); });
   });
 }
