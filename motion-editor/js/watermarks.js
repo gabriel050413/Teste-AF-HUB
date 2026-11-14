@@ -28,6 +28,32 @@ function dupLayer(src, name) {
   return d;
 }
 
+// ---- Asas neon (logo de outro com asas vermelhas, texto gótico no meio)
+const AV = (v) => ({ value: v, keys: [] });
+const AK = (pairs, t0) => ({ value: pairs[0][1], keys: pairs.map(([t, v, ease]) => ({ t: +(t0 + t).toFixed(4), v, ease: ease || 'linear' })) });
+const quad = (p0, c, p1, s) => [(1 - s) * (1 - s) * p0[0] + 2 * (1 - s) * s * c[0] + s * s * p1[0], (1 - s) * (1 - s) * p0[1] + 2 * (1 - s) * s * c[1] + s * s * p1[1]];
+const openPath = (pts) => ({ t: 'path', path: { shapes: [{ closed: false, pts: pts.flatMap((v) => [v, v, v]) }], times: [] } });
+const closedPath = (pts) => ({ t: 'path', path: { shapes: [{ closed: true, pts: pts.flatMap((v) => [v, v, v]) }], times: [] } });
+/** Penas de UMA asa (lado direito; o esquerdo é espelhado): raiz perto do centro, ponta para fora e para cima, curvas
+ *  "barriga para baixo" e afinando nas duas pontas. Unidade: S = envergadura total da logo em px. */
+function wingFeathers(S, side) {
+  const tips = [[0.5, -0.27], [0.485, -0.155], [0.445, -0.055], [0.38, 0.04], [0.29, 0.115]];
+  const roots = [[0.11, -0.04], [0.115, -0.02], [0.12, 0.0], [0.115, 0.02], [0.1, 0.04]];
+  const widths = [0.034, 0.03, 0.027, 0.024, 0.02];
+  return tips.map((tp, i) => {
+    const r = [roots[i][0] * S * side, roots[i][1] * S], tip = [tp[0] * S * side, tp[1] * S];
+    const c = [r[0] + (tip[0] - r[0]) * 0.5, r[1] + (tip[1] - r[1]) * 0.2 + 0.05 * S];
+    const N = 22, up = [], dn = [], mid = [];
+    for (let k = 0; k <= N; k++) {
+      const u = k / N, p = quad(r, c, tip, u), q = quad(r, c, tip, Math.min(1, u + 0.01)), pr = quad(r, c, tip, Math.max(0, u - 0.01));
+      const tx = q[0] - pr[0], ty = q[1] - pr[1], L = Math.hypot(tx, ty) || 1, nx = -ty / L, ny = tx / L;
+      const w = widths[i] * S * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.15 + 0.04)), 0.75) * (1 - 0.35 * u) * 0.5;
+      up.push([p[0] + nx * w, p[1] + ny * w]); dn.push([p[0] - nx * w, p[1] - ny * w]); mid.push(p);
+    }
+    return { outline: closedPath([...up, ...dn.reverse()]), center: openPath(mid) };
+  });
+}
+
 export const MATERIAL_NAMES = ['Plástico', 'Cromo', 'Ouro', 'Metal escovado', 'Vidro fumê', 'Fosco', 'Neon'];
 
 export const WATERMARKS = [
@@ -104,6 +130,50 @@ export const WATERMARKS = [
     },
   },
   // ---- overlays das edits (entram no playhead, por cima do clipe selecionado)
+  {
+    id: 'wm-asas-neon', name: 'Outro · asas neon vermelhas (logo com texto gótico)', dur: 1.8, src: 'final do vídeo enviado',
+    fields: [['text', 'Texto da logo', 'DMARFX'], ['size', 'Tamanho %', 100, [40, 180]]],
+    build(P, o, t0, d) {
+      const W = P.width, H = P.height, cx = W / 2, cy = H / 2;
+      const k = (+o.size || 100) / 100, S = W * 0.5 * k;
+      const RED = [1, 0.13, 0.17], PINK = [1, 0.62, 0.62];
+      const sc = (list) => AK(list, t0);
+      // fundo preto que entra quando a logo fica sozinha
+      const bg = place(LAYER_FACTORIES.solid(P), cx, cy); bg.name = 'Asas · fundo preto'; bg.props.fill = '#000000';
+      bg.transform.opacity = sc([[0, 0, 'hold'], [d * 0.3, 0, 'easeIn'], [d * 0.37, 100]]);
+      // escala da logo inteira: entra grande, assenta e encolhe devagar (como no vídeo)
+      const scaleKeys = () => sc([[0, [165, 165], 'expoOut'], [d * 0.33, [104, 104], 'linear'], [d * 0.72, [88, 88], 'easeIn'], [d, [80, 80]]]);
+      const feathers = [...wingFeathers(S, 1), ...wingFeathers(S, -1)];
+      // 1) traços desenhando (Trim Paths) — o traço curvo vermelho do começo vira as asas
+      const strokes = LAYER_FACTORIES.shape(P, feathers.map((f, i) => ({ t: 'group', items: [f.center,
+        { t: 'trim', start: AV(0), end: sc([[0, 0, 'expoOut'], [d * (0.2 + (i % 5) * 0.025), 100]]), offset: AV(0) },
+        { t: 'stroke', color: AV(PINK), width: AV(Math.max(2, S * 0.008)), opacity: AV(100), cap: 2, join: 2 }],
+        tr: { position: AV([0, 0]), scale: AV([100, 100]), rotation: AV(0), opacity: AV(100), anchor: AV([0, 0]) } })));
+      strokes.name = 'Asas · traços'; strokes.props.width = W; strokes.props.height = H; place(strokes, cx, cy);
+      strokes.transform.scale = scaleKeys();
+      strokes.transform.opacity = sc([[0, 100, 'hold'], [d * 0.35, 100], [d * 0.45, 35], [d * 0.68, 35, 'easeIn'], [d * 0.86, 0]]);
+      strokes.effects.push(fx('deepGlow', { radius: 70 * k, exposure: 1.6, useTint: true, tint: [1, 0.15, 0.2, 1], tintMode: 1 }, t0));
+      // 2) penas preenchidas (miolo rosado, borda vermelha) com brilho neon
+      const fill = LAYER_FACTORIES.shape(P, feathers.map((f) => ({ t: 'group', items: [f.outline,
+        { t: 'stroke', color: AV(RED), width: AV(Math.max(2, S * 0.006)), opacity: AV(100), cap: 2, join: 2 },
+        { t: 'fill', color: AV(PINK), opacity: AV(92) }],
+        tr: { position: AV([0, 0]), scale: AV([100, 100]), rotation: AV(0), opacity: AV(100), anchor: AV([0, 0]) } })));
+      fill.name = 'Asas · penas'; fill.props.width = W; fill.props.height = H; place(fill, cx, cy);
+      fill.transform.scale = scaleKeys();
+      fill.transform.opacity = sc([[0, 0, 'hold'], [d * 0.12, 0, 'easeOut'], [d * 0.3, 100], [d * 0.66, 100, 'hold'], [d * 0.7, 75, 'hold'], [d * 0.73, 100], [d * 0.86, 0]]);
+      fill.effects.push(fx('deepGlow', { radius: 90 * k, exposure: 1.3, useTint: true, tint: [1, 0.12, 0.16, 1], tintMode: 1 }, t0));
+      // 3) texto gótico no meio das asas
+      const tx = place(LAYER_FACTORIES.text(P), cx, cy + S * 0.0); tx.name = 'Asas · texto';
+      Object.assign(tx.props, { text: o.text || 'DMARFX', color: '#ff4b55', fontSize: Math.round(S * 0.105), fontWeight: 400, align: 'center',
+        fontFamily: '"Metal Mania", "UnifrakturMaguntia", serif', strokeWidth: Math.max(1, Math.round(S * 0.004)), strokeColor: '#5a0006', letterSpacing: Math.round(S * 0.006) });
+      tx.transform.scale = scaleKeys();
+      tx.transform.opacity = sc([[0, 0, 'hold'], [d * 0.22, 0, 'easeOut'], [d * 0.34, 100], [d * 0.86, 0]]);
+      tx.effects.push(fx('glow', { threshold: 30, radius: 14 * k, intensity: 1.6, color: [1, 0.2, 0.25, 1], useColor: true }, t0));
+      // 4) some se desfazendo em pontinhos (meio-tom) — só na logo, o fundo continua preto
+      for (const l of [tx, fill, strokes]) l.effects.push(fx('halftone', { cell: Math.max(4, Math.round(W / 170)), mode: 2, mix: [[d * 0.66, 0, 'easeIn'], [d * 0.76, 100]] }, t0));
+      return [tx, fill, strokes, bg];
+    },
+  },
   {
     id: 'ov-silhueta-ciano', name: 'Silhueta neon ciano (Edit 10)', dur: 0.6, overlay: true, needsLayer: true, src: 'Edit 10 · 0:07',
     fields: [['color', 'Cor', 1, ['Ciano', 'Verde', 'Rosa', 'Branco']]],
