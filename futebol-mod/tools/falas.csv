@@ -1,0 +1,645 @@
+id;voz;texto
+a_1;locutor;a
+amarelo_1;locutor;Cartão amarelo para
+ataque_1;locutor;Vem o ataque!
+ataque_2;locutor;Olha o perigo!
+ataque_3;locutor;Que jogada!
+ataque_4;locutor;Se aproxima da área!
+ataque_5;locutor;A defesa está atenta!
+ataque_6;locutor;Tá chegando!
+ataque_7;locutor;Bola na área, cuidado!
+ataque_8;locutor;Perigo, perigo!
+cabeceio_1;locutor;Cabeceia
+caneta_1;locutor;Caneta! Humilhou o marcador,
+chapeu_1;locutor;Chapéu no marcador! Categoria de
+chute_1;locutor;arrisca!
+chute_2;locutor;bate forte!
+chute_3;locutor;finaliza!
+chute_4;locutor;chuta de longe!
+chute_5;locutor;solta o pé!
+chute_6;locutor;bate colocado!
+chute_7;locutor;manda a bomba!
+chute_8;locutor;tenta o chute!
+com_bola_parada_1;comentarista;Na bola parada, um detalhe decide o jogo.
+com_cansaco_1;comentarista;Os jogadores já começam a sentir o cansaço.
+com_cartao_1;comentarista;Cartão justo. A entrada foi dura.
+com_contra_1;comentarista;O contra-ataque foi letal.
+com_defesa_1;comentarista;O goleiro estava muito bem posicionado.
+com_defesa_2;comentarista;Reflexo rápido. Ele evitou o gol.
+com_defesa_linha_1;comentarista;A linha defensiva precisa fechar melhor os espaços.
+com_drible_1;comentarista;Tem habilidade de sobra esse jogador.
+com_drible_2;comentarista;Quando ele pega embalado, ninguém segura.
+com_falta_1;comentarista;Jogo pegado. O árbitro precisa controlar.
+com_falta_2;comentarista;É uma falta tática, para parar o contra-ataque.
+com_gol_1;comentarista;Foi uma jogada muito bem trabalhada.
+com_gol_2;comentarista;A defesa ficou parada, e o atacante não perdoa.
+com_imped_1;comentarista;A linha de impedimento estava bem postada.
+com_intervalo_1;comentarista;Um tempo de muita luta. Vai ser decidido nos detalhes.
+com_penalti_1;comentarista;Pênalti é pressão pura. Quem bate precisa de sangue frio.
+com_posse_1;comentarista;Posse de bola com paciência, esperando o espaço.
+com_pressao_1;comentarista;O time está pressionando a saída de bola.
+contra_1;locutor;Contra-ataque! Contra-ataque!
+contra_2;locutor;Saiu em velocidade!
+contra_3;locutor;É agora, é agora!
+contra_4;locutor;Cavalgada pelo campo!
+cruz_1;locutor;Cruza na área!
+cruz_2;locutor;Bola alçada na área!
+defesa_1;locutor;Defendeu!
+defesa_2;locutor;Que defesa!
+defesa_3;locutor;Salvou o goleiro!
+defesa_4;locutor;Espalmou!
+defesa_5;locutor;Tirou com a ponta dos dedos!
+defesa_6;locutor;Milagre! Que defesa!
+defesa_de_1;locutor;Grande defesa de
+defesa_de_2;locutor;Que milagre de
+din_cansado_1;comentarista;já está bem cansado, vamos ver se aguenta.
+din_chuta_1;comentarista;é o melhor finalizador em campo.
+din_comeco_1;comentarista;Estamos no início do jogo, e os times ainda estudam o adversário.
+din_dribla_1;comentarista;tem o melhor drible da partida.
+din_empate_1;comentarista;Jogo empatado, equilibrado, e muito aberto.
+din_fim_1;comentarista;Estamos nos minutos finais, e qualquer erro pode custar o jogo.
+din_forte_1;comentarista;é o mais forte fisicamente aqui.
+din_goleiro_1;comentarista;tem reflexos de gato debaixo das traves.
+din_marca_1;comentarista;é quem melhor marca nesse jogo.
+din_passe_1;comentarista;tem o melhor passe do jogo.
+din_placar_1;comentarista;O jogo está aberto, tudo pode acontecer.
+din_placar_2;comentarista;O time que está na frente precisa cuidar da bola.
+din_placar_3;comentarista;Quem está atrás precisa arriscar mais, e isso abre espaço para o contra-ataque.
+din_posse_1;comentarista;Veja a posse de bola: o domínio é todo de um lado, mas gol é outra coisa.
+din_rapido_1;comentarista;é o jogador mais rápido em campo.
+din_visao_1;comentarista;é quem melhor enxerga o jogo.
+elastico_1;locutor;Elástico! Que drible de
+emocao_1;locutor;Que jogo, senhoras e senhores!
+emocao_2;locutor;Olha que partida eletrizante!
+emocao_3;locutor;A torcida não para de cantar!
+emocao_4;locutor;Está pegando fogo aqui no estádio!
+emocao_5;locutor;Que clima nas arquibancadas!
+emocao_6;locutor;Jogo bonito de se ver!
+emocao_7;locutor;Não dá pra piscar nesse jogo!
+emocao_8;locutor;Ninguém senta, todo mundo de pé!
+empate_fim_1;locutor;O jogo termina empatado.
+enfiada_1;locutor;Enfiada de bola para
+escanteio_1;locutor;Escanteio para o
+escanteio_2;locutor;Vai ser cobrado o escanteio.
+escanteio_x_1;locutor;Bola na área! Cabeceia!
+escanteio_x_2;locutor;Disputa de cabeça na área!
+escanteio_x_3;locutor;Bola alçada, confusão!
+escanteio_x_4;locutor;Que bate-rebate!
+falta_1;locutor;Falta de
+falta_2;locutor;Falta cometida por
+falta_3;locutor;Entrada dura de
+falta_4;locutor;Foi duro o lance de
+falta_5;locutor;O árbitro marca. Falta de
+falta_perigosa_1;locutor;Falta perigosa! Quem vai bater é
+falta_perigosa_2;locutor;Bola parada. Vai cobrar
+fato_c_arsenal_1;comentarista;O Arsenal foi o time dos Invencíveis, que terminou a temporada 2003 e 2004 da Premier League sem perder nenhum jogo.
+fato_c_arsenal_2;comentarista;O Emirates Stadium é a casa do Arsenal, em Londres.
+fato_c_arsenal_3;comentarista;O Arsenal tem um dos maiores números de títulos da copa da Inglaterra.
+fato_c_astonvilla_1;comentarista;O Aston Villa foi campeão europeu em 1982.
+fato_c_astonvilla_2;comentarista;O Aston Villa é um dos clubes mais tradicionais da Inglaterra, com camisas grená e azul.
+fato_c_astonvilla_3;comentarista;Villa Park é um dos estádios mais antigos da Inglaterra.
+fato_c_atleticomg_1;comentarista;O Atlético Mineiro foi fundado em 1908 e é conhecido como Galo.
+fato_c_atleticomg_2;comentarista;O Galo conquistou a Libertadores de 2013, com Ronaldinho Gaúcho na equipe.
+fato_c_atleticomg_3;comentarista;A Massa Atleticana é famosa pela festa e pelo apoio nas arquibancadas.
+fato_c_barcelona_1;comentarista;O Barcelona foi fundado em 1899 e tem como lema a frase: mais que um clube.
+fato_c_barcelona_2;comentarista;A Masia, a escola de base do Barcelona, formou craques como Xavi, Iniesta e Messi.
+fato_c_barcelona_3;comentarista;O Barcelona é conhecido pelo estilo de posse de bola e passes curtos.
+fato_c_bayern_1;comentarista;O Bayern de Munique é o maior campeão alemão de todos os tempos.
+fato_c_bayern_2;comentarista;A Allianz Arena brilha em vermelho nos dias de jogo do Bayern.
+fato_c_bayern_3;comentarista;O Bayern é seis vezes campeão europeu.
+fato_c_chelsea_1;comentarista;O Chelsea foi campeão da Champions em 2012 e em 2021.
+fato_c_chelsea_2;comentarista;Stamford Bridge é a casa do Chelsea, no oeste de Londres.
+fato_c_chelsea_3;comentarista;O Chelsea é um dos clubes que mais gastam e mais ganham títulos na era moderna.
+fato_c_cruzeiro_1;comentarista;O Cruzeiro foi fundado em 1921, com o nome de Palestra Itália.
+fato_c_cruzeiro_2;comentarista;O Cruzeiro é bicampeão da Libertadores, em 1976 e 1997.
+fato_c_cruzeiro_3;comentarista;O Mineirão, casa do Cruzeiro, é um dos maiores estádios do Brasil.
+fato_c_dortmund_1;comentarista;A Muralha Amarela, arquibancada do Borussia Dortmund, é uma das mais impressionantes da Europa.
+fato_c_dortmund_2;comentarista;O Borussia foi campeão da Liga dos Campeões em 1997.
+fato_c_dortmund_3;comentarista;O Dortmund é famoso por revelar jovens talentos.
+fato_c_flamengo_1;comentarista;O Flamengo foi campeão da Libertadores em 1981, 2019 e 2022.
+fato_c_flamengo_2;comentarista;O Flamengo é considerado o time de maior torcida do Brasil.
+fato_c_flamengo_3;comentarista;O Maracanã é a casa mais famosa do Flamengo.
+fato_c_liverpool_1;comentarista;Em Anfield, a torcida do Liverpool canta You'll Never Walk Alone antes de cada jogo.
+fato_c_liverpool_2;comentarista;O Liverpool é seis vezes campeão europeu.
+fato_c_liverpool_3;comentarista;O Liverpool tem história de noites mágicas europeias em Anfield.
+fato_c_mancity_1;comentarista;O Manchester City conquistou a Tríplice Coroa em 2023, algo raríssimo no futebol inglês.
+fato_c_mancity_2;comentarista;O Etihad Stadium é a casa do City, que tem Pep Guardiola como símbolo da era moderna.
+fato_c_mancity_3;comentarista;O City usa as cores azul-celeste desde a sua fundação.
+fato_c_manutd_1;comentarista;Old Trafford é conhecido como o Teatro dos Sonhos.
+fato_c_manutd_2;comentarista;O Manchester United tem vinte títulos do campeonato inglês.
+fato_c_manutd_3;comentarista;O United foi o primeiro clube inglês a conquistar a Copa dos Campeões da Europa.
+fato_c_newcastle_1;comentarista;O St James' Park fica no centro da cidade, e a torcida do Newcastle é chamada de Toon Army.
+fato_c_newcastle_2;comentarista;O Newcastle tem camisas listradas de preto e branco, uma das mais clássicas da Inglaterra.
+fato_c_newcastle_3;comentarista;O Newcastle voltou a sonhar com a Europa na era moderna.
+fato_c_palmeiras_1;comentarista;O Palmeiras foi campeão da Libertadores em 1999, 2020 e 2021.
+fato_c_palmeiras_2;comentarista;O Allianz Parque é a casa do Palmeiras, em São Paulo.
+fato_c_palmeiras_3;comentarista;O Palmeiras foi fundado em 1914, como Palestra Itália.
+fato_c_psg_1;comentarista;O Paris Saint-Germain foi fundado em 1970 e conquistou a Champions pela primeira vez em 2025.
+fato_c_psg_2;comentarista;O Parque dos Príncipes é a casa do PSG, no coração de Paris.
+fato_c_psg_3;comentarista;O PSG é dono de uma das maiores sequências de títulos franceses.
+fato_c_realmadrid_1;comentarista;O Real Madrid é o maior campeão da Liga dos Campeões da Europa.
+fato_c_realmadrid_2;comentarista;O Santiago Bernabéu, casa do Real Madrid, é um dos estádios mais famosos do planeta.
+fato_c_realmadrid_3;comentarista;O Real Madrid foi fundado em 1902 e vive de noites históricas na Champions.
+fato_c_saqueadores_1;comentarista;Os Saqueadores são pillagers com camisa vermelha e muita vontade de roubar a bola.
+fato_c_tottenham_1;comentarista;O Tottenham foi fundado em 1882 e tem um estádio moderno, com gramado retrátil.
+fato_c_tottenham_2;comentarista;O Tottenham tem o galo como símbolo e o apelido de Spurs.
+fato_c_tottenham_3;comentarista;O Tottenham é um dos grandes clubes de Londres, sempre com um ataque ofensivo.
+fato_c_vindicadores_1;comentarista;Os Vindicadores trocaram o machado pela chuteira, mas ainda marcam duro.
+fato_e_1;comentarista;Esse estádio foi montado bloco a bloco, com arquibancadas em anéis, teto com LED e telões gigantes.
+fato_e_10;comentarista;Cada jogador tem altura, cabelo e tom de pele inspirados no craque real.
+fato_e_11;comentarista;A transmissão tem câmera principal, câmera alta, atrás do gol, rasteira e até uma spidercam.
+fato_e_12;comentarista;A torcida do time da casa fica atrás do gol, e a visitante, no lado oposto, cada uma com a sua bateria.
+fato_e_13;comentarista;O placar nos telões mostra tempo, público e o confronto do dia.
+fato_e_14;comentarista;A bola de enxofre ganha efeito no ar, dá para ver os chutes de curva fazendo a trajetória.
+fato_e_2;comentarista;A torcida aqui é formada por aldeões: não entendem nada de impedimento, mas gritam como ninguém.
+fato_e_3;comentarista;A bola é um cubo de enxofre com madeira dentro, e a madeira é o que faz ela quicar tão bem.
+fato_e_4;comentarista;O gramado tem listras alternadas, como nos grandes estádios, o que ajuda a ver a linha de impedimento.
+fato_e_5;comentarista;O campo tem noventa blocos de comprimento e cinquenta e seis de largura, com gols de nove blocos.
+fato_e_6;comentarista;Os refletores invisíveis iluminam o gramado inteiro, e o jogo pode até ser disputado à noite.
+fato_e_7;comentarista;Repare nos bancos de reservas cobertos, bem no estilo dos estádios europeus.
+fato_e_8;comentarista;O árbitro de preto e os dois assistentes na linha de impedimento fazem a arbitragem completa.
+fato_e_9;comentarista;Os jogadores usam camisas diferentes quando as cores dos dois times se parecem, como manda o regulamento.
+fato_j_arsenal_14_1;comentarista;Gyökeres chegou ao Arsenal depois de uma temporada de muitos gols em Portugal.
+fato_j_arsenal_41_1;comentarista;Declan Rice foi vendido ao Arsenal por mais de cem milhões de libras.
+fato_j_arsenal_7_1;comentarista;Saka é cria da base do Arsenal.
+fato_j_arsenal_8_1;comentarista;Ødegaard é o capitão do Arsenal e o cérebro da equipe.
+fato_j_astonvilla_23_1;comentarista;Emiliano Martínez é conhecido pelas defesas de pênalti e pela personalidade forte.
+fato_j_barcelona_19_1;comentarista;Lamine Yamal foi campeão da Eurocopa de 2024 um dia depois de completar dezessete anos.
+fato_j_barcelona_9_1;comentarista;Lewandowski já marcou cinco gols em nove minutos em um jogo, em 2015.
+fato_j_bayern_10_1;comentarista;Musiala nasceu na Alemanha, cresceu na Inglaterra e escolheu defender a seleção alemã.
+fato_j_bayern_1_1;comentarista;Neuer revolucionou a função do goleiro, jogando como um líbero.
+fato_j_bayern_6_1;comentarista;Kimmich joga tanto de lateral quanto de volante, sempre com muita inteligência.
+fato_j_bayern_9_1;comentarista;Harry Kane foi artilheiro da Copa do Mundo de 2018.
+fato_j_chelsea_10_1;comentarista;Cole Palmer marcou quatro gols em um único tempo contra o Brighton.
+fato_j_cruzeiro_1_1;comentarista;Cássio é um dos maiores ídolos do Corinthians, onde foi campeão mundial de clubes em 2012.
+fato_j_cruzeiro_9_1;comentarista;Gabigol foi o herói da final da Libertadores de 2019, com dois gols nos acréscimos.
+fato_j_dortmund_7_1;comentarista;Jobe Bellingham é irmão mais novo do Jude, craque do Real Madrid.
+fato_j_flamengo_10_1;comentarista;Arrascaeta é o craque uruguaio que foi decisivo na Libertadores de 2019.
+fato_j_liverpool_11_1;comentarista;Salah é ídolo no Egito e uma das maiores lendas da história do Liverpool.
+fato_j_liverpool_1_1;comentarista;Alisson foi campeão da Champions League em 2019 e é um dos melhores goleiros do mundo.
+fato_j_liverpool_38_1;comentarista;Gravenberch é um meio-campista alto e técnico, cheio de habilidade para carregar a bola.
+fato_j_liverpool_4_1;comentarista;Van Dijk foi o zagueiro mais caro do mundo quando chegou ao Liverpool.
+fato_j_liverpool_7_1;comentarista;Florian Wirtz é um dos meias mais jovens e criativos da Europa.
+fato_j_mancity_16_1;comentarista;Rodri foi eleito o melhor jogador do mundo em 2024.
+fato_j_mancity_47_1;comentarista;Phil Foden é cria da base do Manchester City.
+fato_j_mancity_9_1;comentarista;Haaland é filho do ex-jogador Alf-Inge Haaland e marca gols em ritmo de máquina.
+fato_j_mancity_9_2;comentarista;Haaland é um centroavante de mais de um e noventa, com velocidade rara para o tamanho.
+fato_j_manutd_18_1;comentarista;Casemiro foi campeão da Champions cinco vezes com o Real Madrid.
+fato_j_manutd_30_1;comentarista;Sesko é um atacante de quase dois metros de altura.
+fato_j_manutd_8_1;comentarista;Bruno Fernandes é o capitão e o maior criador de jogadas do Manchester United.
+fato_j_psg_10_1;comentarista;Ousmane Dembélé foi eleito o melhor do mundo em 2025.
+fato_j_psg_2_1;comentarista;Hakimi nasceu na Espanha, mas joga pela seleção do Marrocos.
+fato_j_psg_5_1;comentarista;Marquinhos é o capitão do PSG e um dos brasileiros mais longevos do clube.
+fato_j_psg_7_1;comentarista;Kvaratskhelia foi o grande nome da Geórgia na Eurocopa de 2024.
+fato_j_realmadrid_10_1;comentarista;Mbappé foi campeão do mundo aos dezenove anos, em 2018.
+fato_j_realmadrid_10_2;comentarista;Mbappé é um dos jogadores mais rápidos do mundo, e vive de explosão e finalização.
+fato_j_realmadrid_14_1;comentarista;Tchouaméni é o volante que organiza a saída de bola do Real Madrid.
+fato_j_realmadrid_15_1;comentarista;Valverde é uruguaio e tem o apelido de Pájaro, que significa pássaro.
+fato_j_realmadrid_1_1;comentarista;Courtois foi eleito o melhor goleiro da Copa do Mundo de 2018.
+fato_j_realmadrid_5_1;comentarista;Bellingham tem um irmão mais novo, o Jobe, que joga no Borussia Dortmund.
+fato_j_realmadrid_7_1;comentarista;Vini Jr. começou no Flamengo e foi para o Real Madrid ainda adolescente.
+fil_1;locutor;com a bola.
+fil_10;locutor;faz o jogo andar.
+fil_2;locutor;toca de primeira.
+fil_3;locutor;carrega a bola.
+fil_4;locutor;levanta a cabeça e procura o companheiro.
+fil_5;locutor;domina e olha o jogo.
+fil_6;locutor;gira e protege a bola.
+fil_7;locutor;sobe com a bola dominada.
+fil_8;locutor;não tem pressa, espera o momento.
+fil_9;locutor;acelera pelo meio.
+fim_1t_1;locutor;Termina o primeiro tempo.
+fim_jogo_1;locutor;Acabou! Fim de jogo!
+finta_1;locutor;Que finta de
+fora_1;locutor;Pra fora!
+fora_2;locutor;Passou perto!
+fora_3;locutor;Quase!
+fora_4;locutor;Por pouco! Foi pra fora.
+fora_5;locutor;Passou raspando! Que susto!
+fora_6;locutor;Ia ser um golaço, mas foi pra fora.
+gol_abre_1;locutor;Abre o placar!
+gol_amplia_1;locutor;Amplia o placar!
+gol_contra_1;locutor;Gol contra! Que azar de
+gol_diminui_1;locutor;Diminui a diferença!
+gol_empata_1;locutor;É o gol de empate!
+gol_grito_1;locutor;Gooool! É gol! É gol! É gol!
+gol_grito_2;locutor;Gol! Gol! Que beleza de gol!
+gol_grito_3;locutor;Balançou a rede! Gooooool!
+gol_grito_4;locutor;Foi pra dentro! Gooooool!
+gol_grito_5;locutor;Explode o estádio! Gooool!
+gol_grito_6;locutor;É gol, minha gente! Gooool!
+gol_pos_1;locutor;Que golaço!
+gol_pos_2;locutor;Sensacional!
+gol_pos_3;locutor;Inacreditável!
+gol_pos_4;locutor;Fantástico!
+gol_pos_5;locutor;Que pintura!
+gol_pos_6;locutor;Não tem jeito, é craque!
+gol_pos_7;locutor;Que tremenda finalização!
+gol_pos_8;locutor;O goleiro só olhou!
+gol_vira_1;locutor;Vira o jogo!
+goleiro_1;locutor;Segura o goleiro!
+goleiro_2;locutor;O goleiro fica com a bola.
+goleiro_3;locutor;Goleiro pronto pra repor.
+goleiro_4;locutor;Ele reinicia o jogo com calma.
+impedimento_1;locutor;Impedimento! Bandeira levantada.
+impedimento_2;locutor;Estava adiantado! Impedimento.
+inicio_1;locutor;Apita o árbitro. Rola a bola!
+inicio_2;locutor;Bola rolando!
+inicio_2t_1;locutor;Bola rolando para o segundo tempo!
+inicio_2t_2;locutor;Recomeça a partida!
+inicio_3;locutor;Começa o jogo!
+intro_a_1;locutor;Boa noite, torcedores! Hoje a bola vai rolar para
+intro_a_2;locutor;Está tudo pronto para o jogo entre
+intro_b_1;locutor;contra
+intro_c_1;locutor;Vai começar a partida!
+intro_c_2;locutor;Que comece o espetáculo!
+inversao_1;locutor;Inversão de jogo para o outro lado.
+lateral_1;locutor;Lateral para o
+min_pos_1;locutor;minutos.
+min_pos_2;locutor;minuto.
+min_pre_1;locutor;Aos
+n_0;locutor;zero
+n_1;locutor;um
+n_10;locutor;dez
+n_11;locutor;onze
+n_12;locutor;doze
+n_13;locutor;treze
+n_14;locutor;catorze
+n_15;locutor;quinze
+n_16;locutor;dezesseis
+n_17;locutor;dezessete
+n_18;locutor;dezoito
+n_19;locutor;dezenove
+n_2;locutor;dois
+n_20;locutor;vinte
+n_21;locutor;vinte e um
+n_22;locutor;vinte e dois
+n_23;locutor;vinte e três
+n_24;locutor;vinte e quatro
+n_25;locutor;vinte e cinco
+n_26;locutor;vinte e seis
+n_27;locutor;vinte e sete
+n_28;locutor;vinte e oito
+n_29;locutor;vinte e nove
+n_3;locutor;três
+n_30;locutor;trinta
+n_31;locutor;trinta e um
+n_32;locutor;trinta e dois
+n_33;locutor;trinta e três
+n_34;locutor;trinta e quatro
+n_35;locutor;trinta e cinco
+n_36;locutor;trinta e seis
+n_37;locutor;trinta e sete
+n_38;locutor;trinta e oito
+n_39;locutor;trinta e nove
+n_4;locutor;quatro
+n_40;locutor;quarenta
+n_41;locutor;quarenta e um
+n_42;locutor;quarenta e dois
+n_43;locutor;quarenta e três
+n_44;locutor;quarenta e quatro
+n_45;locutor;quarenta e cinco
+n_46;locutor;quarenta e seis
+n_47;locutor;quarenta e sete
+n_48;locutor;quarenta e oito
+n_49;locutor;quarenta e nove
+n_5;locutor;cinco
+n_50;locutor;cinquenta
+n_51;locutor;cinquenta e um
+n_52;locutor;cinquenta e dois
+n_53;locutor;cinquenta e três
+n_54;locutor;cinquenta e quatro
+n_55;locutor;cinquenta e cinco
+n_56;locutor;cinquenta e seis
+n_57;locutor;cinquenta e sete
+n_58;locutor;cinquenta e oito
+n_59;locutor;cinquenta e nove
+n_6;locutor;seis
+n_60;locutor;sessenta
+n_61;locutor;sessenta e um
+n_62;locutor;sessenta e dois
+n_63;locutor;sessenta e três
+n_64;locutor;sessenta e quatro
+n_65;locutor;sessenta e cinco
+n_66;locutor;sessenta e seis
+n_67;locutor;sessenta e sete
+n_68;locutor;sessenta e oito
+n_69;locutor;sessenta e nove
+n_7;locutor;sete
+n_70;locutor;setenta
+n_71;locutor;setenta e um
+n_72;locutor;setenta e dois
+n_73;locutor;setenta e três
+n_74;locutor;setenta e quatro
+n_75;locutor;setenta e cinco
+n_76;locutor;setenta e seis
+n_77;locutor;setenta e sete
+n_78;locutor;setenta e oito
+n_79;locutor;setenta e nove
+n_8;locutor;oito
+n_80;locutor;oitenta
+n_81;locutor;oitenta e um
+n_82;locutor;oitenta e dois
+n_83;locutor;oitenta e três
+n_84;locutor;oitenta e quatro
+n_85;locutor;oitenta e cinco
+n_86;locutor;oitenta e seis
+n_87;locutor;oitenta e sete
+n_88;locutor;oitenta e oito
+n_89;locutor;oitenta e nove
+n_9;locutor;nove
+n_90;locutor;noventa
+n_91;locutor;noventa e um
+n_92;locutor;noventa e dois
+n_93;locutor;noventa e três
+n_94;locutor;noventa e quatro
+n_95;locutor;noventa e cinco
+n_96;locutor;noventa e seis
+n_97;locutor;noventa e sete
+n_98;locutor;noventa e oito
+n_99;locutor;noventa e nove
+p_arsenal_1;locutor;Raia
+p_arsenal_11;locutor;Martinelli
+p_arsenal_12;locutor;Tímber
+p_arsenal_14;locutor;Iókeres
+p_arsenal_2;locutor;Salíba
+p_arsenal_36;locutor;Zubimêndi
+p_arsenal_4;locutor;Uáit
+p_arsenal_41;locutor;Rais
+p_arsenal_6;locutor;Gabriel
+p_arsenal_7;locutor;Sáka
+p_arsenal_8;locutor;Ôdegor
+p_astonvilla_10;locutor;Buendía
+p_astonvilla_11;locutor;Uótkins
+p_astonvilla_12;locutor;Dinhe
+p_astonvilla_14;locutor;Torres
+p_astonvilla_2;locutor;Quéxi
+p_astonvilla_23;locutor;Emi Martínez
+p_astonvilla_27;locutor;Rógers
+p_astonvilla_31;locutor;Béili
+p_astonvilla_4;locutor;Konsa
+p_astonvilla_6;locutor;Kamara
+p_astonvilla_7;locutor;Maquiguínn
+p_atleticomg_11;locutor;Rony
+p_atleticomg_14;locutor;Scarpa
+p_atleticomg_2;locutor;Natanael
+p_atleticomg_22;locutor;Everson
+p_atleticomg_3;locutor;Lianco
+p_atleticomg_4;locutor;Alonso
+p_atleticomg_5;locutor;Alan Franco
+p_atleticomg_6;locutor;Lodi
+p_atleticomg_7;locutor;Húlqui
+p_atleticomg_8;locutor;Igor Gomes
+p_atleticomg_9;locutor;Paulinho
+p_barcelona_11;locutor;Rafinha
+p_barcelona_13;locutor;Joan García
+p_barcelona_19;locutor;Iamál
+p_barcelona_20;locutor;Olmo
+p_barcelona_21;locutor;de Iông
+p_barcelona_23;locutor;Kundê
+p_barcelona_3;locutor;Báldi
+p_barcelona_4;locutor;Araújo
+p_barcelona_5;locutor;Cubarsí
+p_barcelona_8;locutor;Pedri
+p_barcelona_9;locutor;Levandófiski
+p_bayern_1;locutor;Nóier
+p_bayern_10;locutor;Musiála
+p_bayern_14;locutor;Díaz
+p_bayern_17;locutor;Olís
+p_bayern_19;locutor;Dêivis
+p_bayern_2;locutor;Upamecano
+p_bayern_4;locutor;Tá
+p_bayern_44;locutor;Stanichítch
+p_bayern_45;locutor;Pavlovítch
+p_bayern_6;locutor;Kímmirr
+p_bayern_9;locutor;Quêin
+p_chelsea_1;locutor;Sánchez
+p_chelsea_10;locutor;Palmer
+p_chelsea_20;locutor;João Pedro
+p_chelsea_25;locutor;Caicedo
+p_chelsea_26;locutor;Chalôba
+p_chelsea_27;locutor;Gusto
+p_chelsea_3;locutor;Cucurella
+p_chelsea_41;locutor;Estêvão
+p_chelsea_6;locutor;Cólui
+p_chelsea_7;locutor;Neto
+p_chelsea_8;locutor;Enzo
+p_cruzeiro_1;locutor;Cássio
+p_cruzeiro_10;locutor;Matheus Pereira
+p_cruzeiro_11;locutor;Wanderson
+p_cruzeiro_15;locutor;Fabrício Bruno
+p_cruzeiro_19;locutor;Kaio Jorge
+p_cruzeiro_2;locutor;William
+p_cruzeiro_4;locutor;João Marcelo
+p_cruzeiro_5;locutor;Romero
+p_cruzeiro_6;locutor;Kaiki
+p_cruzeiro_8;locutor;Christian
+p_cruzeiro_9;locutor;Gabigól
+p_dortmund_1;locutor;Cóbel
+p_dortmund_15;locutor;Ânton
+p_dortmund_19;locutor;Brandt
+p_dortmund_23;locutor;Cân
+p_dortmund_24;locutor;Svénsson
+p_dortmund_26;locutor;Ráierson
+p_dortmund_27;locutor;Adeiêmi
+p_dortmund_4;locutor;Chlóterbek
+p_dortmund_6;locutor;Nemécha
+p_dortmund_7;locutor;Jobe Bellingham
+p_dortmund_9;locutor;Girássi
+p_flamengo_1;locutor;Rossi
+p_flamengo_10;locutor;Arrascaêta
+p_flamengo_11;locutor;Luiz Araújo
+p_flamengo_2;locutor;Varela
+p_flamengo_21;locutor;Jorginho
+p_flamengo_27;locutor;Bruno Henrique
+p_flamengo_3;locutor;Léo Ortiz
+p_flamengo_4;locutor;Léo Pereira
+p_flamengo_5;locutor;Pulgar
+p_flamengo_6;locutor;Ayrton Lucas
+p_flamengo_9;locutor;Pedro
+p_liverpool_1;locutor;Becker
+p_liverpool_10;locutor;Mac Alíster
+p_liverpool_11;locutor;Salá
+p_liverpool_26;locutor;Robertson
+p_liverpool_30;locutor;Frímpong
+p_liverpool_38;locutor;Gravenberg
+p_liverpool_4;locutor;Van Dáik
+p_liverpool_5;locutor;Konatê
+p_liverpool_7;locutor;Vírts
+p_liverpool_8;locutor;Soboslai
+p_liverpool_9;locutor;Ísaque
+p_mancity_10;locutor;Chérqui
+p_mancity_11;locutor;Dôku
+p_mancity_16;locutor;Rodri
+p_mancity_24;locutor;Gvardiól
+p_mancity_25;locutor;Donnarumma
+p_mancity_27;locutor;Nunes
+p_mancity_3;locutor;Rúben Dias
+p_mancity_33;locutor;Orrali
+p_mancity_4;locutor;Reindérs
+p_mancity_47;locutor;Fôden
+p_mancity_9;locutor;Rólan
+p_manutd_10;locutor;Cunha
+p_manutd_16;locutor;Amad
+p_manutd_18;locutor;Casemiro
+p_manutd_2;locutor;Dalot
+p_manutd_23;locutor;Xô
+p_manutd_30;locutor;Sheshko
+p_manutd_31;locutor;Lámens
+p_manutd_37;locutor;Máinu
+p_manutd_5;locutor;Maguáier
+p_manutd_6;locutor;Martínez
+p_manutd_8;locutor;Bruno Fernandes
+p_newcastle_1;locutor;Poup
+p_newcastle_10;locutor;Gordon
+p_newcastle_11;locutor;Bárnes
+p_newcastle_21;locutor;Livramento
+p_newcastle_27;locutor;Voltemáde
+p_newcastle_33;locutor;Bérn
+p_newcastle_39;locutor;Guimarães
+p_newcastle_4;locutor;Botman
+p_newcastle_5;locutor;Xér
+p_newcastle_7;locutor;Joelinton
+p_newcastle_8;locutor;Tonali
+p_palmeiras_11;locutor;Felipe Anderson
+p_palmeiras_12;locutor;Kêlven
+p_palmeiras_15;locutor;Gustavo Gómez
+p_palmeiras_17;locutor;Pikêres
+p_palmeiras_20;locutor;Facundo Torres
+p_palmeiras_21;locutor;Weverton
+p_palmeiras_22;locutor;Murilo
+p_palmeiras_23;locutor;Veiga
+p_palmeiras_5;locutor;Aníbal Moreno
+p_palmeiras_8;locutor;Zé Rafael
+p_palmeiras_9;locutor;Vitor Roque
+p_psg_10;locutor;Dembelê
+p_psg_14;locutor;Duê
+p_psg_17;locutor;Vitinha
+p_psg_2;locutor;Rakími
+p_psg_25;locutor;Mendes
+p_psg_30;locutor;Chevaliê
+p_psg_5;locutor;Marquinhos
+p_psg_51;locutor;Pacho
+p_psg_7;locutor;Kvaratskélia
+p_psg_8;locutor;Neves
+p_psg_87;locutor;Ruiz
+p_realmadrid_1;locutor;Curtuá
+p_realmadrid_10;locutor;Embapê
+p_realmadrid_11;locutor;Rodrigo
+p_realmadrid_12;locutor;Alexânder Arnold
+p_realmadrid_14;locutor;Tchuaméni
+p_realmadrid_15;locutor;Valverde
+p_realmadrid_18;locutor;Carreras
+p_realmadrid_22;locutor;Rúdiguer
+p_realmadrid_3;locutor;Militão
+p_realmadrid_5;locutor;Bélingam
+p_realmadrid_7;locutor;Vinícius
+p_saqueadores_1;locutor;Muralha
+p_saqueadores_10;locutor;Camisa Dez
+p_saqueadores_11;locutor;Foguete
+p_saqueadores_2;locutor;Tufão
+p_saqueadores_3;locutor;Zeca
+p_saqueadores_4;locutor;Rochedo
+p_saqueadores_5;locutor;Paredão
+p_saqueadores_6;locutor;Maestro
+p_saqueadores_7;locutor;Raio
+p_saqueadores_8;locutor;Cérebro
+p_saqueadores_9;locutor;Artilheiro
+p_tottenham_1;locutor;Vicario
+p_tottenham_11;locutor;Odobér
+p_tottenham_17;locutor;Romero
+p_tottenham_19;locutor;Solanke
+p_tottenham_20;locutor;Kúdus
+p_tottenham_23;locutor;Porro
+p_tottenham_24;locutor;Spens
+p_tottenham_37;locutor;Van de Ven
+p_tottenham_5;locutor;Sarr
+p_tottenham_6;locutor;Palhinha
+p_tottenham_7;locutor;Xavi Simons
+p_vindicadores_1;locutor;Gigante
+p_vindicadores_10;locutor;Mágico
+p_vindicadores_11;locutor;Relâmpago
+p_vindicadores_2;locutor;Trator
+p_vindicadores_3;locutor;Marreta
+p_vindicadores_4;locutor;Brutus
+p_vindicadores_5;locutor;Capitão
+p_vindicadores_6;locutor;Cão de Guarda
+p_vindicadores_7;locutor;Cometa
+p_vindicadores_8;locutor;Armador
+p_vindicadores_9;locutor;Matador
+pedalada_1;locutor;Olha a pedalada de
+penalti_1;locutor;É pênalti! O árbitro marca!
+penalti_cobra_1;locutor;Vai cobrar
+penalti_cobra_2;locutor;Na bola, o batedor:
+placar_pre_1;locutor;O placar agora:
+pressao_1;locutor;O time aperta a marcação!
+pressao_2;locutor;Marcação alta, não deixa respirar!
+pressao_3;locutor;Pressão total no campo de ataque!
+pressao_4;locutor;Sufoco, sufoco!
+replay_1;locutor;Vamos rever o lance.
+replay_2;locutor;Olha de novo!
+replay_3;locutor;Vale ver novamente.
+ritmo_1;locutor;Bola rolando macia no gramado.
+ritmo_2;locutor;Jogo truncado no meio de campo.
+ritmo_3;locutor;Troca de passes, esperando o espaço.
+ritmo_4;locutor;O time toca a bola com paciência.
+ritmo_5;locutor;Disputa forte no meio-campo!
+ritmo_6;locutor;Cada bola é uma guerra aqui!
+t_arsenal;locutor;Arsenal
+t_astonvilla;locutor;Áston Vila
+t_atleticomg;locutor;Atlético Mineiro
+t_barcelona;locutor;Barcelona
+t_bayern;locutor;Báiern de Munique
+t_chelsea;locutor;Tchélsi
+t_cruzeiro;locutor;Cruzeiro
+t_dortmund;locutor;Borússia Dortmund
+t_flamengo;locutor;Flamengo
+t_liverpool;locutor;Líverpul
+t_mancity;locutor;Mântchester Síti
+t_manutd;locutor;Mântchester Iunáited
+t_newcastle;locutor;Niucásou
+t_palmeiras;locutor;Palmeiras
+t_psg;locutor;Paris Sãn Jermã
+t_realmadrid;locutor;Real Madri
+t_saqueadores;locutor;Saqueadores
+t_tottenham;locutor;Tótenam
+t_vindicadores;locutor;Vindicadores
+tat_1;comentarista;A equipe está muito bem postada, sem dar espaço ao adversário.
+tat_10;comentarista;O contra-ataque nasce de uma bola roubada e de três ou quatro passes rápidos.
+tat_11;comentarista;Repare como o ataque se abre pelos lados antes de cruzar na área.
+tat_12;comentarista;Jogar aberto pelas pontas estica a defesa e abre espaço no meio.
+tat_13;comentarista;O goleiro moderno também joga com os pés, é o primeiro atacante.
+tat_14;comentarista;Quando o time está com a bola, os laterais viram meias e os zagueiros ficam em três.
+tat_15;comentarista;A inversão de jogo muda o lado e desorganiza a marcação.
+tat_16;comentarista;Tabelinha de primeira é o jeito mais bonito de quebrar uma linha de quatro.
+tat_17;comentarista;O atacante que desce para buscar o jogo abre espaço para o companheiro entrar.
+tat_18;comentarista;A marcação por zona exige comunicação o tempo todo.
+tat_19;comentarista;O cansaço aparece nos minutos finais, e os erros de passe aumentam.
+tat_2;comentarista;Veja como a linha defensiva sobe junta para deixar o atacante em impedimento.
+tat_20;comentarista;Quem erra menos passes costuma sair com a vitória.
+tat_21;comentarista;Um bom zagueiro antecipa a jogada antes de o atacante receber a bola.
+tat_22;comentarista;O drible curto na intermediária é arriscado, mas quando dá certo, quebra a marcação.
+tat_23;comentarista;Cruzamento rasteiro é uma das jogadas mais perigosas, porque obriga o goleiro a decidir rápido.
+tat_24;comentarista;O chute de fora da área é um recurso quando a defesa se fecha.
+tat_25;comentarista;Esse tipo de jogo pede paciência: a vaga na área vai aparecer.
+tat_26;comentarista;A bola alta na área é um perigo, principalmente com atacantes fortes de cabeça.
+tat_27;comentarista;Quando um time está em desvantagem, o treinador mexe e coloca mais gente na frente.
+tat_28;comentarista;Dois volantes dão proteção, mas tiram um pouco de criatividade do meio.
+tat_29;comentarista;Um time bem treinado se reconhece pela distância curta entre os setores.
+tat_3;comentarista;O volante é peça-chave: ele protege a zaga e começa o jogo.
+tat_30;comentarista;Defender bem também é saber a hora certa de fazer a falta.
+tat_4;comentarista;Quando o ponta recompõe e ajuda o lateral, o time fica muito mais difícil de ser batido.
+tat_5;comentarista;Posse de bola com paciência, esperando o espaço aparecer.
+tat_6;comentarista;Essa saída de bola curta pelo goleiro exige muita coragem e qualidade técnica.
+tat_7;comentarista;O meio-campo é onde o jogo se decide, e a briga está equilibrada.
+tat_8;comentarista;A bola parada pode ser a grande arma em um jogo truncado como esse.
+tat_9;comentarista;O time que pressiona alto cansa mais, mas rouba a bola mais perto do gol.
+tempo_1;locutor;O relógio corre!
+tempo_2;locutor;O tempo está passando!
+tempo_3;locutor;Cada minuto agora vale ouro!
+tiro_meta_1;locutor;Tiro de meta.
+torcida_1;locutor;A torcida vai à loucura!
+torcida_2;locutor;Que festa nas arquibancadas!
+vermelho_1;locutor;Cartão vermelho! Expulso
+vermelho_2;locutor;Está fora do jogo!
+vitoria_1;locutor;Vitória do

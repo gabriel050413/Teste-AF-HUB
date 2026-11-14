@@ -25,6 +25,7 @@ public final class Crowd {
     private final int[][] melody = new int[2][16];
     private final boolean[][] rhythm = new boolean[2][16];
     public int count;
+    private double excite = 0.25;               // 0..1: empolgação da torcida
 
     public Crowd(Match m, int n) {
         this.m = m;
@@ -71,11 +72,14 @@ public final class Crowd {
 
     public void event(String type, int team) {
         Vec3 c0 = m.pitch.stadium.endCenter(0), c1 = m.pitch.stadium.endCenter(1);
+        excite = Math.min(1.0, excite + (type.equals("goal") ? 1.0 : type.equals("chance") ? 0.35 : type.equals("save") ? 0.3 : 0.12));
         switch (type) {
             case "goal" -> {
                 cheer[team] = 140; boo[1 - team] = 80;
                 for (int i = 0; i < 6; i++) { sound(c0, SoundEvents.VILLAGER_CELEBRATE, 3f, 0.9f + rnd.nextFloat() * 0.4f); sound(c1, SoundEvents.VILLAGER_CELEBRATE, 3f, 0.9f + rnd.nextFloat() * 0.4f); }
                 sound(m.pitch.stadium.endCenter(team), SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 4f, 1f);
+                m.level.playSound(null, c0.x, c0.y, c0.z, SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(1), SoundSource.NEUTRAL, 5f, 1f);
+                m.level.playSound(null, c1.x, c1.y, c1.z, SoundEvents.GOAT_HORN_SOUND_VARIANTS.get(3), SoundSource.NEUTRAL, 5f, 1f);
             }
             case "chance" -> { ooh[0] = ooh[1] = 30; cheer[team] = Math.max(cheer[team], 24); sound(c0, SoundEvents.VILLAGER_AMBIENT, 3f, 1.5f); sound(c1, SoundEvents.VILLAGER_AMBIENT, 3f, 1.5f); }
             case "save" -> { boo[team] = 40; sound(m.pitch.stadium.endCenter(team), SoundEvents.VILLAGER_NO, 3f, 0.8f); cheer[1 - team] = 30; }
@@ -111,7 +115,45 @@ public final class Crowd {
                 e.setYRot(yaw); e.yBodyRot = yaw; e.setYHeadRot(yaw);
             }
         }
+        excite = Math.max(0.2, excite - 0.0012);
+        if (m.carrier != null && m.U(m.carrier.team, m.carrier.pos().x) > 48) excite = Math.min(1.0, excite + 0.004);
         if (t % 5 == 0) chant();
+        ambience();
+    }
+
+
+    /** Som ambiente do estádio: murmúrio, palmas, assobios, vaias, "olé" e tensão em pênaltis. */
+    private void ambience() {
+        boolean live = m.st == Match.St.PLAYING || m.st == Match.St.SETPIECE || m.st == Match.St.GOAL || m.st == Match.St.INTRO || m.st == Match.St.REPLAY;
+        if (!live || fans.isEmpty()) return;
+        // murmúrio contínuo espalhado pelas arquibancadas
+        if (t % 4 == 0 && rnd.nextDouble() < 0.35 + 0.55 * excite) {
+            Fan f = fans.get(rnd.nextInt(fans.size()));
+            double vol = 0.5 + 1.4 * excite;
+            m.level.playSound(null, f.e.getX(), f.e.getY(), f.e.getZ(), rnd.nextInt(4) == 0 ? SoundEvents.VILLAGER_YES : SoundEvents.VILLAGER_AMBIENT, SoundSource.NEUTRAL, (float) vol, 0.75f + rnd.nextFloat() * 0.5f);
+        }
+        // palmas rápidas quando a coisa esquenta
+        if (excite > 0.55 && t % 3 == 0) {
+            Fan f = fans.get(rnd.nextInt(fans.size()));
+            m.level.playSound(null, f.e.getX(), f.e.getY(), f.e.getZ(), SoundEvents.NOTE_BLOCK_HAT, SoundSource.NEUTRAL, (float) (0.7 + excite), 1.6f + rnd.nextFloat() * 0.6f);
+        }
+        // assobios de vaia da torcida adversária em lances duvidosos
+        if (boo[0] + boo[1] > 0 && t % 5 == 0) {
+            Vec3 at = m.pitch.stadium.endCenter(boo[0] > 0 ? 0 : 1);
+            m.level.playSound(null, at.x, at.y, at.z, SoundEvents.NOTE_BLOCK_FLUTE, SoundSource.NEUTRAL, 1.8f, 1.9f + rnd.nextFloat() * 0.4f);
+        }
+        // tensão antes do pênalti: batida de bumbo que acelera
+        if (m.st == Match.St.SETPIECE && m.sp == Match.SP.PENALTY) {
+            int period = Math.max(5, 20 - m.spTicks / 8);
+            if (t % period == 0) { Vec3 c = new Vec3(m.pitch.cx(), m.pitch.surf() + 6, m.pitch.cz()); m.level.playSound(null, c.x, c.y, c.z, SoundEvents.NOTE_BLOCK_BASEDRUM, SoundSource.NEUTRAL, 3f, 0.7f); }
+        }
+        // "olé" quando um time troca muitos passes
+        if (m.carrier != null && m.carrier.ctrlTicks == 1 && rnd.nextInt(7) == 0) { Vec3 c = m.pitch.stadium.endCenter(m.carrier.team); sound(c, SoundEvents.VILLAGER_YES, 2.5f, 1.1f); }
+        // fogos / papel picado nos gols continuam por um tempo
+        if (cheer[0] + cheer[1] > 60 && t % 7 == 0) {
+            Vec3 c = m.pitch.stadium.endCenter(cheer[0] > cheer[1] ? 0 : 1);
+            m.level.sendParticles(net.minecraft.core.particles.ParticleTypes.FIREWORK, c.x, c.y + 4, c.z, 10, 6, 3, 10, 0.12);
+        }
     }
 
     /** Bateria + melodia de cada torcida, mais forte quando o time está atacando. */

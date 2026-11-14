@@ -37,6 +37,9 @@ public final class Referee {
         }
     }
 
+    /** Gesto do apito: o árbitro levanta o braço. */
+    public void whistleGesture() { if (mobs[0] != null && mobs[0].isAlive()) mobs[0].swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false); }
+
     public void remove() { for (Mob e : mobs) if (e != null) e.discard(); }
 
     private void move(int i, double tx, double tz, double max) {

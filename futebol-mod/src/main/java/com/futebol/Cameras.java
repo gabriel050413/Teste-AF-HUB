@@ -39,11 +39,17 @@ public final class Cameras {
     }
 
     /** Enquadramento escolhido para este tick. */
-    private record Shot(String key, Vec3 pos, Vec3 focus, double posAlpha, double panMax, double dead, double shake) {}
+    private record Shot(String key, Vec3 pos, Vec3 focus, double posAlpha, double panMax, double dead, double shake, double zoomMax, double zoomRate) {
+        Shot(String key, Vec3 pos, Vec3 focus, double posAlpha, double panMax, double dead, double shake) { this(key, pos, focus, posAlpha, panMax, dead, shake, 0, 0); }
+    }
+
+    /** Tremor de câmera por impacto (gol, defesa, trombada): decai sozinho. */
+    private double shakeAmp;
+    public void shake(double amp) { shakeAmp = Math.max(shakeAmp, amp); }
 
     private static final class Sess {
         Entity expect; int grace, ready, resend1, resend2; boolean needSet; ArmorStand cam; Mode mode; Vec3 pos = Vec3.ZERO; double yaw, pitch;
-        String key = ""; int born; boolean forced; Mode prev; FPlayer followed;
+        String key = ""; int born, shotTicks; boolean forced; Mode prev; FPlayer followed;
     }
 
     private final Match m;
@@ -120,6 +126,7 @@ public final class Cameras {
 
     public void tick() {
         tick++;
+        shakeAmp *= 0.93;
         hist.addLast(m.bp()); if (hist.size() > 9) hist.pollFirst();
         director();
         List<UUID> gone = new ArrayList<>();
@@ -152,15 +159,16 @@ public final class Cameras {
         switch (st) {
             case REPLAY -> {
                 double f = m.replayIdx / (double) Math.max(1, m.replayLen);
-                Mode want = f < 0.40 ? Mode.ALTA : f < 0.62 ? Mode.GOL : f < 0.82 ? Mode.RASTEIRA : Mode.ROSTO;
+                Mode want = f < 0.26 ? Mode.TV : f < 0.46 ? Mode.GOL : f < 0.68 ? Mode.RASTEIRA : f < 0.86 ? Mode.ALTA : Mode.ROSTO;
                 if (want != dMode) { dMode = want; dEnd = tick + 20; dSubject = m.lastToucher; dSide = bx >= 0 ? 1 : -1; dEnd = tick; }
                 dSubject = m.lastToucher;
             }
             case GOAL -> {
                 dTeam = m.lastEventTeam < 0 ? 0 : m.lastEventTeam;
-                if (m.stTicks < 55) { dMode = Mode.ROSTO; dSubject = m.lastToucher; }
+                if (m.stTicks < 42) { dMode = Mode.ROSTO; dSubject = m.goalScorer != null ? m.goalScorer : m.lastToucher; }
+                else if (m.stTicks < 62) { dMode = Mode.ALTA; dSide = m.attackDir[Math.max(0, m.lastEventTeam)]; }
                 else if (m.stTicks < 105) dMode = Mode.TORCIDA;
-                else dMode = Mode.ALTA;
+                else dMode = Mode.TV;
             }
             case SETPIECE -> {
                 int t = m.spTicks;
@@ -243,6 +251,7 @@ public final class Cameras {
                 if (f == null || !f.e.isAlive()) f = m.all.get(0);
                 Vec3 q = f.pos();
                 Vec3 pos = new Vec3(q.x + f.fx * 3.4 - f.fz * 1.5, q.y + 1.9, q.z + f.fz * 3.4 + f.fx * 1.5);
+                if (tick % 20 == 0 && pl != null) pl.sendSystemMessage(Component.literal("§f§l#" + f.def.num() + " " + f.def.nome().toUpperCase() + " §8│ §7" + f.def.pos().sigla + " §8│ §e★ " + f.st().overall(f.def.pos()) + " §8│ " + Roster.COR_CHAT[f.team] + Roster.TIME_NOME[f.team]), true);
                 return new Shot("rosto" + f.team + f.def.num(), pos, new Vec3(q.x, q.y + 1.55, q.z), 0.12, 1.2, 0.5, 0.35);
             }
             case TORCIDA: {
@@ -279,10 +288,12 @@ public final class Cameras {
         }
         if (s.followed != null) { s.followed = null; apply(pl, s, s.cam); }
         Shot sh = shotFor(mode, s, pl);
+        boolean dolly = m.st == Match.St.REPLAY || m.st == Match.St.GOAL;
+        if (dolly && sh.zoomMax() == 0 && mode != Mode.TATICA && mode != Mode.TORCIDA) sh = new Shot(sh.key(), sh.pos(), sh.focus(), sh.posAlpha(), sh.panMax(), sh.dead(), sh.shake(), mode == Mode.ROSTO ? 0.25 : 0.30, 0.0035);
         double dx = sh.focus().x - sh.pos().x, dy = sh.focus().y - sh.pos().y, dz = sh.focus().z - sh.pos().z;
         double ty = Match.yawTo(dx, dz), tp = Math.toDegrees(Math.atan2(-dy, Math.max(0.01, Math.hypot(dx, dz))));
         if (!sh.key().equals(s.key)) {                       // CORTE: troca seca de câmera
-            s.key = sh.key(); s.pos = sh.pos(); s.yaw = ty; s.pitch = tp;
+            s.key = sh.key(); s.pos = sh.pos(); s.yaw = ty; s.pitch = tp; s.shotTicks = 0;
         } else {
             s.pos = s.pos.add(sh.pos().subtract(s.pos).scale(sh.posAlpha()));
             double dyaw = Match.Mth_wrap(ty - s.yaw), dpit = tp - s.pitch;
@@ -293,9 +304,17 @@ public final class Cameras {
             s.yaw += clamp(ay * 0.07, -sh.panMax(), sh.panMax());
             s.pitch += clamp(ap * 0.07, -sh.panMax() * 0.7, sh.panMax() * 0.7);
         }
-        double sw = sh.shake();
-        float yaw = (float) (s.yaw + (sw > 0 ? Math.sin(tick * 0.31) * sw : 0)), pitch = (float) (s.pitch + (sw > 0 ? Math.sin(tick * 0.23 + 1.7) * sw * 0.7 : 0));
-        s.cam.snapTo(s.pos.x, s.pos.y - s.cam.getEyeHeight(), s.pos.z, yaw, pitch);
+        s.shotTicks++;
+        Vec3 drawPos = s.pos;
+        if (sh.zoomMax() > 0) {                              // dolly lento em direção ao lance (como nos replays de TV)
+            double k = Math.min(sh.zoomMax(), s.shotTicks * sh.zoomRate());
+            k = k * k / Math.max(0.01, sh.zoomMax()) * 0.6 + k * 0.4;
+            drawPos = s.pos.add(sh.focus().subtract(s.pos).scale(k));
+            drawPos = new Vec3(drawPos.x, Math.max(m.pitch.surf() + 1.7, drawPos.y), drawPos.z);
+        }
+        double sw = sh.shake() + shakeAmp;
+        float yaw = (float) (s.yaw + (sw > 0 ? (Math.sin(tick * 0.31) + 0.6 * Math.sin(tick * 1.7)) * sw : 0)), pitch = (float) (s.pitch + (sw > 0 ? (Math.sin(tick * 0.23 + 1.7) + 0.6 * Math.sin(tick * 1.3)) * sw * 0.7 : 0));
+        s.cam.snapTo(drawPos.x, drawPos.y - s.cam.getEyeHeight(), drawPos.z, yaw, pitch);
         s.cam.setYHeadRot(yaw); s.cam.yBodyRot = yaw; s.cam.yBodyRotO = yaw;      // LivingEntity usa a rotação da CABEÇA como direção da câmera
     }
 

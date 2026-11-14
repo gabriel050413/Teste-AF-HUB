@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-Gera a narração do mod Futebol (locução + comentarista) com TTS offline.
+Gera a narração do mod Futebol (locutor + comentarista).
 
-Voz: Kokoro-82M (Apache-2.0) — vozes pt-BR masculinas `pm_alex` (narrador) e `pm_santa` (comentarista).
+Motores de voz:
+  --motor piper   (padrão) Piper, vozes pt-BR de falantes brasileiros nativos, licença CC0 (faber, cadu, jeff)
+  --motor kokoro  Kokoro-82M (Apache-2.0) — sotaque pior em pt-BR, só para comparação
+  --importar PASTA  usa SUA voz: coloque arquivos <id>.wav/.mp3/.ogg na pasta (ids em tools/falas.csv) e o script converte tudo
+
 Saída: clipes .ogg + sounds.json + manifest.txt dentro de src/main/resources.
 
-Uso:
-  python3 -m venv .venv && . .venv/bin/activate
-  pip install kokoro-onnx onnxruntime soundfile numpy espeakng-loader
-  # baixe de https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX : onnx/model.onnx e voices/pm_alex.bin, voices/pm_santa.bin
-  python3 tools/gerar_narracao.py --modelo model.onnx --vozes-dir . [--narrador pm_alex] [--analista pm_santa] [--velocidade 1.08]
-
-Para trocar a voz basta passar outro nome (ex.: --narrador pm_santa) e rodar de novo.
-Se você editar clubs.txt (novos jogadores/clubes), rode o script de novo para gerar os nomes novos.
+Exemplos:
+  pip install piper-tts soundfile numpy
+  # baixe de https://huggingface.co/rhasspy/piper-voices/tree/main/pt/pt_BR  (arquivos .onnx e .onnx.json)
+  python3 tools/gerar_narracao.py --vozes-dir ./piper --narrador faber --analista cadu
+  python3 tools/gerar_narracao.py --csv           # só exporta falas.csv (para gravar/gerar a voz em outro lugar)
+  python3 tools/gerar_narracao.py --importar ./minhas_falas
 """
 import argparse, os, re, subprocess, sys, tempfile, unicodedata
 import numpy as np
@@ -43,7 +45,7 @@ RESPELL = {
     "Pavlović": "Pavlovítch", "Olise": "Olís", "Musiala": "Musiála", "Kane": "Quêin", "Ryerson": "Ráierson",
     "Schlotterbeck": "Chlóterbek", "Svensson": "Svénsson", "Can": "Cân", "Nmecha": "Nemécha", "Adeyemi": "Adeiêmi",
     "Guirassy": "Girássi", "Arrascaeta": "Arrascaêta", "Khellven": "Kêlven", "Piquerez": "Pikêres", "Kobel": "Cóbel",
-    "Hulk": "Ráuque", "Gabigol": "Gabigól", "Cássio": "Cássio", "Anton": "Ânton",
+    "Hulk": "Húlqui", "Gabigol": "Gabigól", "Cássio": "Cássio", "Anton": "Ânton",
 }
 TIMES = {
     "FC Barcelona": "Barcelona", "Real Madrid": "Real Madri", "Paris Saint-Germain": "Paris Sãn Jermã", "Manchester City": "Mântchester Síti",
@@ -157,55 +159,88 @@ def ler_clubes():
     return clubes, jogadores
 
 def main():
+    import json, glob, io, wave
     ap = argparse.ArgumentParser()
-    ap.add_argument("--modelo", required=True); ap.add_argument("--vozes-dir", required=True)
-    ap.add_argument("--narrador", default="pm_alex"); ap.add_argument("--analista", default="pm_santa")
-    ap.add_argument("--velocidade", type=float, default=1.12)
+    ap.add_argument("--motor", default="piper", choices=["piper", "kokoro"])
+    ap.add_argument("--modelo", help="(kokoro) caminho do model.onnx")
+    ap.add_argument("--vozes-dir", default=".", help="pasta com as vozes (.onnx do piper / .bin do kokoro)")
+    ap.add_argument("--narrador", default="faber"); ap.add_argument("--analista", default="cadu")
+    ap.add_argument("--velocidade", type=float, default=1.0, help="1.0 = normal; 1.1 = mais rápido")
+    ap.add_argument("--csv", action="store_true", help="só exporta tools/falas.csv")
+    ap.add_argument("--importar", help="pasta com SUAS gravações <id>.wav|mp3|ogg")
     a = ap.parse_args()
-    from kokoro_onnx import Kokoro
-    vozes = {}
-    for v in {a.narrador, a.analista}:
-        vozes[v] = np.fromfile(os.path.join(a.vozes_dir, v + ".bin"), dtype=np.float32).reshape(510, 1, 256)
-    npz = os.path.join(tempfile.gettempdir(), "futebol_vozes.npz"); np.savez(npz, **vozes)
-    k = Kokoro(a.modelo, npz)
-    os.makedirs(OGG_DIR, exist_ok=True); os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
     clubes, jog = ler_clubes()
     itens = {}                                   # id -> (voz, texto exibido, texto falado)
-    for cid, nome in clubes: itens[f"t_{cid}"] = (a.narrador, nome, TIMES.get(nome, nome))
+    for cid, nome in clubes: itens[f"t_{cid}"] = ("n", nome, TIMES.get(nome, nome))
     for cid, num, nome in jog:
-        s = short_name(nome); itens[f"p_{cid}_{num}"] = (a.narrador, s, tts_text(s))
-    for n in range(0, 100): itens[f"n_{n}"] = (a.narrador, str(n), extenso(n))
-    for i, (v, t) in FRASES.items(): itens[i] = (a.narrador if v == N else a.analista, t, t)
+        sn = short_name(nome); itens[f"p_{cid}_{num}"] = ("n", sn, tts_text(sn))
+    for n in range(0, 100): itens[f"n_{n}"] = ("n", str(n), extenso(n))
+    for i, (v, t) in FRASES.items(): itens[i] = (v, t, t)
+
+    if a.csv:
+        out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "falas.csv")
+        with open(out, "w", encoding="utf-8") as f:
+            f.write("id;voz;texto\n")
+            for cid, (v, exibido, falado) in sorted(itens.items()): f.write(f"{cid};{'locutor' if v == 'n' else 'comentarista'};{falado}\n")
+        print(len(itens), "falas em", out); return
+
+    os.makedirs(OGG_DIR, exist_ok=True); os.makedirs(os.path.dirname(MANIFEST), exist_ok=True)
+    for f in glob.glob(os.path.join(OGG_DIR, "*.ogg")): os.remove(f)
+
+    if a.importar:
+        def synth(cid, voz, texto):
+            arqs = [f for ext in ("wav", "mp3", "ogg", "flac", "m4a") for f in glob.glob(os.path.join(a.importar, cid + "." + ext))]
+            if not arqs: return None
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as t: wav = t.name
+            subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", arqs[0], "-ar", "22050", "-ac", "1", wav], check=True)
+            x, sr = sf.read(wav, dtype="float32"); os.unlink(wav); return x, sr
+    elif a.motor == "kokoro":
+        from kokoro_onnx import Kokoro
+        vz = {}
+        for v in {a.narrador, a.analista}: vz[v] = np.fromfile(os.path.join(a.vozes_dir, v + ".bin"), dtype=np.float32).reshape(510, 1, 256)
+        npz = os.path.join(tempfile.gettempdir(), "futebol_vozes.npz"); np.savez(npz, **vz)
+        k = Kokoro(a.modelo, npz)
+        def synth(cid, voz, texto):
+            x, sr = k.create(texto, voice=a.narrador if voz == "n" else a.analista, speed=a.velocidade * 1.1, lang="pt-br"); return x.astype(np.float32), sr
+    else:
+        from piper import PiperVoice, SynthesisConfig
+        vozes = {}
+        for v in {a.narrador, a.analista}: vozes[v] = PiperVoice.load(os.path.join(a.vozes_dir, f"pt_BR-{v}-medium.onnx"))
+        def synth(cid, voz, texto):
+            pv = vozes[a.narrador if voz == "n" else a.analista]
+            # locutor: um pouco mais rápido e com mais variação de entonação; comentarista: calmo
+            cfg = SynthesisConfig(length_scale=(0.88 if voz == "n" else 1.0) / a.velocidade, noise_scale=0.85 if voz == "n" else 0.667, noise_w_scale=1.0 if voz == "n" else 0.8)
+            buf = io.BytesIO()
+            with wave.open(buf, "wb") as w: pv.synthesize_wav(texto, w, syn_config=cfg)
+            buf.seek(0); x, sr = sf.read(buf, dtype="float32"); return x, sr
+
     manifest, sounds = [], {}
-    total = len(itens)
+    total = len(itens); faltando = 0
     for idx, (cid, (voz, exibido, falado)) in enumerate(sorted(itens.items())):
-        vel = a.velocidade if not cid.startswith("gol_grito") else 0.92
-        audio, sr = k.create(falado, voice=voz, speed=vel, lang="pt-br")
-        audio = audio.astype(np.float32)
-        # corta silêncio nas pontas e normaliza
-        m = np.abs(audio) > 0.01
+        r = synth(cid, voz, falado)
+        if r is None: faltando += 1; continue
+        audio, sr = r
+        if audio.ndim > 1: audio = audio.mean(axis=1)
+        m = np.abs(audio) > 0.012
         if m.any():
-            i0, i1 = np.argmax(m), len(m) - np.argmax(m[::-1]); audio = audio[max(0, i0 - 120): min(len(audio), i1 + 240)]
+            i0, i1 = np.argmax(m), len(m) - np.argmax(m[::-1]); audio = audio[max(0, i0 - int(sr * 0.01)): min(len(audio), i1 + int(sr * 0.04))]
         pico = float(np.abs(audio).max()) or 1.0
-        audio = audio / pico * 0.89
+        audio = audio / pico * 0.9
         f = int(sr * 0.006); audio[:f] *= np.linspace(0, 1, f); audio[-f:] *= np.linspace(1, 0, f)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp: wav = tmp.name
         sf.write(wav, audio, sr)
         saida = os.path.join(OGG_DIR, cid + ".ogg")
-        if voz == a.narrador:      # locutor: um pouco mais agudo e "de rádio" (compressão + brilho)
-            filtro = "asetrate=24000*1.05,aresample=24000,atempo=0.952,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=80,equalizer=f=3200:t=q:w=1:g=3"
-        else:                      # comentarista: mais grave e calmo
-            filtro = "highpass=f=80,acompressor=threshold=-24dB:ratio=2.5,equalizer=f=180:t=q:w=1:g=2"
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-af", filtro, "-ac", "1", "-c:a", "libvorbis", "-q:a", "4", saida], check=True)
+        # só compressão leve e brilho (sem mudar o tom: mexer no tom deixava a voz robótica)
+        filtro = "highpass=f=70,acompressor=threshold=-20dB:ratio=2.5:attack=8:release=120,loudnorm=I=-17:TP=-2:LRA=9" if voz == "n" else "highpass=f=70,acompressor=threshold=-22dB:ratio=2:attack=10:release=150,loudnorm=I=-18:TP=-2:LRA=8"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-af", filtro, "-ar", "32000", "-ac", "1", "-c:a", "libvorbis", "-q:a", "4", saida], check=True)
         os.unlink(wav)
         ms = int(len(audio) / sr * 1000)
         manifest.append(f"{cid}|{ms}|{exibido}")
         sounds[f"narrador.{cid}"] = {"sounds": [{"name": f"futebol:narrador/{cid}"}]}
-        if idx % 40 == 0: print(f"{idx}/{total} {cid}", file=sys.stderr)
+        if idx % 60 == 0: print(f"{idx}/{total} {cid}", file=sys.stderr)
     open(MANIFEST, "w", encoding="utf-8").write("\n".join(manifest) + "\n")
-    import json
     json.dump(sounds, open(SOUNDS_JSON, "w", encoding="utf-8"), indent=0)
-    print(f"{total} clipes gerados em {OGG_DIR}")
+    print(f"{len(manifest)} clipes gerados em {OGG_DIR}" + (f" ({faltando} sem gravação)" if faltando else ""))
 
 if __name__ == "__main__":
     main()

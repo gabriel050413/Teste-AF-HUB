@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.5
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.6
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,15 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v2.6 — voz nova, replays e comemorações de TV
+- **Voz trocada:** saiu o Kokoro (sotaque ruim em português) e entrou o **Piper**, com vozes de falantes **brasileiros nativos** (`faber` = locutor, `cadu` = comentarista; licença CC0). Tirei também o efeito de mudar o tom, que deixava a voz robótica.
+  - ⚠️ Nenhuma voz aberta soa como um locutor de TV famoso. **Para ter uma voz realmente de narrador**, grave (ou gere em ElevenLabs etc.) as falas listadas em `tools/falas.csv` e rode `python3 tools/gerar_narracao.py --importar PASTA` (arquivos `<id>.wav/.mp3` — o que faltar fica sem fala). Também dá para trocar as vozes do Piper (`--narrador jeff`).
+- **Placar de TV (scorebug)** no topo da tela com times, placar, minuto e barra de progresso do tempo (vira "▶ REPLAY" nos replays). Títulos redesenhados para gol, intervalo, fim de jogo e apresentação.
+- **Replays de transmissão:** sequência de ângulos (principal → atrás do gol → rasteira → alta → close), **câmera lenta variável** (mais lenta no momento do lance) e **dolly lento** em direção à jogada. Faixa com nome/posição/nota nos closes.
+- **Comemorações personalizadas:** deslize de joelhos, salto com giro, dança, meditação (Haaland), "cala a boca" para a torcida, soco no ar, aviãozinho — cada craque tem a sua; o time corre atrás e a torcida solta papel picado e fogos.
+- **Som ambiente do estádio:** murmúrio e palmas que crescem com a empolgação, vaias e assobios, "olé", buzina nos gols, bumbo de tensão no pênalti.
+- **Tremores e animações:** a câmera treme em gols, defesas, chutes fortes e entradas; jogadores balançam o braço ao chutar/desarmar, saltam para cabecear, levantam poeira nos chutes; árbitro levanta o braço no apito.
 
 ## Novidades da v2.5 — locução animada, comentarista e modelagem
 - **Narrador mais vivo** (voz pt-BR, mais rápida e "de rádio"): mais de 600 falas, com várias variações para cada lance (gol, defesa, chute, quase-gol, falta, contra-ataque, pressão, ataque na área...) e frases de animação entre os lances. Ele não repete a mesma fala até esgotar as variações.
