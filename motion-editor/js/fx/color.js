@@ -56,8 +56,22 @@ const VIBRANCE = colorFrag('uniform float u_vib, u_sat;', `
 const TINT = colorFrag('uniform vec3 u_black, u_white; uniform float u_amount;', `
   r = mix(r, mix(u_black, u_white, luma(r)), u_amount);`);
 
-const BW = colorFrag('uniform float u_amount;', 'r = mix(r, vec3(luma(r)), u_amount);');
-const INVERT = colorFrag('uniform float u_blend;', 'r = mix(1.0 - r, r, u_blend);');
+// Preto e branco: luminância simples ou o algoritmo do Black & White do AE/Photoshop (peso por cor primária/secundária
+// da maior componente: cinza = mín + (meio − mín)·peso secundário + (máx − meio)·peso primário) e tint opcional
+const BW = colorFrag('uniform float u_amount; uniform float u_w; uniform vec3 u_prim; uniform vec3 u_sec; uniform float u_tint; uniform vec3 u_tc;', `
+  float g = luma(r);
+  if (u_w > 0.5) {
+    float mx = max(r.r, max(r.g, r.b)), mn = min(r.r, min(r.g, r.b)), md = r.r + r.g + r.b - mx - mn;
+    float wp, ws;
+    if (mx == r.r) { wp = u_prim.x; ws = r.g >= r.b ? u_sec.x : u_sec.z; }        // vermelho → amarelo (R+G) ou magenta (R+B)
+    else if (mx == r.g) { wp = u_prim.y; ws = r.r >= r.b ? u_sec.x : u_sec.y; }   // verde → amarelo ou ciano (G+B)
+    else { wp = u_prim.z; ws = r.g >= r.r ? u_sec.y : u_sec.z; }                  // azul → ciano ou magenta
+    g = clamp(mn + (md - mn) * ws + (mx - md) * wp, 0.0, 1.0);
+  }
+  vec3 bw = vec3(g);
+  if (u_tint > 0.5) bw = mix(2.0 * g * u_tc, 1.0 - 2.0 * (1.0 - g) * (1.0 - u_tc), step(0.5, g)); // tinge mantendo preto e branco
+  r = mix(r, bw, u_amount);`);
+const INVERT = colorFrag('uniform float u_blend; uniform vec3 u_ch;', 'r = mix(mix(r, 1.0 - r, u_ch), r, u_blend);'); // canais: Alight/Node invertem só R, G ou B
 const FILL = colorFrag('uniform vec3 u_color; uniform float u_amount;', 'r = mix(r, u_color, u_amount);');
 
 const RAMP = colorFrag('uniform vec3 u_start, u_end; uniform vec2 u_dir; uniform float u_blend; uniform float u_radial;', `
@@ -117,13 +131,17 @@ export default [
   },
   {
     type: 'blackWhite', label: 'Preto e branco', category: 'Cor',
-    params: [num('amount', 'Quantidade %', 100, 0, 100)],
-    render: fx(BW, (p) => ({ u_amount: p.amount / 100 })),
+    params: [num('amount', 'Quantidade %', 100, 0, 100), bool('weights', 'Pesos por cor (Black & White do AE)', false),
+      num('reds', 'Vermelhos %', 40, -200, 300), num('yellows', 'Amarelos %', 60, -200, 300), num('greens', 'Verdes %', 40, -200, 300),
+      num('cyans', 'Cianos %', 60, -200, 300), num('blues', 'Azuis %', 20, -200, 300), num('magentas', 'Magentas %', 80, -200, 300),
+      bool('tint', 'Tint', false), col('tintColor', 'Cor do tint', [1, 0.88, 0.7, 1])],
+    render: fx(BW, (p) => ({ u_amount: p.amount / 100, u_w: p.weights ? 1 : 0, u_prim: [(p.reds ?? 40) / 100, (p.greens ?? 40) / 100, (p.blues ?? 20) / 100],
+      u_sec: [(p.yellows ?? 60) / 100, (p.cyans ?? 60) / 100, (p.magentas ?? 80) / 100], u_tint: p.tint ? 1 : 0, u_tc: rgb(p.tintColor || [1, 0.88, 0.7, 1]) })),
   },
   {
     type: 'invert', label: 'Inverter', category: 'Cor',
-    params: [num('blend', 'Mesclar com original %', 0, 0, 100)],
-    render: fx(INVERT, (p) => ({ u_blend: p.blend / 100 })),
+    params: [num('blend', 'Mesclar com original %', 0, 0, 100), bool('r', 'Vermelho', true), bool('g', 'Verde', true), bool('b', 'Azul', true)],
+    render: fx(INVERT, (p) => ({ u_blend: p.blend / 100, u_ch: [p.r === false ? 0 : 1, p.g === false ? 0 : 1, p.b === false ? 0 : 1] })),
   },
   {
     type: 'fill', label: 'Preenchimento (Fill)', category: 'Cor',

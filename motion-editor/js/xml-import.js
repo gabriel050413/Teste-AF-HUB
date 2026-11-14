@@ -264,13 +264,21 @@ function amEase(e) {
   }
 }
 /** Propriedade animável: valor fixo (atributo value) ou keyframes <kf> (t de 0 a 1 na duração da camada). */
-function amAnim(el, conv, t0, dur) {
+function amAnim(el, conv, t0, dur, span = dur) {
   if (!el) return null;
   const kfs = kids(el, 'kf');
   if (kfs.length) {
-    const norm01 = kfs.every((k) => num(k.attrs.t) <= 1.0001);
+    // t é a fração do trecho da camada; com velocidade ≠ 1 o AM normaliza pelo trecho do conteúdo (outTime − inTime):
+    // ex.: speed 0,65 → t vai até 1/0,65 = 1,54 e esse keyframe cai no fim da camada
+    const lim = Math.max(1, dur / Math.max(1e-6, span)) + 0.0001;
+    const norm01 = kfs.every((k) => num(k.attrs.t) <= lim);
+    dur = span;
     const keys = kfs.map((k) => ({ t: +(t0 + (norm01 ? num(k.attrs.t) * dur : num(k.attrs.t) / 1000)).toFixed(4), v: conv(amNum(k.attrs.v), k.attrs.v), ...amEase(k.attrs.e) }))
       .sort((a, b) => a.t - b.t);
+    // no Alight Motion o "e" do keyframe descreve o trecho que CHEGA nele (do anterior até ele): no MotionFrame a curva
+    // fica no keyframe de saída → desloca um keyframe para trás (ex.: opacidade 0→1 com cubicBezier 1 0 1 1 no último)
+    const eases = keys.map((k) => ({ ease: k.ease, curve: k.curve }));
+    keys.forEach((k, i) => { const e = eases[i + 1] || { ease: 'linear' }; k.ease = e.ease; if (e.curve) k.curve = e.curve; else delete k.curve; });
     return { keys };
   }
   const v = el.attrs.value ?? txt(el);
@@ -306,11 +314,12 @@ const AM_EXACT = {
   rays: ['lightRays', { intensity: ['intensity'], threshold: ['threshold', (v) => v * 100] }],
   glow: ['glow', {}], neonglow: ['glow', {}], vignette: ['vignette', {}], sharpen: ['sharpen', {}],
   huesaturation: ['hueSat', {}], brightnesscontrast: ['brightnessContrast', {}], colortune: ['colorGrade', {}], tint: ['tint', {}],
-  invertcolor: ['invert', {}], invert: ['invert', {}], noise: ['noise', {}], filmgrain: ['noise', {}], posterize: ['posterize', {}],
+  invertcolor: ['invert', { invertRed: ['r'], invertGreen: ['g'], invertBlue: ['b'] }], invert: ['invert', { invertRed: ['r'], invertGreen: ['g'], invertBlue: ['b'] }],
+  satvib: ['vibrance', { saturation: ['saturation', (v) => v * 100], vib: ['vibrance', (v) => v * 100] }], noise: ['noise', {}], filmgrain: ['noise', {}], posterize: ['posterize', {}],
   twirl: ['twirl', {}], swirl: ['twirl', {}], bulge: ['bulge', {}], fisheye: ['fishEye', {}], stroke: ['outline', {}], border: ['outline', {}],
   dropshadow: ['dropShadow', {}], longshadow: ['dropShadow', {}], glitch: ['glitch', {}], vhs: ['vhs', {}], halftone: ['halftone', {}],
   kaleidoscope: ['kaleida', {}], polar: ['polar', {}], tile: ['motionTile', {}], displacement: ['turbulentDisplace', {}], turbulence: ['turbulentDisplace', {}],
-  palettemap: ['tint', {}], grid2: ['motionTile', {}], lift: ['brightnessContrast', {}],
+  palettemap: ['tint', {}], grid2: ['motionTile', {}],
   shake: ['shake', {}], randomdisplace: ['shake', { mag: ['amount'], scatter: ['frequency', (v) => Math.max(2, v * 20)] }],
   jitter: ['shake', {}], flicker: ['flicker', {}], strobe: ['strobe', {}], lensflare: ['lensFlare', {}], lightleak: ['lightLeak', {}],
 };
@@ -402,7 +411,7 @@ function fromAlightMotion(doc, fileName) {
   let dur = num(scene.attrs.totalTime, 0) / 1000;
   const idMap = new Map(), parents = [];
   const LAYER_TAGS = new Set(['shape', 'video', 'image', 'text', 'audio', 'embedScene', 'drawing', 'nullobj', 'nullObj', 'camera']);
-  const build = (el, offset, sceneEl) => {
+  const build = (el, offset, sceneEl, masky = false) => {
     const out = [];
     const sw = num(sceneEl.attrs.width, W), sh = num(sceneEl.attrs.height, H);
     for (const c of el.kids) {
@@ -410,7 +419,13 @@ function fromAlightMotion(doc, fileName) {
       const st = num(c.attrs.startTime, 0) / 1000 + offset, en = num(c.attrs.endTime, num(sceneEl.attrs.totalTime, 10000)) / 1000 + offset;
       if (en <= st) continue;
       const D = en - st;
-      const size = amNum(kids(c, 'property').find((p) => p.attrs.name === 'size')?.attrs.value);
+      const sizeEl = kids(c, 'property').find((p) => p.attrs.name === 'size');
+      const sizeKeys = sizeEl && kids(sizeEl, 'kf').length ? sizeEl : null;
+      // no AM o "size" é a METADE do tamanho (raio/meia largura): 100×100 com escala 45 cobre 9000 px
+      const size = amNum(sizeEl?.attrs.value ?? (sizeKeys ? kids(sizeKeys, 'kf')[0].attrs.v : '')).map((v) => v * 2);
+      // velocidade da camada (grupos/vídeos): os keyframes usam o trecho do conteúdo como unidade (ver amAnim)
+      const spd = num(c.attrs.speed, 1) || 1;
+      const span = spd !== 1 && c.attrs.outTime != null ? Math.max(1e-3, (num(c.attrs.outTime) - num(c.attrs.inTime, 0)) / 1000) : D;
       const fill = amColor(kid(c, 'fillColor')?.attrs.value || c.attrs.fillColor);
       let l;
       const s = String(c.attrs.s || '').toLowerCase();
@@ -426,11 +441,20 @@ function fromAlightMotion(doc, fileName) {
         if (fill) l.props.color = hexOf(fill);
       } else if (c.name === 'embedScene') {
         const inner = kid(c, 'scene') || c;
-        l = LAYER_FACTORIES.group(proj, build(inner, st, inner));
+        // a cena interna tem tempo e tamanho próprios: conteúdo = inTime + (t − início) × speed, centrada na posição
+        const kidsL = build(inner, 0, inner, /mask/i.test(c.attrs.label || ''));
+        const iw = num(inner.attrs.width, sw), ih = num(inner.attrs.height, sh);
+        // cenas enormes (o AM usa 9000×11249 em "Group and Mask"): reduz o conteúdo e compensa na escala do grupo
+        const f = Math.min(1, (2 * Math.max(W, H)) / Math.max(iw, ih));
+        if (f < 1) for (const k of kidsL) for (const key of ['position', 'anchor', 'scale']) { const pr = k.transform[key]; const m = (v) => v.map((x) => x * f); pr.value = m(pr.value); for (const kf of pr.keys || []) kf.v = m(kf.v); }
+        l = LAYER_FACTORIES.group(proj, kidsL);
+        l.props.width = Math.round(iw * f); l.props.height = Math.round(ih * f); l.props.ownSize = true; l.props.amShrink = f;
+        l.props.contentStart = 0; l.props.sourceStart = num(c.attrs.inTime, 0) / 1000; l.props.speed = spd;
       } else if (c.attrs.fillType === 'media' || c.name === 'video' || c.name === 'image' || c.name === 'audio') {
-        const uri = c.attrs.fillImage || c.attrs.src || c.attrs.media || '';
-        const mi = mediaInfo.get(uri) || { file: baseName(String(uri).replace(/^amproj:/, '')) || c.attrs.label, type: '' };
-        const kind = c.name === 'audio' || /^audio/.test(mi.type) ? 'audio' : /^video/.test(mi.type) || c.name === 'video' ? 'video' : 'image';
+        const uri = c.attrs.fillImage || c.attrs.fillVideo || c.attrs.src || c.attrs.media || '';
+        // content://… (galeria do Android) não diz o nome do arquivo: o nome fica no label da camada
+        const mi = mediaInfo.get(uri) || { file: (/^content:/.test(uri) ? '' : baseName(String(uri).replace(/^amproj:/, ''))) || c.attrs.label, type: '' };
+        const kind = c.name === 'audio' || /^audio/.test(mi.type) ? 'audio' : /^video/.test(mi.type) || c.name === 'video' || c.attrs.fillVideo || /\.(mp4|mov|m4v|webm|3gp|mkv)$/i.test(mi.file || '') ? 'video' : 'image';
         const w = size[0] || mi.w || sw, h = size[1] || mi.h || sh;
         l = placeholder(proj, { file: mi.file, kind, w, h, sourceStart: num(c.attrs.inTime ?? c.attrs.mediaStartTime, 0) / 1000, speed: num(c.attrs.speed, 1) || 1 });
         l.props.aeMedia.fit = 'fill';
@@ -440,9 +464,16 @@ function fromAlightMotion(doc, fileName) {
         l = LAYER_FACTORIES.null(proj);
       } else {
         // formas: .rect .roundrect .quad .circle .poly .star .triangle .plus .arrow .pie
-        const w = size[0] || 100, h = size[1] || size[0] || 100;
+        const w = size[0] ?? 100, h = size[1] ?? size[0] ?? 100;
         const col = fill ? fill.slice(0, 3) : [1, 1, 1];
-        if (s === '.circle') { l = LAYER_FACTORIES.ellipse(proj); }
+        if (sizeKeys && (s === '.rect' || s === '.roundrect' || s === '.quad' || s === '.circle' || !s)) {
+          // tamanho animado (retângulo que cresce): vira forma vetorial com o tamanho em keyframes
+          const sz = amAnim(sizeKeys, (v) => [(v[0] ?? 0) * 2, (v[1] ?? v[0] ?? 0) * 2], st, D, span);
+          const item = s === '.circle' ? { t: 'ellipse', size: sz.keys ? { value: clone(sz.keys[0].v), keys: sz.keys } : { value: sz.value, keys: [] }, position: { value: [0, 0], keys: [] } }
+            : { t: 'rect', size: sz.keys ? { value: clone(sz.keys[0].v), keys: sz.keys } : { value: sz.value, keys: [] }, position: { value: [0, 0], keys: [] }, round: { value: s === '.roundrect' ? Math.min(w, h) * 0.15 : 0, keys: [] } };
+          l = LAYER_FACTORIES.shape(proj, [{ t: 'group', items: [item, { t: 'fill', color: { value: col, keys: [] }, opacity: { value: (fill?.[3] ?? 1) * 100, keys: [] }, rule: 1 }], tr: { position: { value: [0, 0], keys: [] }, scale: { value: [100, 100], keys: [] }, rotation: { value: 0, keys: [] }, opacity: { value: 100, keys: [] }, anchor: { value: [0, 0], keys: [] } } }]);
+          l.props.width = sw; l.props.height = sh;
+        } else if (s === '.circle') { l = LAYER_FACTORIES.ellipse(proj); }
         else if (s === '.rect' || s === '.roundrect' || s === '.quad' || !s) { l = LAYER_FACTORIES.rect(proj); l.props.radius = s === '.roundrect' ? Math.min(w, h) * 0.15 : 0; }
         else {
           const pts = s === '.triangle' ? 3 : s === '.star' ? 5 : s === '.plus' ? 4 : 6;
@@ -452,7 +483,7 @@ function fromAlightMotion(doc, fileName) {
         }
         if (l.type !== 'shape') {
           l.props.width = w; l.props.height = h;
-          if (c.attrs.fillType === 'none') { l.props.fill = 'rgba(0,0,0,0)'; } else if (fill) l.props.fill = hexOf(fill);
+          if (c.attrs.fillType === 'none') { l.props.fill = 'rgba(0,0,0,0)'; } else l.props.fill = fill ? hexOf(fill) : '#ffffff'; // sem fillColor o AM pinta de branco
           const gr = kid(c, 'gradient'); if (gr) { const g0 = amColor(gr.attrs.startColor); if (g0) l.props.fill = hexOf(g0); notes.push('Degradê das formas virou a 1ª cor.'); }
           const bd = kid(c, 'border'); if (bd) { l.props.strokeWidth = num(bd.attrs.size ?? bd.attrs.width, 4); const bc = amColor(bd.attrs.color); if (bc) l.props.strokeColor = hexOf(bc); }
         }
@@ -460,15 +491,18 @@ function fromAlightMotion(doc, fileName) {
       l.name = l.name && !/^(Texto|Grupo|Retângulo|Elipse|Formas|Null)$/.test(l.name) ? l.name : (c.attrs.label || l.name);
       l.inPoint = +st.toFixed(4); l.outPoint = +en.toFixed(4);
       if (c.attrs.blending && AM_BLEND[c.attrs.blending]) l.blend = AM_BLEND[c.attrs.blending];
+      // "Group and Mask" do AM: a forma com Exclude recorta (XOR de alfa) — ex.: círculo que vira furo na tela (íris)
+      if (masky && c.attrs.blending === 'exclude') l.blend = 'xor';
       if (c.attrs.hidden === 'true') l.visible = false;
       const tr = kid(c, 'transform');
       if (tr) {
-        setAP(l.transform.position, amAnim(kid(tr, 'location'), (v) => [v[0] ?? sw / 2, v[1] ?? sh / 2], st, D));
-        setAP(l.transform.scale, amAnim(kid(tr, 'scale'), (v) => [(v[0] ?? 1) * 100, (v[1] ?? v[0] ?? 1) * 100], st, D));
-        setAP(l.transform.rotation, amAnim(kid(tr, 'rotation'), (v) => v[0] || 0, st, D));
-        setAP(l.transform.opacity, amAnim(kid(tr, 'opacity'), (v) => (v[0] ?? 1) * 100, st, D));
-        setAP(l.transform.anchor, amAnim(kid(tr, 'pivot'), (v) => [v[0] || 0, v[1] || 0], st, D));
+        setAP(l.transform.position, amAnim(kid(tr, 'location'), (v) => [v[0] ?? sw / 2, v[1] ?? sh / 2], st, D, span));
+        setAP(l.transform.scale, amAnim(kid(tr, 'scale'), (v) => [(v[0] ?? 1) * 100, (v[1] ?? v[0] ?? 1) * 100], st, D, span));
+        setAP(l.transform.rotation, amAnim(kid(tr, 'rotation'), (v) => v[0] || 0, st, D, span));
+        setAP(l.transform.opacity, amAnim(kid(tr, 'opacity'), (v) => (v[0] ?? 1) * 100, st, D, span));
+        setAP(l.transform.anchor, amAnim(kid(tr, 'pivot'), (v) => [v[0] || 0, v[1] || 0], st, D, span));
       }
+      if (l.props.amShrink && l.props.amShrink < 1) { const g = 1 / l.props.amShrink, pr = l.transform.scale; pr.value = pr.value.map((x) => x * g); for (const kf of pr.keys || []) kf.v = kf.v.map((x) => x * g); }
       if (fill && fill[3] < 0.999 && !kid(tr || { kids: [] }, 'opacity') && l.type !== 'shape') l.transform.opacity.value = Math.round(fill[3] * 100);
       for (const fxEl of kids(c, 'effect')) {
         const full = String(fxEl.attrs.id || '');
