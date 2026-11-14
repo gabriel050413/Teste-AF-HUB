@@ -60,6 +60,7 @@ public final class Narrator {
     private final Match m;
     private final Random rnd = new Random();
     private final LinkedList<Utt> queue = new LinkedList<>();
+    private int lastEnd, lastAnalyst = -9999;
     private Utt cur; private int curStart; private int[] due; private int curEnd, nextOk, now;
     public boolean on = true, captions = false;
     public float volume = 1.0f;
@@ -70,11 +71,21 @@ public final class Narrator {
     // ---------------------------------------------------------------- montagem de frases
 
     /** Resolve uma parte: id exato (p_..., t_..., n_...) ou grupo de variantes ("gol_grito"). */
+    private final java.util.Set<String> used = new java.util.HashSet<>();
+
     private String resolve(String part) {
         if (CLIPS.containsKey(part)) return part;
         List<String> v = VARIANTS.get(part);
-        return v == null || v.isEmpty() ? null : v.get(rnd.nextInt(v.size()));
+        if (v == null || v.isEmpty()) return null;
+        List<String> fresh = new ArrayList<>();
+        for (String id : v) if (!used.contains(id)) fresh.add(id);
+        if (fresh.isEmpty()) { used.removeAll(v); fresh = v; }          // acabaram as variantes: recomeça (evita repetir fala)
+        String id = fresh.get(rnd.nextInt(fresh.size()));
+        used.add(id);
+        return id;
     }
+
+    private boolean has(String prefix) { List<String> v = VARIANTS.get(prefix); return v != null && !v.isEmpty(); }
 
     public static String P(FPlayer p) { return "p_" + Roster.ATUAL[p.team].id() + "_" + p.def.num(); }
     public static String T(int team) { return "t_" + Roster.ATUAL[team].id(); }
@@ -115,7 +126,7 @@ public final class Narrator {
         now++;
         if (cur != null) {
             while (curStart < due.length && now >= due[curStart]) { play(cur.ids().get(curStart)); curStart++; }
-            if (now >= curEnd) { cur = null; nextOk = now + 14; }
+            if (now >= curEnd) { cur = null; nextOk = now + 10; lastEnd = now; }
         }
         if (cur == null && now >= nextOk && !queue.isEmpty()) {
             Utt best = null;
@@ -125,7 +136,10 @@ public final class Narrator {
         }
     }
 
+    public int spoken; public final java.util.Map<String, Integer> kinds = new java.util.TreeMap<>();
+
     private void start(Utt u) {
+        spoken++; if (!u.ids().isEmpty()) kinds.merge(u.ids().get(0).replaceAll("_\\d+$", ""), 1, Integer::sum);
         cur = u; curStart = 0;
         due = new int[u.clips().size()];
         int t = now;
@@ -144,6 +158,71 @@ public final class Narrator {
         if (ev == null) return;
         for (ServerPlayer pl : m.level.players())
             pl.connection.send(new ClientboundSoundPacket(ev, SoundSource.VOICE, pl.getX(), pl.getY(), pl.getZ(), volume, 1.0f, rnd.nextLong()));
+    }
+
+
+    // ---------------------------------------------------------------- locução contínua (ninguém fica entediado)
+
+    /** Chamado a cada segundo: quando o jogo está quieto, o narrador anima e o comentarista conta curiosidades. */
+    public void ambient() {
+        if (!on || cur != null || !queue.isEmpty()) return;
+        if (m.st != Match.St.PLAYING && m.st != Match.St.SETPIECE) return;
+        if (now - lastEnd < 50) return;
+        boolean analystOk = now - lastAnalyst > 300;
+        if (analystOk && rnd.nextDouble() < 0.45) { if (analystLine()) { lastAnalyst = now; return; } }
+        narratorLine();
+    }
+
+    private void narratorLine() {
+        FPlayer c = m.carrier;
+        double r = rnd.nextDouble();
+        if (c != null && !c.isGK() && m.U(c.team, c.pos().x) > 46 && r < 0.5) { say(FILLER, "ataque"); return; }
+        if (m.trans[0] > 0 || m.trans[1] > 0) { if (r < 0.5) { say(FILLER, "contra"); return; } }
+        if (m.counterPress[0] > 0 || m.counterPress[1] > 0) { if (r < 0.5) { say(FILLER, "pressao"); return; } }
+        if (c != null && c.holding) { say(FILLER, "goleiro"); return; }
+        if (c != null && !c.isGK() && r < 0.45) { say(FILLER, P(c), "fil"); return; }
+        if (r < 0.68) say(FILLER, "ritmo");
+        else if (r < 0.92) say(FILLER, "emocao");
+        else say(FILLER, "tempo");
+    }
+
+    private boolean analystLine() {
+        double r = rnd.nextDouble();
+        FPlayer c = m.carrier;
+        int team = c != null ? c.team : rnd.nextInt(2);
+        if (r < 0.26) {                                                     // curiosidade de jogador em campo
+            List<FPlayer> cand = new ArrayList<>();
+            for (FPlayer p : m.all) if (has("fato_j_" + Roster.ATUAL[p.team].id() + "_" + p.def.num())) cand.add(p);
+            if (!cand.isEmpty()) { FPlayer p = cand.get(rnd.nextInt(cand.size())); say(FILLER, "fato_j_" + Roster.ATUAL[p.team].id() + "_" + p.def.num()); return true; }
+        }
+        if (r < 0.48 && has("fato_c_" + Roster.ATUAL[team].id())) { say(FILLER, "fato_c_" + Roster.ATUAL[team].id()); return true; }
+        if (r < 0.60) { say(FILLER, "fato_e"); return true; }
+        if (r < 0.78) { say(FILLER, "tat"); return true; }
+        // dinâmico: estatísticas e momento do jogo
+        double q = rnd.nextDouble();
+        if (q < 0.55) {
+            String[] k = {"din_rapido", "din_passe", "din_forte", "din_dribla", "din_chuta", "din_marca", "din_visao"};
+            int idx = rnd.nextInt(k.length);
+            FPlayer best = null; double bs = -1;
+            for (FPlayer p : m.all) {
+                if (p.isGK() || p.out) continue;
+                Stats s = p.st();
+                double v = switch (idx) { case 0 -> s.vel(); case 1 -> s.pas(); case 2 -> s.forca(); case 3 -> s.dri(); case 4 -> s.fin(); case 5 -> s.des(); default -> s.vis(); };
+                if (v > bs) { bs = v; best = p; }
+            }
+            if (best != null) { say(FILLER, P(best), k[idx]); return true; }
+        } else if (q < 0.70) {
+            FPlayer tired = null; double e = 0.66;
+            for (FPlayer p : m.all) if (!p.isGK() && p.energy < e) { e = p.energy; tired = p; }
+            if (tired != null) { say(FILLER, P(tired), "din_cansado"); return true; }
+        } else if (q < 0.80) { say(FILLER, P(m.gk(rnd.nextInt(2))), "din_goleiro"); return true; }
+        int a = m.score[0], b = m.score[1];
+        double f = m.clock / (double) Math.max(1, m.halfLen);
+        if (f > 0.8 && m.half == 2) say(FILLER, "din_fim");
+        else if (f < 0.12 && m.half == 1) say(FILLER, "din_comeco");
+        else if (a == b) say(FILLER, "din_empate");
+        else say(FILLER, "din_placar");
+        return true;
     }
 
     // ---------------------------------------------------------------- lances
@@ -172,6 +251,9 @@ public final class Narrator {
         p.add(T(0)); p.add(NUM(s[0])); p.add("a_1"); p.add(NUM(s[1])); p.add(T(1));
         say(GOAL, p.toArray(new String[0]));
         if (chance(0.5)) say(FOUL, "com_gol");
+        String fj = "fato_j_" + Roster.ATUAL[scorer.team].id() + "_" + scorer.def.num();
+        if (has(fj) && chance(0.7)) say(FILLER, fj);
+        else if (chance(0.6)) say(FILLER, "emocao");
     }
 
     public void save(FPlayer gk) {

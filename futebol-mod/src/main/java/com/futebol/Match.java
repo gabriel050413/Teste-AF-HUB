@@ -164,6 +164,8 @@ public final class Match {
         LivingEntity e = (LivingEntity) o.get();
         e.addTag("futebol");
         e.addTag("futebol_t" + p.team + "_n" + p.def.num());
+        var esc = e.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.SCALE);
+        if (esc != null) esc.setBaseValue(Math.max(0.9, Math.min(1.12, Clubs.alturaCm(Roster.ATUAL[p.team].id(), p.def.num(), p.def.pos()) / 180.0)));
         e.setCustomName(nameTag(p));
         e.setCustomNameVisible(true);
         Vec3 w = W(p.team, p.def.u(), p.def.v());
@@ -311,6 +313,7 @@ public final class Match {
         if (crowd != null) crowd.tick();
         if (cameras != null) cameras.tick();
         if (nar != null) nar.tick();
+        if (nar != null && tickCount % 20 == 0) nar.ambient();
         if (referee != null) referee.tick();
         if (st == St.PLAYING || st == St.SETPIECE || st == St.GOAL) record();
         for (FPlayer p : all) {

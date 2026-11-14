@@ -18,6 +18,10 @@ DIG = {"0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "010
        "6": ["111", "100", "111", "101", "111"], "7": ["111", "001", "010", "010", "010"], "8": ["111", "101", "111", "101", "111"],
        "9": ["111", "101", "111", "001", "111"]}
 
+# padrão da camisa titular: (tipo, cor2).  v=listras verticais, h=faixas horizontais, b=faixa central, m=mangas
+PADROES = {"barcelona": ("v", 0xA50044), "atleticomg": ("v", 0xFFFFFF), "newcastle": ("v", 0xFFFFFF), "flamengo": ("h", 0x1A1A1A),
+           "psg": ("b", 0xDA291C), "arsenal": ("m", 0xFFFFFF), "astonvilla": ("m", 0x7FB3E8), "bayern": ("b", 0xFFFFFF), "dortmund": ("b", 0x1A1A1A)}
+
 def rgb(h): return ((h >> 16) & 255, (h >> 8) & 255, h & 255)
 def shade(c, k): return tuple(max(0, min(255, int(v * k))) for v in c)
 def lum(c): return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
@@ -36,7 +40,7 @@ def parts_skin(s, tone, sk):
     s.r(40, 16, 56, 32, tone); s.r(32, 48, 48, 64, tone); s.r(0, 16, 16, 32, tone); s.r(16, 48, 32, 64, tone)
     s.r(16, 16, 40, 32, tone)
 
-def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba):
+def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba, padrao=None):
     s = Skin()
     tone = PELES[pele]; sk = shade(tone, 0.92); hc = CABELOS[hair]
     parts_skin(s, tone, sk)
@@ -52,12 +56,46 @@ def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba):
         s.r(40, 29, 56, 32, glove); s.r(32, 61, 48, 64, glove); s.r(48, 16, 52, 20, glove); s.r(40, 48, 44, 52, glove)
     else:
         s.r(40, 23, 56, 24, trim); s.r(32, 55, 48, 56, trim)                 # punho da manga
+    if padrao and not gk:
+        tp, c2 = padrao[0], rgb(padrao[1])
+        for y in range(20, 32):
+            for x in list(range(16, 40)):
+                if tp == "v" and (x // 2) % 2 == 1 and not (28 <= x < 32 and False): s.p(x, y, c2)
+                if tp == "h" and (y // 2) % 2 == 1: s.p(x, y, c2)
+            if tp == "h":
+                for x in list(range(40, 56)) + list(range(32, 48)): pass
+        if tp == "v":
+            for y in range(20, 24):
+                for x in list(range(40, 56)): 
+                    if (x // 2) % 2 == 1: s.p(x, y, c2)
+                for x in range(32, 48):
+                    if (x // 2) % 2 == 1 and y + 32 < 56: s.p(x, y + 32, c2)
+        if tp == "h":
+            for y in range(20, 24):
+                if (y // 2) % 2 == 1: s.r(40, y, 56, y + 1, c2); s.r(32, y + 32, 48, y + 33, c2)
+        if tp == "b":
+            s.r(23, 20, 25, 32, c2); s.r(35, 20, 37, 32, c2)
+        if tp == "m":
+            s.r(40, 20, 56, 24, c2); s.r(32, 52, 48, 56, c2); s.r(44, 16, 48, 20, c2); s.r(36, 48, 40, 52, c2)
+    # sombra lateral e textura de tecido
+    s.r(16, 20, 20, 32, shade(sh, 0.86)) if not (padrao and padrao[0] in "vh") else None
+    s.r(28, 20, 32, 32, shade(sh, 0.86)) if not (padrao and padrao[0] in "vh") else None
+    import random
+    rnd = random.Random(hash((club, num)) & 0xFFFF)
+    for y in range(20, 31):
+        for x in range(16, 40):
+            r0, g0, b0, a0 = s.px[x, y]
+            k = 1 + rnd.uniform(-0.035, 0.035)
+            s.px[x, y] = (min(255, int(r0 * k)), min(255, int(g0 * k)), min(255, int(b0 * k)), a0)
     s.r(16, 31, 40, 32, trim)                                                  # barra da camisa
+    # escudo e patrocínio no peito
+    s.r(21, 22, 23, 24, rgb(0xE8C547)); s.r(23, 25, 27, 26, shade(rgb(0xFFFFFF), 0.9) if lum(sh) < 140 else (40, 40, 40))
     s.r(20, 20, 28, 21, trim); s.r(23, 21, 25, 22, tone)                       # gola
     s.r(36, 20, 40, 21, shade(sh, 1.0))
     # número nas costas (face 32..40, 20..32)
     txt = str(num); w = len(txt) * 4 - 1; x0 = 32 + (8 - w) // 2
     nc = (255, 255, 255) if lum(sh) < 140 else (20, 20, 20)
+    s.r(x0 - 1, 22, x0 + w + 1, 29, shade(sh, 0.92))                               # fundo liso atrás do número
     for i, d in enumerate(txt):
         for yy, row in enumerate(DIG[d]):
             for xx, v in enumerate(row):
@@ -75,6 +113,9 @@ def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba):
     for x in (9, 10, 13, 14): s.p(x, 11, shade(hc, 0.9))
     s.p(11, 13, shade(tone, 0.85)); s.p(12, 13, shade(tone, 0.85))
     for x in (10, 11, 12, 13): s.p(x, 14, (150, 84, 74) if not barba else shade(hc, 1.3))
+    s.p(2, 12, shade(tone, 0.8)); s.p(2, 13, shade(tone, 0.8)); s.p(21, 12, shade(tone, 0.8)); s.p(21, 13, shade(tone, 0.8))
+    s.p(8, 13, shade(tone, 0.93)); s.p(15, 13, shade(tone, 0.93))
+    if hair in ('loiro', 'ruivo') and (hash((club, num)) % 3 == 0): s.p(10, 12, (60, 100, 170)); s.p(13, 12, (60, 100, 170))
     # cabelo
     def hair_base(front, sides, back, top=True):
         if top: s.r(8, 0, 16, 8, hc)
@@ -94,6 +135,14 @@ def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba):
         bc = shade(hc, 1.15)
         s.r(8, 13, 16, 16, bc); s.r(11, 14, 13, 15, (150, 84, 74))
         s.r(0, 13, 8, 16, bc); s.r(16, 13, 24, 16, bc); s.r(16, 0, 24, 8, bc); s.r(24, 12, 32, 16, hc) if estilo != "b" else None
+    # ---- camadas externas (dão volume ao boneco) ----
+    s.r(20, 36, 28, 37, trim); s.r(23, 37, 25, 38, shade(trim, 0.8))               # gola em relevo
+    s.r(16, 46, 40, 48, shade(sho, 1.0))                                           # barra da camisa/cós por cima
+    s.r(40, 39, 56, 41, trim) if not gk else s.r(40, 45, 56, 48, (235, 235, 235) if lum(sh) < 150 else (35, 35, 35))
+    s.r(48, 55, 64, 57, trim) if not gk else s.r(48, 61, 64, 64, (235, 235, 235) if lum(sh) < 150 else (35, 35, 35))
+    s.r(0, 40, 16, 42, shade(sho, 1.1)); s.r(0, 56, 16, 58, shade(sho, 1.1))      # barra do calção em relevo
+    s.r(0, 42, 16, 43, shade(soc, 1.15)); s.r(0, 58, 16, 59, shade(soc, 1.15))     # faixa nas meias
+    s.r(0, 46, 16, 48, (245, 245, 245)); s.r(0, 62, 16, 64, (245, 245, 245))      # sola da chuteira clara
     return s.im
 
 def ler_clubes():
@@ -130,7 +179,7 @@ def main():
                     desenha(cid, num, cor, 0x1A1A1A, True, pele, cab, est, bar).save(os.path.join(OUT, f"{cid}_{num}_g{k}.png")); ids.append(f"{cid}_{num}_g{k}")
             else:
                 for tag, cor in (("h", c["chest"]), ("a", c["alt"])):
-                    desenha(cid, num, cor, c["shorts"], False, pele, cab, est, bar).save(os.path.join(OUT, f"{cid}_{num}_{tag}.png")); ids.append(f"{cid}_{num}_{tag}")
+                    desenha(cid, num, cor, c["shorts"], False, pele, cab, est, bar, PADROES.get(cid) if tag == "h" else None).save(os.path.join(OUT, f"{cid}_{num}_{tag}.png")); ids.append(f"{cid}_{num}_{tag}")
     open(os.path.join(RES, "futebol", "skins.txt"), "w").write("\n".join(ids) + "\n")
     print(len(ids), "skins geradas")
 

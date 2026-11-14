@@ -136,6 +136,10 @@ FRASES = {
     "com_cartao_1": (A, "Cartão justo. A entrada foi dura."), "com_intervalo_1": (A, "Um tempo de muita luta. Vai ser decidido nos detalhes."),
 }
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from falas_extra import EXTRA
+FRASES.update(EXTRA)
+
 def ler_clubes():
     clubes, jogadores = [], []
     atual = None
@@ -156,7 +160,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--modelo", required=True); ap.add_argument("--vozes-dir", required=True)
     ap.add_argument("--narrador", default="pm_alex"); ap.add_argument("--analista", default="pm_santa")
-    ap.add_argument("--velocidade", type=float, default=1.08)
+    ap.add_argument("--velocidade", type=float, default=1.12)
     a = ap.parse_args()
     from kokoro_onnx import Kokoro
     vozes = {}
@@ -188,7 +192,11 @@ def main():
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp: wav = tmp.name
         sf.write(wav, audio, sr)
         saida = os.path.join(OGG_DIR, cid + ".ogg")
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-ac", "1", "-c:a", "libvorbis", "-q:a", "4", saida], check=True)
+        if voz == a.narrador:      # locutor: um pouco mais agudo e "de rádio" (compressão + brilho)
+            filtro = "asetrate=24000*1.05,aresample=24000,atempo=0.952,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=80,equalizer=f=3200:t=q:w=1:g=3"
+        else:                      # comentarista: mais grave e calmo
+            filtro = "highpass=f=80,acompressor=threshold=-24dB:ratio=2.5,equalizer=f=180:t=q:w=1:g=2"
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-af", filtro, "-ac", "1", "-c:a", "libvorbis", "-q:a", "4", saida], check=True)
         os.unlink(wav)
         ms = int(len(audio) / sr * 1000)
         manifest.append(f"{cid}|{ms}|{exibido}")

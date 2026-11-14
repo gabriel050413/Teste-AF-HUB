@@ -88,6 +88,7 @@ final class AutoTest {
                 return;
             }
             if (ticks >= maxTicks) {
+                FutebolMod.LOG.info("NARRADOR falas=" + m.nar.spoken + " " + m.nar.kinds);
                 FutebolMod.LOG.info("EVENTOS " + m.ev + " histU=" + java.util.Arrays.toString(hist));
                 for (int t = 0; t < 2; t++) for (int i = 0; i < 11; i++) {
                     FPlayer p = m.teams[t][i];

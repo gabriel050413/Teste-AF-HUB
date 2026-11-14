@@ -1,430 +1,644 @@
 a_1|257|a
 amarelo_1|1187|Cartão amarelo para
-cabeceio_1|735|Cabeceia
+ataque_1|974|Vem o ataque!
+ataque_2|836|Olha o perigo!
+ataque_3|787|Que jogada!
+ataque_4|1213|Se aproxima da área!
+ataque_5|1360|A defesa está atenta!
+ataque_6|820|Tá chegando!
+ataque_7|1264|Bola na área, cuidado!
+ataque_8|1064|Perigo, perigo!
+cabeceio_1|713|Cabeceia
 caneta_1|1552|Caneta! Humilhou o marcador,
-chapeu_1|1807|Chapéu no marcador! Categoria de
-chute_1|725|arrisca!
-chute_2|974|bate forte!
-chute_3|808|finaliza!
-chute_4|1085|chuta de longe!
-com_bola_parada_1|2479|Na bola parada, um detalhe decide o jogo.
-com_cansaco_1|2725|Os jogadores já começam a sentir o cansaço.
-com_cartao_1|2019|Cartão justo. A entrada foi dura.
-com_contra_1|1598|O contra-ataque foi letal.
-com_defesa_1|2425|O goleiro estava muito bem posicionado.
-com_defesa_2|2091|Reflexo rápido. Ele evitou o gol.
-com_defesa_linha_1|3062|A linha defensiva precisa fechar melhor os espaços.
-com_drible_1|2215|Tem habilidade de sobra esse jogador.
-com_drible_2|2219|Quando ele pega embalado, ninguém segura.
+chapeu_1|1778|Chapéu no marcador! Categoria de
+chute_1|661|arrisca!
+chute_2|912|bate forte!
+chute_3|768|finaliza!
+chute_4|1061|chuta de longe!
+chute_5|758|solta o pé!
+chute_6|1110|bate colocado!
+chute_7|878|manda a bomba!
+chute_8|945|tenta o chute!
+com_bola_parada_1|2379|Na bola parada, um detalhe decide o jogo.
+com_cansaco_1|2678|Os jogadores já começam a sentir o cansaço.
+com_cartao_1|1983|Cartão justo. A entrada foi dura.
+com_contra_1|1548|O contra-ataque foi letal.
+com_defesa_1|2321|O goleiro estava muito bem posicionado.
+com_defesa_2|2016|Reflexo rápido. Ele evitou o gol.
+com_defesa_linha_1|2962|A linha defensiva precisa fechar melhor os espaços.
+com_drible_1|2176|Tem habilidade de sobra esse jogador.
+com_drible_2|2194|Quando ele pega embalado, ninguém segura.
 com_falta_1|2468|Jogo pegado. O árbitro precisa controlar.
-com_falta_2|2624|É uma falta tática, para parar o contra-ataque.
-com_gol_1|2209|Foi uma jogada muito bem trabalhada.
-com_gol_2|2825|A defesa ficou parada, e o atacante não perdoa.
-com_imped_1|2542|A linha de impedimento estava bem postada.
-com_intervalo_1|3373|Um tempo de muita luta. Vai ser decidido nos detalhes.
-com_penalti_1|3324|Pênalti é pressão pura. Quem bate precisa de sangue frio.
-com_posse_1|2778|Posse de bola com paciência, esperando o espaço.
-com_pressao_1|2417|O time está pressionando a saída de bola.
-cruz_1|992|Cruza na área!
-cruz_2|1264|Bola alçada na área!
+com_falta_2|2524|É uma falta tática, para parar o contra-ataque.
+com_gol_1|2165|Foi uma jogada muito bem trabalhada.
+com_gol_2|2741|A defesa ficou parada, e o atacante não perdoa.
+com_imped_1|2518|A linha de impedimento estava bem postada.
+com_intervalo_1|3251|Um tempo de muita luta. Vai ser decidido nos detalhes.
+com_penalti_1|3200|Pênalti é pressão pura. Quem bate precisa de sangue frio.
+com_posse_1|2728|Posse de bola com paciência, esperando o espaço.
+com_pressao_1|2369|O time está pressionando a saída de bola.
+contra_1|1557|Contra-ataque! Contra-ataque!
+contra_2|1348|Saiu em velocidade!
+contra_3|1161|É agora, é agora!
+contra_4|1360|Cavalgada pelo campo!
+cruz_1|979|Cruza na área!
+cruz_2|1210|Bola alçada na área!
 defesa_1|822|Defendeu!
-defesa_2|865|Que defesa!
-defesa_3|1101|Salvou o goleiro!
-defesa_4|688|Espalmou!
-defesa_de_1|1233|Grande defesa de
-defesa_de_2|940|Que milagre de
-elastico_1|1367|Elástico! Que drible de
-empate_fim_1|1668|O jogo termina empatado.
-enfiada_1|1362|Enfiada de bola para
+defesa_2|826|Que defesa!
+defesa_3|1003|Salvou o goleiro!
+defesa_4|666|Espalmou!
+defesa_5|1701|Tirou com a ponta dos dedos!
+defesa_6|1161|Milagre! Que defesa!
+defesa_de_1|1221|Grande defesa de
+defesa_de_2|887|Que milagre de
+din_cansado_1|2444|já está bem cansado, vamos ver se aguenta.
+din_chuta_1|1842|é o melhor finalizador em campo.
+din_comeco_1|3517|Estamos no início do jogo, e os times ainda estudam o adversário.
+din_dribla_1|1860|tem o melhor drible da partida.
+din_empate_1|2379|Jogo empatado, equilibrado, e muito aberto.
+din_fim_1|3608|Estamos nos minutos finais, e qualquer erro pode custar o jogo.
+din_forte_1|1973|é o mais forte fisicamente aqui.
+din_goleiro_1|2475|tem reflexos de gato debaixo das traves.
+din_marca_1|1743|é quem melhor marca nesse jogo.
+din_passe_1|1509|tem o melhor passe do jogo.
+din_placar_1|2249|O jogo está aberto, tudo pode acontecer.
+din_placar_2|2841|O time que está na frente precisa cuidar da bola.
+din_placar_3|4285|Quem está atrás precisa arriscar mais, e isso abre espaço para o contra-ataque.
+din_posse_1|3864|Veja a posse de bola: o domínio é todo de um lado, mas gol é outra coisa.
+din_rapido_1|2018|é o jogador mais rápido em campo.
+din_visao_1|1704|é quem melhor enxerga o jogo.
+elastico_1|1306|Elástico! Que drible de
+emocao_1|1815|Que jogo, senhoras e senhores!
+emocao_2|1701|Olha que partida eletrizante!
+emocao_3|1663|A torcida não para de cantar!
+emocao_4|1973|Está pegando fogo aqui no estádio!
+emocao_5|1624|Que clima nas arquibancadas!
+emocao_6|1450|Jogo bonito de se ver!
+emocao_7|1622|Não dá pra piscar nesse jogo!
+emocao_8|1874|Ninguém senta, todo mundo de pé!
+empate_fim_1|1620|O jogo termina empatado.
+enfiada_1|1350|Enfiada de bola para
 escanteio_1|1147|Escanteio para o
-escanteio_2|1643|Vai ser cobrado o escanteio.
-falta_1|720|Falta de
-falta_2|1288|Falta cometida por
-falta_3|1149|Entrada dura de
-falta_perigosa_1|1854|Falta perigosa! Quem vai bater é
-falta_perigosa_2|1383|Bola parada. Vai cobrar
-fil_1|749|com a bola.
-fil_2|1162|toca de primeira.
-fil_3|1025|carrega a bola.
-fil_4|2286|levanta a cabeça e procura o companheiro.
-fil_5|1279|domina e olha o jogo.
-fil_6|1400|gira e protege a bola.
-fim_1t_1|1547|Termina o primeiro tempo.
-fim_jogo_1|1265|Acabou! Fim de jogo!
-finta_1|827|Que finta de
-fora_1|648|Pra fora!
-fora_2|940|Passou perto!
+escanteio_2|1606|Vai ser cobrado o escanteio.
+escanteio_x_1|1374|Bola na área! Cabeceia!
+escanteio_x_2|1771|Disputa de cabeça na área!
+escanteio_x_3|1360|Bola alçada, confusão!
+escanteio_x_4|1148|Que bate-rebate!
+falta_1|660|Falta de
+falta_2|1201|Falta cometida por
+falta_3|1124|Entrada dura de
+falta_4|1157|Foi duro o lance de
+falta_5|1549|O árbitro marca. Falta de
+falta_perigosa_1|1772|Falta perigosa! Quem vai bater é
+falta_perigosa_2|1371|Bola parada. Vai cobrar
+fato_c_arsenal_1|7625|O Arsenal foi o time dos Invencíveis, que terminou a temporada 2003 e 2004 da Premier League sem perder nenhum jogo.
+fato_c_arsenal_2|2898|O Emirates Stadium é a casa do Arsenal, em Londres.
+fato_c_arsenal_3|3844|O Arsenal tem um dos maiores números de títulos da copa da Inglaterra.
+fato_c_astonvilla_1|3650|O Aston Villa foi campeão europeu em 1982.
+fato_c_astonvilla_2|4803|O Aston Villa é um dos clubes mais tradicionais da Inglaterra, com camisas grená e azul.
+fato_c_astonvilla_3|3044|Villa Park é um dos estádios mais antigos da Inglaterra.
+fato_c_atleticomg_1|4132|O Atlético Mineiro foi fundado em 1908 e é conhecido como Galo.
+fato_c_atleticomg_2|4467|O Galo conquistou a Libertadores de 2013, com Ronaldinho Gaúcho na equipe.
+fato_c_atleticomg_3|4048|A Massa Atleticana é famosa pela festa e pelo apoio nas arquibancadas.
+fato_c_barcelona_1|5362|O Barcelona foi fundado em 1899 e tem como lema a frase: mais que um clube.
+fato_c_barcelona_2|4476|A Masia, a escola de base do Barcelona, formou craques como Xavi, Iniesta e Messi.
+fato_c_barcelona_3|3848|O Barcelona é conhecido pelo estilo de posse de bola e passes curtos.
+fato_c_bayern_1|3654|O Bayern de Munique é o maior campeão alemão de todos os tempos.
+fato_c_bayern_2|3163|A Allianz Arena brilha em vermelho nos dias de jogo do Bayern.
+fato_c_bayern_3|2317|O Bayern é seis vezes campeão europeu.
+fato_c_chelsea_1|4141|O Chelsea foi campeão da Champions em 2012 e em 2021.
+fato_c_chelsea_2|3264|Stamford Bridge é a casa do Chelsea, no oeste de Londres.
+fato_c_chelsea_3|4308|O Chelsea é um dos clubes que mais gastam e mais ganham títulos na era moderna.
+fato_c_cruzeiro_1|4464|O Cruzeiro foi fundado em 1921, com o nome de Palestra Itália.
+fato_c_cruzeiro_2|5868|O Cruzeiro é bicampeão da Libertadores, em 1976 e 1997.
+fato_c_cruzeiro_3|3600|O Mineirão, casa do Cruzeiro, é um dos maiores estádios do Brasil.
+fato_c_dortmund_1|5318|A Muralha Amarela, arquibancada do Borussia Dortmund, é uma das mais impressionantes da Europa.
+fato_c_dortmund_2|4368|O Borussia foi campeão da Liga dos Campeões em 1997.
+fato_c_dortmund_3|2901|O Dortmund é famoso por revelar jovens talentos.
+fato_c_flamengo_1|6200|O Flamengo foi campeão da Libertadores em 1981, 2019 e 2022.
+fato_c_flamengo_2|3418|O Flamengo é considerado o time de maior torcida do Brasil.
+fato_c_flamengo_3|2525|O Maracanã é a casa mais famosa do Flamengo.
+fato_c_liverpool_1|4486|Em Anfield, a torcida do Liverpool canta You'll Never Walk Alone antes de cada jogo.
+fato_c_liverpool_2|2375|O Liverpool é seis vezes campeão europeu.
+fato_c_liverpool_3|3642|O Liverpool tem história de noites mágicas europeias em Anfield.
+fato_c_mancity_1|5813|O Manchester City conquistou a Tríplice Coroa em 2023, algo raríssimo no futebol inglês.
+fato_c_mancity_2|4887|O Etihad Stadium é a casa do City, que tem Pep Guardiola como símbolo da era moderna.
+fato_c_mancity_3|3136|O City usa as cores azul-celeste desde a sua fundação.
+fato_c_manutd_1|2794|Old Trafford é conhecido como o Teatro dos Sonhos.
+fato_c_manutd_2|3543|O Manchester United tem vinte títulos do campeonato inglês.
+fato_c_manutd_3|4437|O United foi o primeiro clube inglês a conquistar a Copa dos Campeões da Europa.
+fato_c_newcastle_1|5447|O St James' Park fica no centro da cidade, e a torcida do Newcastle é chamada de Toon Army.
+fato_c_newcastle_2|4975|O Newcastle tem camisas listradas de preto e branco, uma das mais clássicas da Inglaterra.
+fato_c_newcastle_3|2983|O Newcastle voltou a sonhar com a Europa na era moderna.
+fato_c_palmeiras_1|5901|O Palmeiras foi campeão da Libertadores em 1999, 2020 e 2021.
+fato_c_palmeiras_2|2754|O Allianz Parque é a casa do Palmeiras, em São Paulo.
+fato_c_palmeiras_3|3864|O Palmeiras foi fundado em 1914, como Palestra Itália.
+fato_c_psg_1|6924|O Paris Saint-Germain foi fundado em 1970 e conquistou a Champions pela primeira vez em 2025.
+fato_c_psg_2|3493|O Parque dos Príncipes é a casa do PSG, no coração de Paris.
+fato_c_psg_3|4138|O PSG é dono de uma das maiores sequências de títulos franceses.
+fato_c_realmadrid_1|3479|O Real Madrid é o maior campeão da Liga dos Campeões da Europa.
+fato_c_realmadrid_2|4768|O Santiago Bernabéu, casa do Real Madrid, é um dos estádios mais famosos do planeta.
+fato_c_realmadrid_3|5098|O Real Madrid foi fundado em 1902 e vive de noites históricas na Champions.
+fato_c_saqueadores_1|4508|Os Saqueadores são pillagers com camisa vermelha e muita vontade de roubar a bola.
+fato_c_tottenham_1|5675|O Tottenham foi fundado em 1882 e tem um estádio moderno, com gramado retrátil.
+fato_c_tottenham_2|3221|O Tottenham tem o galo como símbolo e o apelido de Spurs.
+fato_c_tottenham_3|4153|O Tottenham é um dos grandes clubes de Londres, sempre com um ataque ofensivo.
+fato_c_vindicadores_1|4079|Os Vindicadores trocaram o machado pela chuteira, mas ainda marcam duro.
+fato_e_1|5750|Esse estádio foi montado bloco a bloco, com arquibancadas em anéis, teto com LED e telões gigantes.
+fato_e_10|4042|Cada jogador tem altura, cabelo e tom de pele inspirados no craque real.
+fato_e_11|4802|A transmissão tem câmera principal, câmera alta, atrás do gol, rasteira e até uma spidercam.
+fato_e_12|5663|A torcida do time da casa fica atrás do gol, e a visitante, no lado oposto, cada uma com a sua bateria.
+fato_e_13|3614|O placar nos telões mostra tempo, público e o confronto do dia.
+fato_e_14|4894|A bola de enxofre ganha efeito no ar, dá para ver os chutes de curva fazendo a trajetória.
+fato_e_2|5629|A torcida aqui é formada por aldeões: não entendem nada de impedimento, mas gritam como ninguém.
+fato_e_3|4829|A bola é um cubo de enxofre com madeira dentro, e a madeira é o que faz ela quicar tão bem.
+fato_e_4|5611|O gramado tem listras alternadas, como nos grandes estádios, o que ajuda a ver a linha de impedimento.
+fato_e_5|5401|O campo tem noventa blocos de comprimento e cinquenta e seis de largura, com gols de nove blocos.
+fato_e_6|5339|Os refletores invisíveis iluminam o gramado inteiro, e o jogo pode até ser disputado à noite.
+fato_e_7|4425|Repare nos bancos de reservas cobertos, bem no estilo dos estádios europeus.
+fato_e_8|5593|O árbitro de preto e os dois assistentes na linha de impedimento fazem a arbitragem completa.
+fato_e_9|5942|Os jogadores usam camisas diferentes quando as cores dos dois times se parecem, como manda o regulamento.
+fato_j_arsenal_14_1|4567|Gyökeres chegou ao Arsenal depois de uma temporada de muitos gols em Portugal.
+fato_j_arsenal_41_1|4012|Declan Rice foi vendido ao Arsenal por mais de cem milhões de libras.
+fato_j_arsenal_7_1|1844|Saka é cria da base do Arsenal.
+fato_j_arsenal_8_1|2868|Ødegaard é o capitão do Arsenal e o cérebro da equipe.
+fato_j_astonvilla_23_1|4967|Emiliano Martínez é conhecido pelas defesas de pênalti e pela personalidade forte.
+fato_j_barcelona_19_1|6099|Lamine Yamal foi campeão da Eurocopa de 2024 um dia depois de completar dezessete anos.
+fato_j_barcelona_9_1|4295|Lewandowski já marcou cinco gols em nove minutos em um jogo, em 2015.
+fato_j_bayern_10_1|4558|Musiala nasceu na Alemanha, cresceu na Inglaterra e escolheu defender a seleção alemã.
+fato_j_bayern_1_1|3317|Neuer revolucionou a função do goleiro, jogando como um líbero.
+fato_j_bayern_6_1|4368|Kimmich joga tanto de lateral quanto de volante, sempre com muita inteligência.
+fato_j_bayern_9_1|3325|Harry Kane foi artilheiro da Copa do Mundo de 2018.
+fato_j_chelsea_10_1|3633|Cole Palmer marcou quatro gols em um único tempo contra o Brighton.
+fato_j_cruzeiro_1_1|5394|Cássio é um dos maiores ídolos do Corinthians, onde foi campeão mundial de clubes em 2012.
+fato_j_cruzeiro_9_1|5324|Gabigol foi o herói da final da Libertadores de 2019, com dois gols nos acréscimos.
+fato_j_dortmund_7_1|3686|Jobe Bellingham é irmão mais novo do Jude, craque do Real Madrid.
+fato_j_flamengo_10_1|4676|Arrascaeta é o craque uruguaio que foi decisivo na Libertadores de 2019.
+fato_j_liverpool_11_1|3870|Salah é ídolo no Egito e uma das maiores lendas da história do Liverpool.
+fato_j_liverpool_1_1|5292|Alisson foi campeão da Champions League em 2019 e é um dos melhores goleiros do mundo.
+fato_j_liverpool_38_1|4733|Gravenberch é um meio-campista alto e técnico, cheio de habilidade para carregar a bola.
+fato_j_liverpool_4_1|3521|Van Dijk foi o zagueiro mais caro do mundo quando chegou ao Liverpool.
+fato_j_liverpool_7_1|3629|Florian Wirtz é um dos meias mais jovens e criativos da Europa.
+fato_j_mancity_16_1|3783|Rodri foi eleito o melhor jogador do mundo em 2024.
+fato_j_mancity_47_1|2526|Phil Foden é cria da base do Manchester City.
+fato_j_mancity_9_1|4220|Haaland é filho do ex-jogador Alf-Inge Haaland e marca gols em ritmo de máquina.
+fato_j_mancity_9_2|4677|Haaland é um centroavante de mais de um e noventa, com velocidade rara para o tamanho.
+fato_j_manutd_18_1|3376|Casemiro foi campeão da Champions cinco vezes com o Real Madrid.
+fato_j_manutd_30_1|2863|Sesko é um atacante de quase dois metros de altura.
+fato_j_manutd_8_1|4463|Bruno Fernandes é o capitão e o maior criador de jogadas do Manchester United.
+fato_j_psg_10_1|3767|Ousmane Dembélé foi eleito o melhor do mundo em 2025.
+fato_j_psg_2_1|3275|Hakimi nasceu na Espanha, mas joga pela seleção do Marrocos.
+fato_j_psg_5_1|4162|Marquinhos é o capitão do PSG e um dos brasileiros mais longevos do clube.
+fato_j_psg_7_1|4425|Kvaratskhelia foi o grande nome da Geórgia na Eurocopa de 2024.
+fato_j_realmadrid_10_1|3667|Mbappé foi campeão do mundo aos dezenove anos, em 2018.
+fato_j_realmadrid_10_2|4554|Mbappé é um dos jogadores mais rápidos do mundo, e vive de explosão e finalização.
+fato_j_realmadrid_14_1|3741|Tchouaméni é o volante que organiza a saída de bola do Real Madrid.
+fato_j_realmadrid_15_1|3779|Valverde é uruguaio e tem o apelido de Pájaro, que significa pássaro.
+fato_j_realmadrid_1_1|4014|Courtois foi eleito o melhor goleiro da Copa do Mundo de 2018.
+fato_j_realmadrid_5_1|3886|Bellingham tem um irmão mais novo, o Jobe, que joga no Borussia Dortmund.
+fato_j_realmadrid_7_1|4195|Vini Jr. começou no Flamengo e foi para o Real Madrid ainda adolescente.
+fil_1|709|com a bola.
+fil_10|1063|faz o jogo andar.
+fil_2|1085|toca de primeira.
+fil_3|988|carrega a bola.
+fil_4|2236|levanta a cabeça e procura o companheiro.
+fil_5|1220|domina e olha o jogo.
+fil_6|1347|gira e protege a bola.
+fil_7|1573|sobe com a bola dominada.
+fil_8|1798|não tem pressa, espera o momento.
+fil_9|1150|acelera pelo meio.
+fim_1t_1|1485|Termina o primeiro tempo.
+fim_jogo_1|1210|Acabou! Fim de jogo!
+finta_1|871|Que finta de
+fora_1|625|Pra fora!
+fora_2|922|Passou perto!
 fora_3|561|Quase!
-fora_4|1423|Por pouco! Foi pra fora.
-gol_abre_1|974|Abre o placar!
-gol_amplia_1|1093|Amplia o placar!
-gol_contra_1|1301|Gol contra! Que azar de
-gol_diminui_1|1455|Diminui a diferença!
-gol_empata_1|1336|É o gol de empate!
-gol_grito_1|1444|Gooool! É gol! É gol!
+fora_4|1329|Por pouco! Foi pra fora.
+fora_5|1456|Passou raspando! Que susto!
+fora_6|1794|Ia ser um golaço, mas foi pra fora.
+gol_abre_1|902|Abre o placar!
+gol_amplia_1|999|Amplia o placar!
+gol_contra_1|1267|Gol contra! Que azar de
+gol_diminui_1|1431|Diminui a diferença!
+gol_empata_1|1311|É o gol de empate!
+gol_grito_1|1793|Gooool! É gol! É gol! É gol!
 gol_grito_2|1793|Gol! Gol! Que beleza de gol!
 gol_grito_3|1766|Balançou a rede! Gooooool!
-gol_pos_1|892|Que golaço!
-gol_pos_2|1006|Sensacional!
-gol_pos_3|1135|Inacreditável!
-gol_pos_4|882|Fantástico!
-gol_vira_1|895|Vira o jogo!
+gol_grito_4|1705|Foi pra dentro! Gooooool!
+gol_grito_5|1789|Explode o estádio! Gooool!
+gol_grito_6|1588|É gol, minha gente! Gooool!
+gol_pos_1|873|Que golaço!
+gol_pos_2|937|Sensacional!
+gol_pos_3|1110|Inacreditável!
+gol_pos_4|861|Fantástico!
+gol_pos_5|754|Que pintura!
+gol_pos_6|1460|Não tem jeito, é craque!
+gol_pos_7|1574|Que tremenda finalização!
+gol_pos_8|1204|O goleiro só olhou!
+gol_vira_1|822|Vira o jogo!
+goleiro_1|963|Segura o goleiro!
+goleiro_2|1574|O goleiro fica com a bola.
+goleiro_3|1527|Goleiro pronto pra repor.
+goleiro_4|1711|Ele reinicia o jogo com calma.
 impedimento_1|1972|Impedimento! Bandeira levantada.
-impedimento_2|1994|Estava adiantado! Impedimento.
-inicio_1|1744|Apita o árbitro. Rola a bola!
-inicio_2|898|Bola rolando!
-inicio_2t_1|1878|Bola rolando para o segundo tempo!
-inicio_2t_2|1310|Recomeça a partida!
-inicio_3|1070|Começa o jogo!
-intro_a_1|2798|Boa noite, torcedores! Hoje a bola vai rolar para
-intro_a_2|1937|Está tudo pronto para o jogo entre
-intro_b_1|522|contra
-intro_c_1|1524|Vai começar a partida!
-intro_c_2|1456|Que comece o espetáculo!
-inversao_1|2029|Inversão de jogo para o outro lado.
+impedimento_2|1944|Estava adiantado! Impedimento.
+inicio_1|1642|Apita o árbitro. Rola a bola!
+inicio_2|851|Bola rolando!
+inicio_2t_1|1828|Bola rolando para o segundo tempo!
+inicio_2t_2|1285|Recomeça a partida!
+inicio_3|1059|Começa o jogo!
+intro_a_1|2706|Boa noite, torcedores! Hoje a bola vai rolar para
+intro_a_2|1898|Está tudo pronto para o jogo entre
+intro_b_1|545|contra
+intro_c_1|1384|Vai começar a partida!
+intro_c_2|1435|Que comece o espetáculo!
+inversao_1|1979|Inversão de jogo para o outro lado.
 lateral_1|952|Lateral para o
 min_pos_1|713|minutos.
-min_pos_2|706|minuto.
+min_pos_2|682|minuto.
 min_pre_1|325|Aos
 n_0|420|0
 n_1|342|1
-n_10|469|10
-n_11|494|11
-n_12|510|12
+n_10|398|10
+n_11|501|11
+n_12|522|12
 n_13|509|13
-n_14|723|14
-n_15|588|15
-n_16|781|16
-n_17|857|17
-n_18|699|18
-n_19|761|19
-n_2|492|2
+n_14|679|14
+n_15|549|15
+n_16|755|16
+n_17|777|17
+n_18|646|18
+n_19|735|19
+n_2|445|2
 n_20|566|20
 n_21|763|21
-n_22|931|22
-n_23|877|23
-n_24|961|24
-n_25|897|25
+n_22|911|22
+n_23|857|23
+n_24|900|24
+n_25|873|25
 n_26|827|26
 n_27|932|27
-n_28|933|28
-n_29|932|29
-n_3|467|3
-n_30|598|30
-n_31|790|31
-n_32|906|32
-n_33|846|33
-n_34|935|34
-n_35|894|35
-n_36|853|36
-n_37|915|37
-n_38|924|38
-n_39|921|39
-n_4|549|4
-n_40|671|40
+n_28|886|28
+n_29|910|29
+n_3|401|3
+n_30|539|30
+n_31|737|31
+n_32|861|32
+n_33|837|33
+n_34|913|34
+n_35|870|35
+n_36|848|36
+n_37|909|37
+n_38|910|38
+n_39|908|39
+n_4|524|4
+n_40|660|40
 n_41|873|41
-n_42|1090|42
+n_42|1032|42
 n_43|1072|43
 n_44|1078|44
 n_45|1052|45
-n_46|1022|46
+n_46|997|46
 n_47|1146|47
 n_48|1074|48
 n_49|1067|49
 n_5|547|5
-n_50|821|50
-n_51|1043|51
-n_52|1176|52
-n_53|1147|53
-n_54|1228|54
-n_55|1107|55
-n_56|1122|56
-n_57|1206|57
-n_58|1153|58
-n_59|1174|59
+n_50|799|50
+n_51|973|51
+n_52|1127|52
+n_53|1101|53
+n_54|1195|54
+n_55|1058|55
+n_56|1074|56
+n_57|1160|57
+n_58|1152|58
+n_59|1162|59
 n_6|442|6
-n_60|743|60
-n_61|950|61
-n_62|1098|62
-n_63|1038|63
-n_64|1152|64
-n_65|1081|65
-n_66|1013|66
-n_67|1152|67
-n_68|1081|68
-n_69|1099|69
+n_60|670|60
+n_61|901|61
+n_62|1050|62
+n_63|1000|63
+n_64|1131|64
+n_65|988|65
+n_66|988|66
+n_67|1106|67
+n_68|1057|68
+n_69|1075|69
 n_7|470|7
-n_70|754|70
-n_71|942|71
-n_72|1076|72
-n_73|1073|73
-n_74|1132|74
-n_75|1062|75
-n_76|1023|76
-n_77|1154|77
-n_78|1083|78
-n_79|1077|79
-n_8|496|8
-n_80|737|80
+n_70|709|70
+n_71|925|71
+n_72|1044|72
+n_73|1050|73
+n_74|1129|74
+n_75|1024|75
+n_76|1001|76
+n_77|1102|77
+n_78|1079|78
+n_79|1074|79
+n_8|442|8
+n_80|708|80
 n_81|922|81
-n_82|1101|82
-n_83|1073|83
+n_82|1062|82
+n_83|1011|83
 n_84|1131|84
-n_85|1062|85
-n_86|1050|86
-n_87|1150|87
-n_88|1106|88
-n_89|1123|89
+n_85|1037|85
+n_86|1025|86
+n_87|1103|87
+n_88|1056|88
+n_89|1074|89
 n_9|459|9
 n_90|687|90
 n_91|923|91
-n_92|1101|92
-n_93|1118|93
-n_94|1147|94
-n_95|1106|95
+n_92|1081|92
+n_93|1097|93
+n_94|1122|94
+n_95|1057|95
 n_96|1046|96
-n_97|1198|97
+n_97|1173|97
 n_98|1073|98
 n_99|1098|99
-p_arsenal_1|465|Raya
+p_arsenal_1|441|Raya
 p_arsenal_11|761|Martinelli
-p_arsenal_12|550|Timber
-p_arsenal_14|650|Gyökeres
-p_arsenal_2|596|Saliba
-p_arsenal_36|786|Zubimendi
-p_arsenal_4|491|White
-p_arsenal_41|446|Rice
-p_arsenal_6|568|Gabriel
-p_arsenal_7|515|Saka
-p_arsenal_8|566|Ødegaard
-p_astonvilla_10|787|Buendía
-p_astonvilla_11|631|Watkins
-p_astonvilla_12|566|Digne
-p_astonvilla_14|465|Torres
-p_astonvilla_2|493|Cash
-p_astonvilla_23|950|Emi Martínez
+p_arsenal_12|532|Timber
+p_arsenal_14|637|Gyökeres
+p_arsenal_2|573|Saliba
+p_arsenal_36|762|Zubimendi
+p_arsenal_4|471|White
+p_arsenal_41|423|Rice
+p_arsenal_6|526|Gabriel
+p_arsenal_7|494|Saka
+p_arsenal_8|525|Ødegaard
+p_astonvilla_10|697|Buendía
+p_astonvilla_11|608|Watkins
+p_astonvilla_12|542|Digne
+p_astonvilla_14|481|Torres
+p_astonvilla_2|482|Cash
+p_astonvilla_23|926|Emi Martínez
 p_astonvilla_27|601|Rogers
-p_astonvilla_31|491|Bailey
-p_astonvilla_4|543|Konsa
+p_astonvilla_31|487|Bailey
+p_astonvilla_4|531|Konsa
 p_astonvilla_6|548|Kamara
 p_astonvilla_7|712|McGinn
-p_atleticomg_11|481|Rony
-p_atleticomg_14|639|Scarpa
+p_atleticomg_11|442|Rony
+p_atleticomg_14|583|Scarpa
 p_atleticomg_2|642|Natanael
 p_atleticomg_22|653|Everson
-p_atleticomg_3|627|Lyanco
-p_atleticomg_4|645|Alonso
-p_atleticomg_5|847|Alan Franco
+p_atleticomg_3|604|Lyanco
+p_atleticomg_4|622|Alonso
+p_atleticomg_5|775|Alan Franco
 p_atleticomg_6|552|Lodi
-p_atleticomg_7|569|Hulk
-p_atleticomg_8|833|Igor Gomes
+p_atleticomg_7|545|Hulk
+p_atleticomg_8|812|Igor Gomes
 p_atleticomg_9|629|Paulinho
-p_barcelona_11|698|Raphinha
-p_barcelona_13|861|Joan García
-p_barcelona_19|591|Yamal
+p_barcelona_11|656|Raphinha
+p_barcelona_13|825|Joan García
+p_barcelona_19|574|Yamal
 p_barcelona_20|469|Olmo
-p_barcelona_21|576|de Jong
-p_barcelona_23|545|Koundé
-p_barcelona_3|600|Balde
-p_barcelona_4|661|Araújo
+p_barcelona_21|561|de Jong
+p_barcelona_23|574|Koundé
+p_barcelona_3|550|Balde
+p_barcelona_4|611|Araújo
 p_barcelona_5|624|Cubarsí
 p_barcelona_8|489|Pedri
-p_barcelona_9|985|Lewandowski
+p_barcelona_9|943|Lewandowski
 p_bayern_1|501|Neuer
-p_bayern_10|686|Musiala
-p_bayern_14|521|Díaz
+p_bayern_10|660|Musiala
+p_bayern_14|487|Díaz
 p_bayern_17|509|Olise
-p_bayern_19|571|Davies
+p_bayern_19|526|Davies
 p_bayern_2|811|Upamecano
-p_bayern_4|297|Tah
-p_bayern_44|720|Stanišić
-p_bayern_45|776|Pavlović
-p_bayern_6|534|Kimmich
-p_bayern_9|448|Kane
-p_chelsea_1|554|Sánchez
+p_bayern_4|351|Tah
+p_bayern_44|712|Stanišić
+p_bayern_45|726|Pavlović
+p_bayern_6|520|Kimmich
+p_bayern_9|437|Kane
+p_chelsea_1|536|Sánchez
 p_chelsea_10|482|Palmer
-p_chelsea_20|766|João Pedro
-p_chelsea_25|629|Caicedo
+p_chelsea_20|737|João Pedro
+p_chelsea_25|619|Caicedo
 p_chelsea_26|573|Chalobah
-p_chelsea_27|588|Gusto
-p_chelsea_3|647|Cucurella
-p_chelsea_41|620|Estêvão
-p_chelsea_6|492|Colwill
+p_chelsea_27|566|Gusto
+p_chelsea_3|654|Cucurella
+p_chelsea_41|652|Estêvão
+p_chelsea_6|480|Colwill
 p_chelsea_7|470|Neto
-p_chelsea_8|547|Enzo
-p_cruzeiro_1|525|Cássio
-p_cruzeiro_10|958|Matheus Pereira
-p_cruzeiro_11|691|Wanderson
+p_chelsea_8|528|Enzo
+p_cruzeiro_1|523|Cássio
+p_cruzeiro_10|942|Matheus Pereira
+p_cruzeiro_11|667|Wanderson
 p_cruzeiro_15|1013|Fabrício Bruno
-p_cruzeiro_19|844|Kaio Jorge
-p_cruzeiro_2|749|William
+p_cruzeiro_19|763|Kaio Jorge
+p_cruzeiro_2|726|William
 p_cruzeiro_4|783|João Marcelo
-p_cruzeiro_5|560|Romero
-p_cruzeiro_6|532|Kaiki
-p_cruzeiro_8|670|Christian
+p_cruzeiro_5|587|Romero
+p_cruzeiro_6|553|Kaiki
+p_cruzeiro_8|652|Christian
 p_cruzeiro_9|641|Gabigol
-p_dortmund_1|498|Kobel
-p_dortmund_15|564|Anton
-p_dortmund_19|566|Brandt
-p_dortmund_23|449|Can
-p_dortmund_24|638|Svensson
-p_dortmund_26|653|Ryerson
-p_dortmund_27|636|Adeyemi
+p_dortmund_1|486|Kobel
+p_dortmund_15|510|Anton
+p_dortmund_19|520|Brandt
+p_dortmund_23|398|Can
+p_dortmund_24|611|Svensson
+p_dortmund_26|636|Ryerson
+p_dortmund_27|614|Adeyemi
 p_dortmund_4|741|Schlotterbeck
-p_dortmund_6|661|Nmecha
-p_dortmund_7|949|Jobe Bellingham
-p_dortmund_9|658|Guirassy
-p_flamengo_1|539|Rossi
-p_flamengo_10|835|Arrascaeta
-p_flamengo_11|1010|Luiz Araújo
+p_dortmund_6|623|Nmecha
+p_dortmund_7|907|Jobe Bellingham
+p_dortmund_9|617|Guirassy
+p_flamengo_1|460|Rossi
+p_flamengo_10|797|Arrascaeta
+p_flamengo_11|974|Luiz Araújo
 p_flamengo_2|542|Varela
 p_flamengo_21|712|Jorginho
-p_flamengo_27|913|Bruno Henrique
+p_flamengo_27|855|Bruno Henrique
 p_flamengo_3|739|Léo Ortiz
 p_flamengo_4|811|Léo Pereira
-p_flamengo_5|515|Pulgar
-p_flamengo_6|931|Ayrton Lucas
-p_flamengo_9|462|Pedro
-p_liverpool_1|526|Becker
-p_liverpool_10|837|Mac Allister
-p_liverpool_11|465|Salah
-p_liverpool_26|726|Robertson
+p_flamengo_5|501|Pulgar
+p_flamengo_6|910|Ayrton Lucas
+p_flamengo_9|414|Pedro
+p_liverpool_1|464|Becker
+p_liverpool_10|801|Mac Allister
+p_liverpool_11|440|Salah
+p_liverpool_26|701|Robertson
 p_liverpool_30|671|Frimpong
-p_liverpool_38|822|Gravenberch
-p_liverpool_4|696|van Dijk
+p_liverpool_38|789|Gravenberch
+p_liverpool_4|671|van Dijk
 p_liverpool_5|611|Konaté
 p_liverpool_7|502|Wirtz
-p_liverpool_8|697|Szoboszlai
+p_liverpool_8|647|Szoboszlai
 p_liverpool_9|594|Isak
-p_mancity_10|560|Cherki
+p_mancity_10|568|Cherki
 p_mancity_11|521|Doku
-p_mancity_16|534|Rodri
+p_mancity_16|537|Rodri
 p_mancity_24|760|Gvardiol
 p_mancity_25|785|Donnarumma
 p_mancity_27|511|Nunes
-p_mancity_3|948|Rúben Dias
-p_mancity_33|545|O'Reilly
-p_mancity_4|668|Reijnders
+p_mancity_3|902|Rúben Dias
+p_mancity_33|519|O'Reilly
+p_mancity_4|628|Reijnders
 p_mancity_47|561|Foden
-p_mancity_9|535|Haaland
-p_manutd_10|565|Cunha
-p_manutd_16|524|Amad
-p_manutd_18|715|Casemiro
-p_manutd_2|636|Dalot
+p_mancity_9|584|Haaland
+p_manutd_10|524|Cunha
+p_manutd_16|500|Amad
+p_manutd_18|687|Casemiro
+p_manutd_2|590|Dalot
 p_manutd_23|311|Shaw
-p_manutd_30|561|Šeško
+p_manutd_30|542|Šeško
 p_manutd_31|572|Lammens
 p_manutd_37|500|Mainoo
-p_manutd_5|701|Maguire
-p_manutd_6|728|Martínez
-p_manutd_8|1026|Bruno Fernandes
+p_manutd_5|682|Maguire
+p_manutd_6|719|Martínez
+p_manutd_8|1018|Bruno Fernandes
 p_newcastle_1|383|Pope
 p_newcastle_10|604|Gordon
-p_newcastle_11|581|Barnes
-p_newcastle_21|786|Livramento
+p_newcastle_11|554|Barnes
+p_newcastle_21|762|Livramento
 p_newcastle_27|832|Woltemade
-p_newcastle_33|509|Burn
-p_newcastle_39|725|Guimarães
-p_newcastle_4|587|Botman
+p_newcastle_33|460|Burn
+p_newcastle_39|696|Guimarães
+p_newcastle_4|565|Botman
 p_newcastle_5|375|Schär
-p_newcastle_7|718|Joelinton
-p_newcastle_8|541|Tonali
-p_palmeiras_11|1023|Felipe Anderson
-p_palmeiras_12|588|Khellven
-p_palmeiras_15|994|Gustavo Gómez
+p_newcastle_7|672|Joelinton
+p_newcastle_8|527|Tonali
+p_palmeiras_11|988|Felipe Anderson
+p_palmeiras_12|566|Khellven
+p_palmeiras_15|978|Gustavo Gómez
 p_palmeiras_17|608|Piquerez
 p_palmeiras_20|967|Facundo Torres
-p_palmeiras_21|668|Weverton
+p_palmeiras_21|633|Weverton
 p_palmeiras_22|565|Murilo
-p_palmeiras_23|515|Veiga
+p_palmeiras_23|491|Veiga
 p_palmeiras_5|898|Aníbal Moreno
-p_palmeiras_8|787|Zé Rafael
-p_palmeiras_9|861|Vitor Roque
+p_palmeiras_8|744|Zé Rafael
+p_palmeiras_9|847|Vitor Roque
 p_psg_10|661|Dembélé
 p_psg_14|351|Doué
 p_psg_17|694|Vitinha
-p_psg_2|617|Hakimi
+p_psg_2|599|Hakimi
 p_psg_25|618|Mendes
 p_psg_30|628|Chevalier
-p_psg_5|741|Marquinhos
+p_psg_5|707|Marquinhos
 p_psg_51|445|Pacho
-p_psg_7|801|Kvaratskhelia
-p_psg_8|563|Neves
-p_psg_87|545|Ruiz
-p_realmadrid_1|552|Courtois
+p_psg_7|765|Kvaratskhelia
+p_psg_8|538|Neves
+p_psg_87|492|Ruiz
+p_realmadrid_1|521|Courtois
 p_realmadrid_10|625|Mbappé
-p_realmadrid_11|672|Rodrygo
-p_realmadrid_12|1197|Alexander-Arnold
-p_realmadrid_14|634|Tchouaméni
-p_realmadrid_15|785|Valverde
-p_realmadrid_18|612|Carreras
-p_realmadrid_22|678|Rüdiger
-p_realmadrid_3|706|Militão
+p_realmadrid_11|605|Rodrygo
+p_realmadrid_12|1147|Alexander-Arnold
+p_realmadrid_14|611|Tchouaméni
+p_realmadrid_15|760|Valverde
+p_realmadrid_18|588|Carreras
+p_realmadrid_22|641|Rüdiger
+p_realmadrid_3|683|Militão
 p_realmadrid_5|731|Bellingham
-p_realmadrid_7|690|Vinícius
-p_saqueadores_1|608|Muralha
+p_realmadrid_7|670|Vinícius
+p_saqueadores_1|589|Muralha
 p_saqueadores_10|837|Camisa Dez
-p_saqueadores_11|702|Foguete
-p_saqueadores_2|589|Tufão
-p_saqueadores_3|512|Zeca
-p_saqueadores_4|624|Rochedo
-p_saqueadores_5|634|Paredão
-p_saqueadores_6|655|Maestro
+p_saqueadores_11|657|Foguete
+p_saqueadores_2|553|Tufão
+p_saqueadores_3|491|Zeca
+p_saqueadores_4|591|Rochedo
+p_saqueadores_5|584|Paredão
+p_saqueadores_6|622|Maestro
 p_saqueadores_7|421|Raio
 p_saqueadores_8|591|Cérebro
-p_saqueadores_9|762|Artilheiro
-p_tottenham_1|655|Vicario
+p_saqueadores_9|707|Artilheiro
+p_tottenham_1|595|Vicario
 p_tottenham_11|566|Odobert
-p_tottenham_17|560|Romero
-p_tottenham_19|650|Solanke
-p_tottenham_20|542|Kudus
+p_tottenham_17|587|Romero
+p_tottenham_19|664|Solanke
+p_tottenham_20|527|Kudus
 p_tottenham_23|393|Porro
-p_tottenham_24|588|Spence
-p_tottenham_37|810|van de Ven
+p_tottenham_24|552|Spence
+p_tottenham_37|785|van de Ven
 p_tottenham_5|442|Sarr
-p_tottenham_6|626|Palhinha
-p_tottenham_7|923|Xavi Simons
-p_vindicadores_1|690|Gigante
+p_tottenham_6|612|Palhinha
+p_tottenham_7|874|Xavi Simons
+p_vindicadores_1|654|Gigante
 p_vindicadores_10|598|Mágico
-p_vindicadores_11|766|Relâmpago
-p_vindicadores_2|568|Trator
-p_vindicadores_3|672|Marreta
-p_vindicadores_4|635|Brutus
-p_vindicadores_5|651|Capitão
-p_vindicadores_6|904|Cão de Guarda
+p_vindicadores_11|771|Relâmpago
+p_vindicadores_2|549|Trator
+p_vindicadores_3|649|Marreta
+p_vindicadores_4|609|Brutus
+p_vindicadores_5|632|Capitão
+p_vindicadores_6|863|Cão de Guarda
 p_vindicadores_7|607|Cometa
-p_vindicadores_8|636|Armador
-p_vindicadores_9|652|Matador
-pedalada_1|1197|Olha a pedalada de
-penalti_1|1699|É pênalti! O árbitro marca!
-penalti_cobra_1|791|Vai cobrar
-penalti_cobra_2|1256|Na bola, o batedor:
-placar_pre_1|1089|O placar agora:
-replay_1|1271|Vamos rever o lance.
-replay_2|959|Olha de novo!
+p_vindicadores_8|614|Armador
+p_vindicadores_9|617|Matador
+pedalada_1|1173|Olha a pedalada de
+penalti_1|1601|É pênalti! O árbitro marca!
+penalti_cobra_1|774|Vai cobrar
+penalti_cobra_2|1118|Na bola, o batedor:
+placar_pre_1|1040|O placar agora:
+pressao_1|1581|O time aperta a marcação!
+pressao_2|1958|Marcação alta, não deixa respirar!
+pressao_3|1866|Pressão total no campo de ataque!
+pressao_4|1123|Sufoco, sufoco!
+replay_1|1245|Vamos rever o lance.
+replay_2|937|Olha de novo!
 replay_3|1332|Vale ver novamente.
-t_arsenal|644|Arsenal
+ritmo_1|1804|Bola rolando macia no gramado.
+ritmo_2|1898|Jogo truncado no meio de campo.
+ritmo_3|2059|Troca de passes, esperando o espaço.
+ritmo_4|2073|O time toca a bola com paciência.
+ritmo_5|1774|Disputa forte no meio-campo!
+ritmo_6|1540|Cada bola é uma guerra aqui!
+t_arsenal|622|Arsenal
 t_astonvilla|825|Aston Villa
 t_atleticomg|1037|Atlético Mineiro
-t_barcelona|822|FC Barcelona
-t_bayern|1168|Bayern de Munique
-t_chelsea|574|Chelsea
+t_barcelona|768|FC Barcelona
+t_bayern|1144|Bayern de Munique
+t_chelsea|549|Chelsea
 t_cruzeiro|629|Cruzeiro
-t_dortmund|1133|Borussia Dortmund
-t_flamengo|708|Flamengo
-t_liverpool|711|Liverpool
-t_mancity|1107|Manchester City
-t_manutd|1277|Manchester United
+t_dortmund|1108|Borussia Dortmund
+t_flamengo|688|Flamengo
+t_liverpool|743|Liverpool
+t_mancity|1083|Manchester City
+t_manutd|1201|Manchester United
 t_newcastle|724|Newcastle United
 t_palmeiras|655|Palmeiras
-t_psg|1218|Paris Saint-Germain
-t_realmadrid|847|Real Madrid
-t_saqueadores|801|Saqueadores
-t_tottenham|712|Tottenham Hotspur
-t_vindicadores|925|Vindicadores
-tiro_meta_1|1060|Tiro de meta.
-torcida_1|1510|A torcida vai à loucura!
-torcida_2|1741|Que festa nas arquibancadas!
-vermelho_1|1524|Cartão vermelho! Expulso
-vermelho_2|1250|Está fora do jogo!
-vitoria_1|736|Vitória do
+t_psg|1190|Paris Saint-Germain
+t_realmadrid|832|Real Madrid
+t_saqueadores|790|Saqueadores
+t_tottenham|693|Tottenham Hotspur
+t_vindicadores|900|Vindicadores
+tat_1|3454|A equipe está muito bem postada, sem dar espaço ao adversário.
+tat_10|4249|O contra-ataque nasce de uma bola roubada e de três ou quatro passes rápidos.
+tat_11|3530|Repare como o ataque se abre pelos lados antes de cruzar na área.
+tat_12|3592|Jogar aberto pelas pontas estica a defesa e abre espaço no meio.
+tat_13|3775|O goleiro moderno também joga com os pés, é o primeiro atacante.
+tat_14|4514|Quando o time está com a bola, os laterais viram meias e os zagueiros ficam em três.
+tat_15|3163|A inversão de jogo muda o lado e desorganiza a marcação.
+tat_16|4027|Tabelinha de primeira é o jeito mais bonito de quebrar uma linha de quatro.
+tat_17|4274|O atacante que desce para buscar o jogo abre espaço para o companheiro entrar.
+tat_18|2979|A marcação por zona exige comunicação o tempo todo.
+tat_19|3859|O cansaço aparece nos minutos finais, e os erros de passe aumentam.
+tat_2|4492|Veja como a linha defensiva sobe junta para deixar o atacante em impedimento.
+tat_20|2699|Quem erra menos passes costuma sair com a vitória.
+tat_21|4008|Um bom zagueiro antecipa a jogada antes de o atacante receber a bola.
+tat_22|4521|O drible curto na intermediária é arriscado, mas quando dá certo, quebra a marcação.
+tat_23|5468|Cruzamento rasteiro é uma das jogadas mais perigosas, porque obriga o goleiro a decidir rápido.
+tat_24|3444|O chute de fora da área é um recurso quando a defesa se fecha.
+tat_25|3687|Esse tipo de jogo pede paciência: a vaga na área vai aparecer.
+tat_26|4744|A bola alta na área é um perigo, principalmente com atacantes fortes de cabeça.
+tat_27|4770|Quando um time está em desvantagem, o treinador mexe e coloca mais gente na frente.
+tat_28|4083|Dois volantes dão proteção, mas tiram um pouco de criatividade do meio.
+tat_29|4323|Um time bem treinado se reconhece pela distância curta entre os setores.
+tat_3|3254|O volante é peça-chave: ele protege a zaga e começa o jogo.
+tat_30|3267|Defender bem também é saber a hora certa de fazer a falta.
+tat_4|5117|Quando o ponta recompõe e ajuda o lateral, o time fica muito mais difícil de ser batido.
+tat_5|3262|Posse de bola com paciência, esperando o espaço aparecer.
+tat_6|4693|Essa saída de bola curta pelo goleiro exige muita coragem e qualidade técnica.
+tat_7|3487|O meio-campo é onde o jogo se decide, e a briga está equilibrada.
+tat_8|3750|A bola parada pode ser a grande arma em um jogo truncado como esse.
+tat_9|4026|O time que pressiona alto cansa mais, mas rouba a bola mais perto do gol.
+tempo_1|1085|O relógio corre!
+tempo_2|1337|O tempo está passando!
+tempo_3|1624|Cada minuto agora vale ouro!
+tiro_meta_1|979|Tiro de meta.
+torcida_1|1422|A torcida vai à loucura!
+torcida_2|1670|Que festa nas arquibancadas!
+vermelho_1|1424|Cartão vermelho! Expulso
+vermelho_2|1187|Está fora do jogo!
+vitoria_1|723|Vitória do

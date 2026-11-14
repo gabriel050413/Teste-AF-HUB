@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.4
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.5
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,12 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v2.5 — locução animada, comentarista e modelagem
+- **Narrador mais vivo** (voz pt-BR, mais rápida e "de rádio"): mais de 600 falas, com várias variações para cada lance (gol, defesa, chute, quase-gol, falta, contra-ataque, pressão, ataque na área...) e frases de animação entre os lances. Ele não repete a mesma fala até esgotar as variações.
+- **Comentarista** (outra voz): comenta tática, curiosidades dos clubes (história, estádio, títulos), de jogadores em campo, do estádio do mod e estatísticas do jogo ao vivo ("fulano é o mais rápido em campo", "já está cansado", momento do placar...). Entra a cada ~15–20 s quando o jogo dá espaço, e depois de gols fala do artilheiro.
+  > As curiosidades são de memória (fatos conhecidos, até 2025); confira se for usar em algo sério. Regerar/editar: `tools/falas_extra.py` + `tools/gerar_narracao.py`.
+- **Modelagem dos jogadores:** skins refeitas com camadas externas (gola, punhos, barra do calção, meias e chuteira em relevo), **padrões de camisa** (Barcelona, Atlético-MG, Newcastle listrados; Flamengo em faixas; PSG, Bayern e Dortmund com faixa central; mangas do Arsenal e do Aston Villa), escudo e patrocínio no peito, número com fundo liso, textura de tecido, orelhas e olhos. E **altura real** de cada craque (`alturas.txt`): Courtois e Haaland são bem maiores que Foden ou Doku.
 
 ## Novidades da v2.4 — texturas por jogador
 - Cada jogador dos clubes reais agora é um **boneco com skin própria**: uniforme do clube (camisa, calção, meiões, chuteiras), **número nas costas**, tom de pele, cabelo (curto, raspado, longo, cacheado, penteado, careca) e barba aproximados do jogador real. Goleiros com camisa de manga comprida e luvas. Se as camisas dos dois times forem parecidas, o visitante usa a reserva.

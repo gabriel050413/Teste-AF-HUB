@@ -20,6 +20,16 @@ public final class Clubs {
     static final int VERSAO = 2;
     /** Texturas de jogador disponíveis (assets/futebol/textures/player). */
     public static final java.util.Set<String> SKINS = new java.util.HashSet<>();
+    private static final Map<String, Integer> ALTURAS = new java.util.HashMap<>();
+
+    /** Altura em cm (arquivo alturas.txt) ou a média da posição com uma pequena variação. */
+    public static int alturaCm(String clube, int num, Pos pos) {
+        Integer h = ALTURAS.get(clube + "|" + num);
+        if (h != null) return h;
+        int base = switch (pos) { case GK -> 189; case CB -> 186; case FB -> 177; case DM -> 181; case CM -> 178; case WG -> 175; case ST -> 183; case SS -> 177; };
+        return base + Math.floorMod((clube + num).hashCode(), 7) - 3;
+    }
+
     public static final Map<String, Club> ALL = new LinkedHashMap<>();
 
     public static Club get(String id) { return id == null ? null : ALL.get(id.toLowerCase()); }
@@ -27,6 +37,11 @@ public final class Clubs {
     public static void load() {
         ALL.clear();
         SKINS.clear();
+        ALTURAS.clear();
+        try (InputStream in = Clubs.class.getResourceAsStream("/futebol/alturas.txt")) {
+            if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip)
+                .filter(l -> !l.isEmpty() && !l.startsWith("#")).forEach(l -> { String[] f = l.split("\\|"); if (f.length == 3) ALTURAS.put(f[0] + "|" + f[1], Integer.parseInt(f[2])); });
+        } catch (Exception ignored) {}
         try (InputStream in = Clubs.class.getResourceAsStream("/futebol/skins.txt")) {
             if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip).filter(l -> !l.isEmpty()).forEach(SKINS::add);
         } catch (Exception ignored) {}
