@@ -1,4 +1,4 @@
-# Compila o MotionFrame para Android (APK) e iPhone (IPA sem assinatura + .app para o Simulador).
+# Compila o MotionFrame para Android (APK), iPhone (IPA sem assinatura + .app para o Simulador) e Windows (.exe leve com Tauri).
 # Os arquivos ficam em "Artifacts" na página da execução (aba Actions do GitHub).
 name: MotionFrame — APK e IPA
 
@@ -9,6 +9,39 @@ on:
   workflow_dispatch:
 
 jobs:
+  windows-tauri:
+    name: Windows (.exe leve – Tauri)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: motion-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: motion-editor/tools/tauri -> target
+      - name: Dependências
+        run: npm install --no-audit --no-fund
+      - name: Monta o editor (www)
+        run: npm run build
+      - name: Copia o editor para dentro do .exe
+        shell: bash
+        run: rm -rf tools/tauri/www && cp -r www tools/tauri/www && rm -f tools/tauri/www/app-update.zip tools/tauri/www/version.json
+      - name: Compila o .exe
+        working-directory: motion-editor/tools/tauri
+        run: cargo build --release
+      - name: Renomeia
+        shell: bash
+        run: cp tools/tauri/target/release/motionframe.exe MotionFrame-leve.exe && ls -la MotionFrame-leve.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MotionFrame-Windows-leve-Tauri
+          path: motion-editor/MotionFrame-leve.exe
+
   android:
     name: Android (APK)
     runs-on: ubuntu-latest

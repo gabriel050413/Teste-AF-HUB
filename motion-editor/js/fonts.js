@@ -63,6 +63,43 @@ export async function loadSavedFonts() {
 
 export const isFontFile = (name) => /\.(ttf|otf|woff2?)$/i.test(name);
 
+/** Fontes de que um projeto precisa, no formato que o Worker de renderização consegue carregar sozinho. */
+export async function fontsForWorker(families) {
+  const out = [];
+  const users = new Set(userFonts().map((f) => f.family));
+  for (const fam of new Set(families.map(famOf).filter(Boolean))) {
+    if (users.has(fam)) { const b = await getMedia(`__font:${fam}`).catch(() => null); if (b) out.push({ family: fam, buf: await b.arrayBuffer() }); }
+    else if (GOOGLE_FONTS.includes(fam)) out.push({ family: fam, google: true });
+  }
+  return out;
+}
+
+/** No Worker (sem <link>/document.fonts): carrega as fontes do projeto em self.fonts. */
+export async function loadFontsInWorker(list = []) {
+  const fs = typeof self !== 'undefined' ? self.fonts : null;
+  if (!fs) return;
+  const jobs = [];
+  for (const f of list) {
+    if (f.buf) jobs.push(new FontFace(f.family, f.buf).load().then((ff) => fs.add(ff)));
+    else if (f.google) {
+      jobs.push((async () => {
+        const css = await (await fetch(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(f.family).replace(/%20/g, '+')}:wght@300;400;600;700;800;900&display=swap`)).text();
+        const faces = [];
+        for (const m of css.matchAll(/@font-face\s*{([^}]*)}/g)) {
+          const b = m[1], g = (k) => (b.match(new RegExp(`${k}\\s*:\\s*([^;]+);`)) || [])[1]?.trim();
+          const url = (b.match(/url\(([^)]+)\)/) || [])[1];
+          if (!url) continue;
+          const d = { style: g('font-style') || 'normal', weight: g('font-weight') || '400' };
+          const ur = g('unicode-range'); if (ur) d.unicodeRange = ur;
+          faces.push(new FontFace(f.family, `url(${url})`, d).load().then((ff) => fs.add(ff), () => {}));
+        }
+        await Promise.all(faces);
+      })());
+    }
+  }
+  await Promise.race([Promise.allSettled(jobs), new Promise((r) => setTimeout(r, 15000))]);
+}
+
 // ---------------------------------------------------------------- busca de fontes
 // Google Fonts populares em edits (carregadas na hora pelo fonts.googleapis.com quando escolhidas)
 export const GOOGLE_FONTS = ['Anton', 'Bebas Neue', 'Montserrat', 'Poppins', 'Oswald', 'Roboto', 'Roboto Condensed', 'Inter', 'Open Sans', 'Lato', 'Raleway', 'Archivo Black', 'Archivo Narrow',

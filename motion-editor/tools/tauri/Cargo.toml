@@ -1,0 +1,28 @@
+[package]
+name = "motionframe"
+version = "1.0.0"
+description = "MotionFrame — editor de vídeo e motion design (app de desktop leve, Tauri + WebView2)"
+edition = "2021"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tiny_http = "0.12"
+ureq = "2"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+include_dir = "0.7"
+rfd = "0.15"
+dirs = "5"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
