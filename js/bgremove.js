@@ -9,6 +9,8 @@ export const BG_MODELS = {
 const segmenters = new Map(); // modelo -> { seg, ready, error, promise }
 let listener = () => {};
 export function setBgListener(fn) { listener = fn; }
+/** Outros modelos de IA (roupa, rosto) avisam que ficaram prontos: a prévia redesenha. */
+export function aiModelReady() { listener(); }
 
 /** Carrega o modelo (uma vez). Resolve quando pronto. */
 export function ensureBgModel(model = 1) {
