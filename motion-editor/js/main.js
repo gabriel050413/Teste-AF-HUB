@@ -38,7 +38,6 @@ import { calibrateFromImage, CALIB_LABEL } from './calibrate.js';
 import { parseAEP, aepToProject, mainComps } from './aep.js';
 import { xmlToProject } from './xml-import.js';
 import { TransitionsPanel } from './transitions-panel.js';
-import { AIPanel } from './ai-panel.js';
 import { checkForUpdate, showUpdateBanner } from './updater.js';
 import { loadCustomEffects, ensureRecipesFromProject, importRecipe, customRecipes } from './custom-fx.js';
 applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · efeitos criados pelo usuário (Efeitos › Meus efeitos) antes de abrir qualquer projeto
@@ -512,7 +511,7 @@ let sheetBackTo = null;
 // ---- PC: painéis encaixados no canto (como os do After Effects). Vários abertos ao mesmo tempo, empilhados;
 // cada um pode ser minimizado (só o título) ou fechado, e reaberto pela barra de painéis no topo da coluna.
 const DOCK_KEY = 'motionframe.dock';
-const DOCK_PANES = ['props', 'effects', 'presets', 'trans', 'composer', 'keys', 'topaz', 'tracker', 'ai', 'browser', 'add'];
+const DOCK_PANES = ['props', 'effects', 'presets', 'trans', 'composer', 'keys', 'topaz', 'tracker', 'browser', 'add'];
 const DOCK_BAR = [['props', '☰', 'Propriedades'], ['effects', '✦', 'Efeitos'], ['presets', '★', 'Presets'], ['trans', 'transition', 'Transições'], ['composer', '❖', 'Composer'], ['keys', '📈', 'Keyframes'], ['topaz', '✨', 'Topaz'], ['tracker', '⌖', 'Tracker']];
 const dock = (() => { const d = storage.get(DOCK_KEY, null); return d && Array.isArray(d.open) ? { open: d.open.filter((x) => DOCK_PANES.includes(x)), min: d.min || [] } : { open: ['effects', 'props', 'presets'], min: ['presets'] }; })();
 const saveDock = () => storage.set(DOCK_KEY, { open: dock.open.filter((x) => x !== 'browser' && x !== 'add' && x !== 'tracker'), min: dock.min });
@@ -686,7 +685,6 @@ const fxBrowser = new FxBrowser(document.getElementById('fxBrowser'), (type, ext
 });
 keyTools = new KeyTools(document.getElementById('keyTools'), store);
 new TopazPanel(document.getElementById('topazPanel'), store);
-const aiPanel = new AIPanel(document.getElementById('aiPanel'), store);
 const composer = new ComposerPanel(document.getElementById('composerPanel'), store, { onApplied: () => { if (!desktop.matches) closeSheet(); } });
 window.addEventListener('open-composer', () => openSheet('composer'));
 const transPanel = new TransitionsPanel(document.getElementById('transPanel'), store, {
@@ -904,7 +902,6 @@ function simpleItems(layer, t, many) {
       ['deselect', '✕', 'Fechar'], ['sep'],
       ...(t === 'group' ? [['open-group', '📂', 'Abrir grupo', true]] : []),
       ['presets', '★', 'Presets', true], ['transitions', 'transition', 'Transições', true], ['effects', '✦', 'Efeitos', true],
-      ...(t === 'video' || t === 'image' || t === 'group' ? [['ai', '🤖', 'IA', true]] : []),
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true]] : []),
       ['props', '☰', 'Editar'], ['keys', '📈', 'Animar'],
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Volume']] : []),
@@ -950,7 +947,6 @@ function renderToolbar() {
       ['deselect', '✕', 'Fechar'], ['sep'],
       ...(t === 'group' ? [['open-group', '📂', 'Abrir grupo', true]] : []),
       ['effects', '✦', 'Efeitos', true], ['presets', '★', 'Presets'], ['transitions', 'transition', 'Transições'], ['composer', '❖', 'Composer'],
-      ...(t === 'video' || t === 'image' || t === 'group' ? [['ai', '🤖', 'IA (camisa, coroa, óculos…)', true]] : []),
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo']] : []),
@@ -1500,7 +1496,6 @@ const commands = {
   presets: () => openSheet('presets'),
   composer: () => openSheet('composer'),
   transitions: () => { transPanel.render(); openSheet('trans'); },
-  ai: () => { aiPanel.render(); openSheet('ai'); },
   'logo-anim': () => animateLogoFlow(),
   'font-id': async () => { const { fontIdDialog } = await import('./fontid-ui.js'); await fontIdDialog(store, { toast }); renderToolbar(); },
   props: () => openSheet('props'),
