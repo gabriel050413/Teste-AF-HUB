@@ -40,6 +40,14 @@ public final class Referee {
     /** Gesto do apito: o árbitro levanta o braço. */
     public void whistleGesture() { if (mobs[0] != null && mobs[0].isAlive()) mobs[0].swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false); }
 
+    private int cardTicks; private FPlayer cardTo; private boolean cardRed;
+
+    /** O árbitro corre até o jogador e levanta o cartão. */
+    public void showCard(FPlayer p, boolean red) {
+        cardTicks = 90; cardTo = p; cardRed = red;
+        mobs[0].setItemSlot(EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.level.block.Blocks.CONCRETE.pick(red ? net.minecraft.world.item.DyeColor.RED : net.minecraft.world.item.DyeColor.YELLOW).asItem()));
+    }
+
     public void remove() { for (Mob e : mobs) if (e != null) e.discard(); }
 
     private void move(int i, double tx, double tz, double max) {
@@ -61,6 +69,17 @@ public final class Referee {
         Vec3 b = m.st == Match.St.SETPIECE ? m.spSpot : m.bp();
         double cx = p.cx(), cz = p.cz(), HL = Pitch.HALF_L, HW = Pitch.HALF_W;
         boolean intro = m.st == Match.St.INTRO;
+        if (cardTicks > 0) {
+            cardTicks--;
+            if (cardTo != null) {
+                double dx = mobs[0].getX() - cardTo.pos().x, dz = mobs[0].getZ() - cardTo.pos().z, d = Math.max(0.1, Math.hypot(dx, dz));
+                move(0, cardTo.pos().x + dx / d * 2.6, cardTo.pos().z + dz / d * 2.6, 0.3);
+                if (d < 4.2 && cardTicks % 10 == 0) mobs[0].swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+                float yaw = Match.yawTo(-dx, -dz); mobs[0].setYRot(yaw); mobs[0].yBodyRot = yaw; mobs[0].setYHeadRot(yaw);
+            }
+            if (cardTicks == 0) mobs[0].setItemSlot(EquipmentSlot.MAINHAND, net.minecraft.world.item.ItemStack.EMPTY);
+            return;
+        }
         // árbitro: fica na diagonal do jogo, ~9 blocos da bola, do lado da câmera principal quando possível
         double ang = Math.atan2(b.z - cz, b.x - cx);
         double tx = b.x - Math.signum(b.x - cx) * 6, tz = b.z + (b.z >= cz ? -9 : 9);

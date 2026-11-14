@@ -145,6 +145,20 @@ def desenha(club, num, shirt, shorts, gk, pele, hair, estilo, barba, padrao=None
     s.r(0, 46, 16, 48, (245, 245, 245)); s.r(0, 62, 16, 64, (245, 245, 245))      # sola da chuteira clara
     return s.im
 
+def desenha_tecnico(c):
+    """Técnico: terno/jaqueta na cor do clube, cabelo grisalho."""
+    s = Skin(); tone = PELES[3]; sk = shade(tone, 0.92)
+    parts_skin(s, tone, sk)
+    jac = rgb(c["chest"]) if lum(rgb(c["chest"])) < 150 else (30, 30, 40)
+    s.r(16, 20, 40, 32, jac); s.r(20, 16, 36, 20, jac); s.r(40, 20, 56, 32, jac); s.r(32, 52, 48, 64, jac); s.r(44, 16, 52, 20, jac); s.r(36, 48, 44, 52, jac)
+    s.r(23, 20, 25, 28, (240, 240, 240)); s.r(0, 16, 16, 32, (25, 25, 30)); s.r(16, 48, 32, 64, (25, 25, 30)); s.r(4, 16, 12, 20, (25, 25, 30)); s.r(20, 48, 28, 52, (25, 25, 30))
+    s.r(0, 30, 16, 32, (10, 10, 10)); s.r(16, 62, 32, 64, (10, 10, 10))
+    hc = (150, 150, 150)
+    s.r(8, 0, 16, 8, hc); s.r(8, 8, 16, 10, hc); s.r(0, 8, 8, 11, hc); s.r(16, 8, 24, 11, hc); s.r(24, 8, 32, 13, hc)
+    s.p(9, 12, (255, 255, 255)); s.p(10, 12, (40, 30, 30)); s.p(13, 12, (40, 30, 30)); s.p(14, 12, (255, 255, 255)); s.r(10, 14, 14, 15, (150, 84, 74))
+    s.r(16, 32, 40, 48, jac); s.r(20, 36, 28, 38, (235, 235, 235))
+    return s.im
+
 def ler_clubes():
     clubes = {}; atual = None
     for linha in open(os.path.join(RES, "futebol", "clubs.txt"), encoding="utf-8"):
@@ -180,6 +194,8 @@ def main():
             else:
                 for tag, cor in (("h", c["chest"]), ("a", c["alt"])):
                     desenha(cid, num, cor, c["shorts"], False, pele, cab, est, bar, PADROES.get(cid) if tag == "h" else None).save(os.path.join(OUT, f"{cid}_{num}_{tag}.png")); ids.append(f"{cid}_{num}_{tag}")
+    for cid, c in clubes.items():
+        desenha_tecnico(c).save(os.path.join(OUT, f"{cid}_tecnico.png")); ids.append(f"{cid}_tecnico")
     open(os.path.join(RES, "futebol", "skins.txt"), "w").write("\n".join(ids) + "\n")
     print(len(ids), "skins geradas")
 

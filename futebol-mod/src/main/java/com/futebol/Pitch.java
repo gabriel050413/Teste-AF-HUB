@@ -74,6 +74,17 @@ public final class Pitch {
     void put(int dx, int dy, int dz, BlockState s) { set(dx, dy, dz, s); }
 
     public Stadium stadium;
+    public final java.util.List<BlockPos> lightPos = new java.util.ArrayList<>(), lampPos = new java.util.ArrayList<>();
+
+    void addLamp(int dx, int dy, int dz) { lampPos.add(new BlockPos(bx + dx, gy + dy, bz + dz)); }
+
+    /** Liga/desliga os refletores (blocos de luz + lâmpadas do teto): ligam sozinhos à noite ou com chuva. */
+    public void setLights(boolean on) {
+        BlockState luz = Blocks.LIGHT.defaultBlockState().setValue(net.minecraft.world.level.block.LightBlock.LEVEL, on ? 15 : 0);
+        for (BlockPos q : lightPos) if (level.getBlockState(q) != luz) level.setBlock(q, luz, 2);
+        BlockState lamp = Blocks.REDSTONE_LAMP.defaultBlockState().setValue(net.minecraft.world.level.block.RedstoneLampBlock.LIT, on);
+        for (BlockPos q : lampPos) if (level.getBlockState(q) != lamp) level.setBlock(q, lamp, 2);
+    }
 
     /** Recolore as arquibancadas e placas para os clubes atuais. */
     public void recolor() { stadium.build(Roster.ATUAL[0], Roster.ATUAL[1]); recolorBoards(); }
@@ -121,9 +132,11 @@ public final class Pitch {
 
         // 5) refletores invisíveis (blocos de luz) para o jogo ficar iluminado à noite
         BlockState luz = Blocks.LIGHT.defaultBlockState();
-        for (int dx = -HALF_L; dx <= HALF_L; dx += 8) for (int dz = -HALF_W; dz <= HALF_W; dz += 8) set(dx, 10, dz, luz);
+        lightPos.clear(); lampPos.clear();
+        for (int dx = -HALF_L; dx <= HALF_L; dx += 8) for (int dz = -HALF_W; dz <= HALF_W; dz += 8) { set(dx, 10, dz, luz); lightPos.add(new BlockPos(bx + dx, gy + 10, bz + dz)); }
         stadium = new Stadium(this);
         stadium.build(Roster.ATUAL[0], Roster.ATUAL[1]);
+        setLights(level.isDarkOutside() || level.isRaining());
     }
 
     private static boolean linha(int dx, int dz) {

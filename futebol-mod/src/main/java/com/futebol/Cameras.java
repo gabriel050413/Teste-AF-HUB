@@ -159,9 +159,15 @@ public final class Cameras {
         switch (st) {
             case REPLAY -> {
                 double f = m.replayIdx / (double) Math.max(1, m.replayLen);
-                Mode want = f < 0.26 ? Mode.TV : f < 0.46 ? Mode.GOL : f < 0.68 ? Mode.RASTEIRA : f < 0.86 ? Mode.ALTA : Mode.ROSTO;
-                if (want != dMode) { dMode = want; dEnd = tick + 20; dSubject = m.lastToucher; dSide = bx >= 0 ? 1 : -1; dEnd = tick; }
-                dSubject = m.lastToucher;
+                Mode want;
+                switch (m.replayPass) {
+                    case 0 -> want = f < 0.55 ? Mode.TV : Mode.ALTA;
+                    case 1 -> want = f < 0.6 ? Mode.GOL : Mode.RASTEIRA;
+                    case 2 -> want = f < 0.55 ? Mode.RASTEIRA : Mode.ROSTO;
+                    default -> want = f < 0.4 ? Mode.ROSTO : f < 0.7 ? Mode.TORCIDA : Mode.ALTA;
+                }
+                dSide = bx >= 0 ? 1 : -1; dTeam = Math.max(0, m.lastEventTeam);
+                dMode = want; dSubject = m.goalScorer != null ? m.goalScorer : m.lastToucher; dEnd = tick;
             }
             case GOAL -> {
                 dTeam = m.lastEventTeam < 0 ? 0 : m.lastEventTeam;

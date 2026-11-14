@@ -40,7 +40,7 @@ public final class Stadium {
     private BlockState stair(DyeColor c, Direction f) { return Blocks.CONCRETE_STAIRS.pick(c).defaultBlockState().setValue(StairBlock.FACING, f); }
 
     public void build(Club home, Club away) {
-        seats.clear();
+        seats.clear(); p.lampPos.clear();
         DyeColor cHome = nearest(Roster.COR_CAMISA[0]), cAway = nearest(Roster.COR_CAMISA[1]);
         DyeColor w = DyeColor.WHITE, gr = DyeColor.GRAY, lg = DyeColor.LIGHT_GRAY, bk = DyeColor.BLACK, gold = DyeColor.YELLOW;
 
@@ -93,8 +93,9 @@ public final class Stadium {
             int rx = RX0 + r, rz = RZ0 + r;
             for (int dz = -rz; dz <= rz; dz++) for (int dx = -rx; dx <= rx; dx++) {
                 if (Math.abs(dx) != rx && Math.abs(dz) != rz) continue;
-                BlockState s = r == 4 ? Blocks.SEA_LANTERN.defaultBlockState() : Blocks.QUARTZ_SLAB.defaultBlockState();
+                BlockState s = r == 4 ? Blocks.REDSTONE_LAMP.defaultBlockState() : Blocks.QUARTZ_SLAB.defaultBlockState();
                 p.put(dx, ROOF, dz, s);
+                if (r == 4) p.addLamp(dx, ROOF, dz);
                 if (r == 4) p.put(dx, ROOF + 1, dz, Blocks.QUARTZ_SLAB.defaultBlockState());
                 if (r > 4 && r < R && (dx + dz) % 6 == 0 && ((r & 1) == 0)) p.put(dx, ROOF - 1, dz, Blocks.LIGHT.defaultBlockState());   // luz sob o teto
             }

@@ -138,6 +138,12 @@ public final class Narrator {
 
     public int spoken; public final java.util.Map<String, Integer> kinds = new java.util.TreeMap<>();
 
+    /** Entonação viva: tom levemente variável, mais agudo e empolgado em gols/lances importantes. */
+    private float pitchFor() {
+        float base = cur != null && cur.prio() >= GOAL ? 1.05f : cur != null && cur.prio() >= SHOT ? 1.02f : 1.0f;
+        return base + (rnd.nextFloat() - 0.5f) * 0.05f;
+    }
+
     private void start(Utt u) {
         spoken++; if (!u.ids().isEmpty()) kinds.merge(u.ids().get(0).replaceAll("_\\d+$", ""), 1, Integer::sum);
         cur = u; curStart = 0;
@@ -153,11 +159,13 @@ public final class Narrator {
         }
     }
 
+    public boolean speaking() { return cur != null; }
+
     private void play(String id) {
         Holder<SoundEvent> ev = EVENTS.get(id);
         if (ev == null) return;
         for (ServerPlayer pl : m.level.players())
-            pl.connection.send(new ClientboundSoundPacket(ev, SoundSource.VOICE, pl.getX(), pl.getY(), pl.getZ(), volume, 1.0f, rnd.nextLong()));
+            pl.connection.send(new ClientboundSoundPacket(ev, SoundSource.VOICE, pl.getX(), pl.getY(), pl.getZ(), volume, pitchFor(), rnd.nextLong()));
     }
 
 

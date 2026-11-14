@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.6
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.7
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,16 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v2.7 — animações, replays de TV, estatísticas e luzes
+- **Replays como LaLiga/Champions:** o gol é repetido em **3 ângulos diferentes** (principal → atrás do gol → rasteira/close), com a **velocidade variando**: corre rápido, desacelera no chute e vai a câmera lenta no gol, depois acelera de novo; no final, **a comemoração** em outro ângulo. Lances perigosos têm replay de 2 ângulos.
+- **Animações de ação:** **carrinho** (o zagueiro se joga ao chão), jogador **caído** depois de falta/entrada dura, **árbitro corre até o jogador e levanta o cartão** amarelo/vermelho, **agachar na finta**, correr em sprint, braço ao chutar/desarmar, pulo no cabeceio. Comemorações com poses: **deslize de joelhos**, **meditação**, **aviãozinho** (voando), salto com giro, dança...
+- **Firulas de cada craque:** cada jogador tem perfil em `habilidades.txt`: **Yamal** (pedalada, elástico, corte seco), **Vini** (pedalada, elástico, caneta), **Doku** (corte seco, drible da vaca), **Cherki** (chapéu, caneta, elástico), **Dembélé**, **Kvaratskhelia**, **Musiala**, **Foden**... Novas firulas: **drible da vaca**, **corte seco**, **meia-lua**. Também estilos: quem **chuta colocado** (curva), **bomba** (Haaland, Kane), **cavadinha** (Cherki, Musiala), **de longe**, **batedor de falta** (Alexander-Arnold, Ødegaard, Mac Allister), **cruzador**, **cabeceador**, **velocista**.
+- **Intervalos maiores** entre ação e reposição (falta, escanteio, lateral, pênalti, saída de bola).
+- **Figurantes:** técnicos andando e gesticulando na área técnica, reservas sentados que levantam nos lances perigosos e **festejam os gols** (ou se encolhem ao tomar gol).
+- **Informação na transmissão:** o telão lateral rotaciona **patrocinadores** (fictícios), **estatísticas da partida** (posse, chutes, no alvo, escanteios, faltas, cartões, passes), destaque do jogo, **tabela do campeonato** e o confronto; **placas de LED** no gramado rodam patrocinadores.
+- **Luzes do estádio ligam à noite** (e com chuva): refletores do teto e luz sobre o gramado acendem e apagam sozinhos conforme a hora do jogo.
+- **Narrador:** tom levemente variável (mais empolgado em gols) e a torcida abaixa o volume enquanto ele fala. A voz toca no **mesmo volume onde você estiver**.
 
 ## Novidades da v2.6 — voz nova, replays e comemorações de TV
 - **Voz trocada:** saiu o Kokoro (sotaque ruim em português) e entrou o **Piper**, com vozes de falantes **brasileiros nativos** (`faber` = locutor, `cadu` = comentarista; licença CC0). Tirei também o efeito de mudar o tom, que deixava a voz robótica.

@@ -20,6 +20,12 @@ public final class Clubs {
     static final int VERSAO = 2;
     /** Texturas de jogador disponíveis (assets/futebol/textures/player). */
     public static final java.util.Set<String> SKINS = new java.util.HashSet<>();
+    /** Perfil de jogo: bônus de firula (0..40), firulas favoritas (0..7) e estilos (curva, forca, cavada, longe, falta, cruz, cabeca, lancamento, velocista). */
+    public record Perfil(int drible, java.util.List<Integer> firulas, java.util.Set<String> estilo) {}
+    private static final Map<String, Perfil> PERFIS = new java.util.HashMap<>();
+    static final String[] FIRULAS = {"finta", "pedalada", "elastico", "chapeu", "caneta", "vaca", "cortesec", "meialua"};
+    public static Perfil perfil(String clube, int num) { return PERFIS.get(clube + "|" + num); }
+
     private static final Map<String, Integer> ALTURAS = new java.util.HashMap<>();
 
     /** Altura em cm (arquivo alturas.txt) ou a média da posição com uma pequena variação. */
@@ -38,6 +44,19 @@ public final class Clubs {
         ALL.clear();
         SKINS.clear();
         ALTURAS.clear();
+        PERFIS.clear();
+        try (InputStream in = Clubs.class.getResourceAsStream("/futebol/habilidades.txt")) {
+            if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip)
+                .filter(l -> !l.isEmpty() && !l.startsWith("#")).forEach(l -> {
+                    String[] f = l.split("\\|", -1);
+                    if (f.length < 5) return;
+                    java.util.List<Integer> fir = new java.util.ArrayList<>();
+                    for (String x : f[3].split(",")) for (int i = 0; i < FIRULAS.length; i++) if (FIRULAS[i].equals(x.strip())) fir.add(i);
+                    java.util.Set<String> est = new java.util.HashSet<>();
+                    for (String x : f[4].split(",")) if (!x.isBlank()) est.add(x.strip());
+                    PERFIS.put(f[0] + "|" + f[1], new Perfil(Integer.parseInt(f[2].strip()), fir, est));
+                });
+        } catch (Exception ignored) {}
         try (InputStream in = Clubs.class.getResourceAsStream("/futebol/alturas.txt")) {
             if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip)
                 .filter(l -> !l.isEmpty() && !l.startsWith("#")).forEach(l -> { String[] f = l.split("\\|"); if (f.length == 3) ALTURAS.put(f[0] + "|" + f[1], Integer.parseInt(f[2])); });

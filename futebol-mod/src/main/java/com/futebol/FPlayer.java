@@ -27,6 +27,8 @@ public final class FPlayer {
     public double aimZ, aimY;
     public int shotTicks, shotReact;
     public boolean jumped;
+    public Clubs.Perfil perfil;
+    public net.minecraft.world.entity.Pose animPose; public int animTicks; public double skillMag = 2.8;
     public double spinRate; public boolean crouch;      // animações de comemoração
     public int yellow; public boolean out;            // cartões
     public double swX, swZ; public int swTicks;       // movimentação sutil sem bola
@@ -49,6 +51,7 @@ public final class FPlayer {
         double v = (0.15 + 0.0017 * st().vel()) * RITMO;
         v *= 0.82 + 0.18 * energy;
         if (isGK()) v *= 0.82;
+        if (perfil != null && perfil.estilo().contains("velocista")) v *= 1.05;
         if (stun > 0) v *= 0.45;
         return v;
     }
@@ -57,4 +60,6 @@ public final class FPlayer {
 
     /** Ritmo do jogo (1.0 = padrão): multiplica a velocidade dos jogadores. */
     public static double RITMO = 1.0;
+
+    public boolean estilo(String k) { return perfil != null && perfil.estilo().contains(k); }
 }

@@ -50,6 +50,7 @@ final class AutoTest {
             srv.getCommands().performPrefixedCommand(src, "futebol ativar" + (System.getenv("FUTEBOL_CLUBS") != null ? " " + System.getenv("FUTEBOL_CLUBS") : ""));
             srv.getCommands().performPrefixedCommand(src, "futebol tempo " + (System.getenv("FUTEBOL_HALF") != null ? System.getenv("FUTEBOL_HALF") : "" + (maxTicks / 40)));
             dump(FutebolMod.match);
+            if (System.getenv("FUTEBOL_NIGHT") != null) srv.getCommands().performPrefixedCommand(src, "time set night");
             FutebolMod.match.start();
             if (System.getenv("FUTEBOL_FAST") != null) srv.getCommands().performPrefixedCommand(src, "tick rate 2000");
         });
@@ -88,6 +89,7 @@ final class AutoTest {
                 return;
             }
             if (ticks >= maxTicks) {
+                FutebolMod.LOG.info("LUZES ligadas=" + m.lightsOn + " relogio=" + m.level.getOverworldClockTime() + " stats=" + java.util.Arrays.deepToString(m.stat));
                 FutebolMod.LOG.info("NARRADOR falas=" + m.nar.spoken + " " + m.nar.kinds);
                 FutebolMod.LOG.info("EVENTOS " + m.ev + " histU=" + java.util.Arrays.toString(hist));
                 for (int t = 0; t < 2; t++) for (int i = 0; i < 11; i++) {

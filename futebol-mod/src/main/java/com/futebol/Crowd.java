@@ -129,7 +129,7 @@ public final class Crowd {
         // murmúrio contínuo espalhado pelas arquibancadas
         if (t % 4 == 0 && rnd.nextDouble() < 0.35 + 0.55 * excite) {
             Fan f = fans.get(rnd.nextInt(fans.size()));
-            double vol = 0.5 + 1.4 * excite;
+            double vol = (0.5 + 1.4 * excite) * (m.nar != null && m.nar.speaking() ? 0.55 : 1.0);
             m.level.playSound(null, f.e.getX(), f.e.getY(), f.e.getZ(), rnd.nextInt(4) == 0 ? SoundEvents.VILLAGER_YES : SoundEvents.VILLAGER_AMBIENT, SoundSource.NEUTRAL, (float) vol, 0.75f + rnd.nextFloat() * 0.5f);
         }
         // palmas rápidas quando a coisa esquenta
