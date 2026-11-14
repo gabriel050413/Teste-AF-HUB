@@ -165,10 +165,12 @@ export class GLEngine {
     } catch { return 0; }
   }
 
-  acquire(w, h, u8 = false) {
+  acquire(w, h, u8 = false, keep16 = false) {
     w = Math.max(1, Math.min(this.maxSize, Math.round(w)));
     h = Math.max(1, Math.min(this.maxSize, Math.round(h)));
-    u8 = u8 || !this.htype;
+    // lowp (prévia tocando / pré-renderização): texturas de 8 bits = metade da memória lida/escrita por passada.
+    // Exportação e quadro parado nítido continuam em 16 bits. Shaders @noclamp (valores acima de 1) sempre em 16.
+    u8 = u8 || !this.htype || (this.lowp && !keep16);
     const i = this.pool.findIndex((t) => t.w === w && t.h === h && t.u8 === u8);
     let t;
     if (i >= 0) t = this.pool.splice(i, 1)[0];
@@ -238,7 +240,7 @@ export class GLEngine {
     const gl = this.gl;
     const src = inputs.u_tex;
     w = w ?? src.w; h = h ?? src.h;
-    const target = out === 'screen' ? null : out || this.acquire(w, h);
+    const target = out === 'screen' ? null : out || this.acquire(w, h, false, frag.startsWith('// @noclamp'));
     const p = this.program(frag);
     gl.useProgram(p.prog);
     if (target) {
