@@ -89,26 +89,44 @@ setBgListener(() => { dirty = true; frameCacheClear(); });
 // 2) cache de RAM (como o RAM Preview / barra verde do AE): quadros já renderizados ficam guardados e tocam
 //    na velocidade real sem renderizar de novo, até você mudar algo no projeto.
 const IOS_M = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const FRAME_CACHE_BUDGET = IOS_M ? 90e6 : Math.min(1500e6, ((navigator.deviceMemory || 8) * 1e9) / 6);
+// limite do cache de quadros (fica na memória da placa de vídeo): antes ia a 1,3 GB e, somado às texturas dos efeitos,
+// apertava a placa (lag crescendo e quedas). 700 MB = ~25 s de prévia pronta em 1080p na resolução da tela.
+const FRAME_CACHE_BUDGET = IOS_M ? 90e6 : /Android|Mobi/i.test(navigator.userAgent) ? 220e6 : Math.min(700e6, ((navigator.deviceMemory || 8) * 1e9) / 10);
 const frameCache = new Map(); // chave → { c: canvas, bytes }
 let frameCacheBytes = 0;
 const backBuf = document.createElement('canvas');
 const backCtx = backBuf.getContext('2d');
 function frameCacheClear(keepPre = false) {
-  if (!keepPre) { frameCache.clear(); frameCacheBytes = 0; return; }
-  for (const [k, e] of frameCache) if (!k.endsWith('|pre')) { frameCache.delete(k); frameCacheBytes -= e.bytes; }
+  for (const [k, e] of frameCache) {
+    if (keepPre && k.endsWith('|pre')) continue;
+    frameCache.delete(k); frameCacheBytes -= e.bytes;
+    if (e.c.close) e.c.close(); else { e.c.width = e.c.height = 1; } // devolve a memória da placa na hora
+  }
+  if (!frameCache.size) frameCacheBytes = 0;
 }
-function frameCachePut(key, src) {
+function frameCachePut(key, src, own = false) {
   const bytes = src.width * src.height * 4;
-  if (bytes * 3 > FRAME_CACHE_BUDGET) return;
+  if (bytes * 3 > FRAME_CACHE_BUDGET) { if (own) src.close?.(); return; }
   let e = frameCache.get(key);
+  if (own) {
+    // ImageBitmap vindo do Worker: guarda ele mesmo (sem copiar para outro canvas)
+    if (e) { frameCacheBytes -= e.bytes; frameCache.delete(key); if (e.c.close) e.c.close(); else { e.c.width = e.c.height = 1; } }
+    while (frameCacheBytes + bytes > FRAME_CACHE_BUDGET && frameCache.size) {
+      const [k0, old] = frameCache.entries().next().value;
+      frameCache.delete(k0); frameCacheBytes -= old.bytes;
+      if (old.c.close) old.c.close(); else { old.c.width = old.c.height = 1; }
+    }
+    frameCache.set(key, { c: src, bytes }); frameCacheBytes += bytes;
+    return;
+  }
   if (!e) {
     // reaproveita o canvas do quadro mais antigo quando o cache enche (sem criar/destruir canvases sem parar)
     let reuse = null;
     while (frameCacheBytes + bytes > FRAME_CACHE_BUDGET && frameCache.size) {
       const [k0, old] = frameCache.entries().next().value;
       frameCache.delete(k0); frameCacheBytes -= old.bytes;
-      if (!reuse && old.c.width === src.width && old.c.height === src.height) reuse = old.c;
+      if (old.c.close) old.c.close();
+      else if (!reuse && old.c.width === src.width && old.c.height === src.height) reuse = old.c;
       else { old.c.width = old.c.height = 1; }
     }
     const c = reuse || document.createElement('canvas');
@@ -163,8 +181,8 @@ async function preStart() {
         let bm = null;
         try { bm = await wk.req(fi, t); } catch (e) { console.warn('pré-renderização no Worker falhou; seguindo na tela principal', e); preWorkerDrop(); wk = null; }
         if (bm) {
-          if (gen === preGen && bm.ready) frameCachePut(preKey(fi), bm); // quadro sem a imagem de algum vídeo: não guarda (era o quadro preto)
-          bm.close();
+          if (gen === preGen && bm.ready) frameCachePut(preKey(fi), bm, true); // quadro sem a imagem de algum vídeo: não guarda (era o quadro preto)
+          else bm.close();
           const ms = performance.now() - r0;
           slowN = ms > 700 ? slowN + 1 : 0; // no Worker a tela não trava: só baixa a resolução se estiver bem lento
           if (slowN >= 3 && q > 0.2) { slowN = 0; preScale = Math.max(0.2, q * Math.sqrt(500 / ms)); clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 50); return; }
@@ -345,7 +363,8 @@ function loop(now) {
         if (draftK < 1) { clearTimeout(hqTimer); hqTimer = setTimeout(() => { dirty = true; }, 400); }
         else {
           if (!store.playing) hqMs = hqMs ? hqMs * 0.5 + ms * 0.5 : ms;
-          if (mediaReady(viewProject(), tt, store.playing)) frameCachePut(key, backBuf);
+          // tocando ao vivo não guarda (quase nunca é reaproveitado e ocupava a memória da placa); parado guarda o quadro nítido
+          if (!store.playing && mediaReady(viewProject(), tt, false)) frameCachePut(key, backBuf);
         }
         adaptQuality(ms);
       } else setTimeout(() => { dirty = true; }, 60); // GPU caiu: mantém o último quadro bom e refaz este

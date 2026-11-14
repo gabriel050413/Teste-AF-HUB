@@ -7,8 +7,8 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v125';
-export const APP_LABEL = 'v1.2.3';
+export const APP_VERSION = 'v126';
+export const APP_LABEL = 'v1.2.4';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -247,6 +247,9 @@ export class HomeScreen {
 /** Configurações do app. */
 export async function settingsDialog(presets) {
   const s = getSettings();
+  const { gpuName } = await import('./gl.js');
+  const gpu = gpuName();
+  const weak = /Intel|Radeon\(TM\) Graphics|Radeon Graphics|Vega|UHD|Iris|SwiftShader|llvmpipe|Software|Basic Render/i.test(gpu) && !/NVIDIA|GeForce|RTX|GTX|Radeon RX|Arc A/i.test(gpu);
   const res = await modal('Configurações', `
     <label class="row"><span>Formato padrão de novo projeto</span><select data-f="compPreset">${presets.map((p) => `<option value="${p.id}" ${p.id === s.compPreset ? 'selected' : ''}>${escapeHtml(p.label)}</option>`).join('')}</select></label>
     <label class="row"><span>Qualidade da prévia</span><select data-f="quality"><option value="auto" ${s.quality === 'auto' ? 'selected' : ''}>Auto (cheia parado, ½ tocando)</option><option value="1" ${s.quality === '1' ? 'selected' : ''}>Cheia (mais nítida, mais pesada)</option><option value="0.5" ${s.quality === '0.5' ? 'selected' : ''}>Metade (mais leve)</option></select></label>
@@ -255,6 +258,7 @@ export async function settingsDialog(presets) {
     <label class="row"><span>Tema</span><select data-f="theme">${[['ae', 'Grafite + azul (padrão)'], ['tide', 'Maré (azul-petróleo)'], ['ember', 'Brasa (âmbar)'], ['violet', 'Violeta'], ['studio', 'Studio (lima)'], ['oled', 'Preto total (OLED)']].map(([v, l]) => `<option value="${v}" ${s.theme === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label class="row"><span>Altura das faixas da timeline</span><select data-f="rows">${[['compact', 'Compacta (mais camadas na tela)'], ['normal', 'Normal'], ['big', 'Grande (mais fácil de tocar)']].map(([v, l]) => `<option value="${v}" ${s.rows === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <label class="row"><span>Mostrar dicas na barra</span><label class="switch"><input type="checkbox" data-f="showTips" ${s.showTips ? 'checked' : ''}><i></i></label></label>
+    <p class="muted small">Placa de vídeo em uso: <b>${escapeHtml(gpu)}</b>${weak ? '<br>⚠️ Parece a placa integrada (mais fraca). Se o PC tem placa dedicada (ex.: RTX), no Windows abra Configurações › Sistema › Tela › Gráficos, adicione o MotionFrame (ou o navegador) e escolha <b>Alto desempenho</b>.' : ''}</p>
     <p class="muted small">Projetos e mídias ficam salvos só neste aparelho (nada é enviado para servidores). Exporte o projeto (.json) para levar para outro aparelho.</p>
     <button class="wide" data-f="recover">🕘 Procurar projetos perdidos (recuperar)</button>
     <button class="wide" data-f="help">❓ Como usar</button>
