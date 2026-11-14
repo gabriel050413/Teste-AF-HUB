@@ -561,6 +561,7 @@ public final class Match {
     // tipos de comemoração: 0 deslize de joelhos, 1 salto com giro, 2 dança, 3 meditação, 4 "cala a boca" para a torcida, 5 soco no ar no escanteio, 6 aviãozinho
     static final String[] CELE_NOME = {"deslize de joelhos", "salto com giro", "dança", "meditação", "silêncio para a torcida", "soco no ar", "aviãozinho"};
     int celeType;
+    boolean throwNow;
 
     int celebrationFor(FPlayer p) {
         String k = Roster.ATUAL[p.team].id() + "_" + p.def.num();
@@ -579,7 +580,14 @@ public final class Match {
         int t = lastEventTeam < 0 ? 0 : lastEventTeam;
         FPlayer sc = goalScorer != null && goalScorer.team == t && goalScorer.e.isAlive() ? goalScorer : null;
         if (sc == null) for (FPlayer p : teams[t]) if (p.def.pos() == Pos.ST) sc = p;
-        if (stTicks == 1) { celeType = celebrationFor(sc); sayV("§d🎉 " + sc.def.nome() + ": " + CELE_NOME[celeType]); }
+        if (stTicks == 1) {
+            celeType = celebrationFor(sc);
+            int[] an = {Anim.BRACOS, Anim.PUNHO, Anim.DANCA, 0, Anim.OUVIDO, Anim.PUNHO, Anim.AVIAO};
+            if (an[celeType] != 0) Anim.play(level, sc.e, an[celeType], 100);
+        }
+        if (stTicks == 50) for (FPlayer q : teams[t]) if (q != sc && !q.isGK()) Anim.play(level, q.e, (q.def.num() & 1) == 0 ? Anim.BRACOS : Anim.PUNHO, 70);
+        if (stTicks == 12) for (FPlayer q : teams[1 - t]) Anim.play(level, q.e, Anim.LAMENTO, 80);
+        if (stTicks == 1) { sayV("§d🎉 " + sc.def.nome() + ": " + CELE_NOME[celeType]); }
         Vec3 sp = sc.pos();
         double side = attackDir[t], zs = Math.signum(sp.z - pitch.cz() + 0.01);
         Vec3 corner = new Vec3(pitch.cx() + side * (Pitch.HALF_L - 5), pitch.surf(), pitch.cz() + zs * (Pitch.HALF_W - 6));
@@ -759,10 +767,12 @@ public final class Match {
                 kickPass(k, r, false);
             }
             case THROW_IN -> {
+                throwNow = true; Anim.play(level, k.e, Anim.ARREMESSO, 18);
                 ball.snapTo(b.x, b.y + 1.9, b.z);
                 FPlayer r = bestPass(k, false, 4, 17, true);
                 if (r == null) r = nearestTeammate(k);
                 kickPass(k, r, true);
+                throwNow = false;
             }
             case CORNER -> {
                 // alvo: atacante de área mais perigoso
@@ -903,6 +913,7 @@ public final class Match {
             double dd = hd(o.pos(), c.pos());
             if (dd > 0.8 && o.st().agr() + o.st().des() > 80 && rnd.nextDouble() < 0.7) {                  // carrinho!
                 double sx = c.pos().x - o.pos().x, sz = c.pos().z - o.pos().z, sn = Math.max(0.1, Math.hypot(sx, sz));
+                Anim.play(level, o.e, Anim.CARRINHO, 16);
                 o.animPose = net.minecraft.world.entity.Pose.SWIMMING; o.animTicks = 14; o.vx += sx / sn * 0.45; o.vz += sz / sn * 0.45;
                 level.sendParticles(ParticleTypes.CLOUD, o.pos().x, o.pos().y + 0.1, o.pos().z, 8, 0.3, 0.05, 0.3, 0.03);
             }
@@ -951,7 +962,7 @@ public final class Match {
     }
 
     void foul(FPlayer fouler, FPlayer victim) {
-        foulVictim = victim; stat[fouler.team][4]++;
+        foulVictim = victim; stat[fouler.team][4]++; Anim.play(level, fouler.e, Anim.PROTESTO, 50);
         victim.animPose = net.minecraft.world.entity.Pose.SLEEPING; victim.animTicks = 90; victim.stun = 60;
         if (nar != null) nar.foul(fouler);
         Vec3 spot = victim.pos();
@@ -971,7 +982,7 @@ public final class Match {
     void header(FPlayer p) {
         p.headCd = 20;
         if (p.e.onGround()) p.e.setDeltaMovement(p.e.getDeltaMovement().x, 0.36, p.e.getDeltaMovement().z);
-        swing(p);
+        swing(p); Anim.play(level, p.e, Anim.CABECEIO, 14);
         lastTouchTeam = p.team; lastToucher = p; carrier = null; passTarget = null;
         p.touchCd = 8;
         double fn = U(p.team, p.pos().x);
@@ -1053,7 +1064,7 @@ public final class Match {
     }
 
     void gkSave(FPlayer g, double speed) {
-        g.shotActive = false; markChance(); stat[1 - g.team][2]++;
+        g.shotActive = false; markChance(); stat[1 - g.team][2]++; Anim.play(level, g.e, Anim.MERGULHO, 16);
         if (cameras != null) cameras.shake(0.9);
         lastTouchTeam = g.team; lastToucher = g;
         double catchP = clamp(0.88 - speed * 0.5 + g.st().ref() * 0.0035 + g.st().forca() * 0.001 - (bh() > 1.9 ? 0.15 : 0), 0.08, 0.92);
@@ -1231,6 +1242,7 @@ public final class Match {
         level.playSound(null, b.x, b.y, b.z, SoundEvents.SULFUR_CUBE_BOUNCY_HIT, SoundSource.NEUTRAL, 1.2f, 0.9f + rnd.nextFloat() * 0.3f);
         double pw = Math.hypot(vx, vz);
         swing(k);
+        if (!throwNow) Anim.play(level, k.e, pw > 0.85 ? Anim.CHUTE : Anim.PASSE, pw > 0.85 ? 14 : 10);
         if (pw > 0.9) level.sendParticles(ParticleTypes.CLOUD, b.x, b.y + 0.1, b.z, 4, 0.15, 0.05, 0.15, 0.02);
         if (pw > 1.15 && cameras != null) cameras.shake(0.35);
     }
@@ -1282,7 +1294,7 @@ public final class Match {
         if (type == 3 || type == 4 || type == 5) { skillBall(c, o, type, p); return true; }
         c.skillTicks = switch (type) { case 1 -> 26; case 2 -> 18; case 6 -> 15; case 7 -> 26; default -> 22; };
         c.skillSplit = switch (type) { case 1 -> 15; case 2 -> 9; case 6 -> 7; case 7 -> 14; default -> 12; };
-        c.e.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+        Anim.play(level, c.e, type == 1 || type == 7 ? Anim.PEDALADA : Anim.FINTA, c.skillTicks);
         c.e.setDeltaMovement(c.e.getDeltaMovement().x, 0.2, c.e.getDeltaMovement().z);    // saltinho
         skillSuccess.put(c, p + (type == 2 ? 0.08 : type == 1 || type == 7 ? 0.04 : type == 6 ? 0.06 : 0));
         return true;
@@ -1296,7 +1308,7 @@ public final class Match {
     void skillBall(FPlayer c, FPlayer o, int type, double p) {
         boolean ok = rnd.nextDouble() < p;
         unpin();
-        c.animPose = net.minecraft.world.entity.Pose.CROUCHING; c.animTicks = 6;
+        c.animPose = net.minecraft.world.entity.Pose.CROUCHING; c.animTicks = 6; Anim.play(level, c.e, Anim.FINTA, 12);
         carrier = null; c.touchCd = 4; passTarget = c; passTtl = 45;
         double fx = c.fx, fz = c.fz;
         double dist = hd(c.pos(), o.pos());

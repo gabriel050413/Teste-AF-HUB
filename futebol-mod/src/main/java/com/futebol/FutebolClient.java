@@ -17,6 +17,7 @@ public class FutebolClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(AnimPayload.TYPE, (payload, ctx) -> ClientAnims.set(payload.id(), payload.anim(), payload.dur()));
         String dir = System.getenv("FUTEBOL_SHOTS");
         if (dir == null) return;
         List<Pending> pend = new ArrayList<>();

@@ -54,17 +54,20 @@ public final class Staff {
             if (goalMine) {                                    // festa no banco: pulos e braços
                 if (f.e.onGround() && (t + f.team * 3) % 12 == 0) f.e.setDeltaMovement(0, 0.38, 0);
                 if (t % 7 == 0) f.e.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+                if (t % 40 == 0) Anim.play(m.level, f.e, (t / 40) % 2 == 0 ? Anim.BRACOS : Anim.PUNHO, 40);
                 if (f.coach) { f.tx = f.bx + Math.sin(t * 0.3) * 3; f.tz = m.pitch.cz() + Pitch.HALF_W + 1.4; }
             } else if (goalAgainst) {
                 pose = f.coach ? Pose.CROUCHING : Pose.CROUCHING;
+                if (t % 50 == 0) Anim.play(m.level, f.e, Anim.LAMENTO, 50);
             } else if (f.coach) {
                 // andando de um lado para o outro na área técnica; se aproxima da linha quando o time ataca
                 if (--f.next <= 0) { f.next = 60 + rnd.nextInt(90); f.tx = f.bx + rnd.nextGaussian() * 2.2; f.tz = m.pitch.cz() + Pitch.HALF_W + 1.4 + (attacking(f.team) ? 0 : 0.8); f.react = rnd.nextInt(3); }
-                if (t % 90 == (f.team * 40) % 90) f.e.swing(net.minecraft.world.InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);
+                if (t % 90 == (f.team * 40) % 90) Anim.play(m.level, f.e, Anim.GESTO, 50);
                 if (m.st == Match.St.SETPIECE && m.sp == Match.SP.PENALTY) pose = Pose.CROUCHING;
             } else {
                 // reservas: sentados (agachados) e de pé nos lances perigosos
                 pose = attacking(f.team) && (t / 40) % 2 == 0 ? Pose.STANDING : Pose.CROUCHING;
+                if (pose == Pose.STANDING && t % 30 == 0) Anim.play(m.level, f.e, Anim.APLAUSO, 30);
                 if (m.st == Match.St.SETPIECE && m.sp == Match.SP.CORNER && m.spTeam == f.team) pose = Pose.STANDING;
             }
             if (f.e.getPose() != pose) f.e.setPose(pose);

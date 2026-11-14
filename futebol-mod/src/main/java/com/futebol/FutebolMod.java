@@ -34,6 +34,7 @@ public class FutebolMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(AnimPayload.TYPE, AnimPayload.CODEC);
         Clubs.load();
         AutoTest.init();
         CommandRegistrationCallback.EVENT.register((d, r, env) -> registerCommands(d));

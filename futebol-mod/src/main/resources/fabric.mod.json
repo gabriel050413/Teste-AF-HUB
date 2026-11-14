@@ -7,6 +7,7 @@
   "authors": ["Futebol Mod"],
   "license": "MIT",
   "environment": "*",
+  "mixins": [{ "config": "futebol.mixins.json", "environment": "client" }],
   "entrypoints": { "main": ["com.futebol.FutebolMod"], "client": ["com.futebol.FutebolClient"] },
   "depends": {
     "fabricloader": ">=0.20.0",

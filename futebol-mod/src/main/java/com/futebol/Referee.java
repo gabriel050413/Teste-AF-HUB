@@ -45,6 +45,7 @@ public final class Referee {
     /** O árbitro corre até o jogador e levanta o cartão. */
     public void showCard(FPlayer p, boolean red) {
         cardTicks = 90; cardTo = p; cardRed = red;
+        Anim.play(m.level, mobs[0], Anim.CARTAO, 75);
         mobs[0].setItemSlot(EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(net.minecraft.world.level.block.Blocks.CONCRETE.pick(red ? net.minecraft.world.item.DyeColor.RED : net.minecraft.world.item.DyeColor.YELLOW).asItem()));
     }
 

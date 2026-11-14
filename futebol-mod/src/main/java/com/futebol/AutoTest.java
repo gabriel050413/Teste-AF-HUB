@@ -24,15 +24,29 @@ final class AutoTest {
                 t[0]++;
                 CommandSourceStack src = pl.createCommandSourceStack();
                 if (t[0] == 60) srv.getCommands().performPrefixedCommand(src, "futebol ativar " + (System.getenv("FUTEBOL_CLUBS") != null ? System.getenv("FUTEBOL_CLUBS") : "barcelona realmadrid"));
-                if (t[0] == 200) FutebolMod.match.start();
+                if (t[0] == 100 && System.getenv("FUTEBOL_ANIMTEST") != null) {
+                    Match mm = FutebolMod.match; FPlayer sj = mm.teams[0][9]; mm.lastToucher = sj;
+                    int n = 0;
+                    for (FPlayer q : mm.all) if (q != sj) q.e.snapTo(mm.pitch.cx() - 40 + (n++ % 11) * 0.8, mm.pitch.surf(), mm.pitch.cz() + 24 + (n / 11), 0, 0);
+                    sj.e.snapTo(mm.pitch.cx(), mm.pitch.surf(), mm.pitch.cz() - 12, 0, 0);
+                    mm.st = Match.St.FULLTIME;
+                }
+                if (t[0] == 200 && System.getenv("FUTEBOL_ANIMTEST") == null) FutebolMod.match.start();
                 int k = t[0] - 700;
                 if (k >= 0 && k % 160 == 0 && k / 160 < plan.length) {
                     String id = plan[k / 160];
+                    if (id.contains("@")) id = id.substring(0, id.indexOf('@'));
                     if (id.equals("normal")) FutebolMod.match.cameras.stop(pl);
                     else FutebolMod.match.cameras.set(pl, Cameras.Mode.of(id));
                 }
                 if (k >= 0 && k / 160 < plan.length) {
                     int phase = k % 160;
+                    if (phase == 50 && plan[k / 160].contains("@")) {
+                        int an = Integer.parseInt(plan[k / 160].substring(plan[k / 160].indexOf('@') + 1));
+                        FPlayer sj = FutebolMod.match.lastToucher;
+                        if (an == Anim.CARRINHO) { sj.animPose = net.minecraft.world.entity.Pose.SWIMMING; sj.animTicks = 40; }
+                        Anim.play(FutebolMod.match.level, sj.e, an, 40);
+                    }
                     if (phase == 70 || phase == 130) pl.sendSystemMessage(net.minecraft.network.chat.Component.literal("SHOT:" + plan[k / 160] + "_" + (phase == 70 ? "a" : "b")));
                 }
                 if (k / 160 >= plan.length && k % 160 == 40) { FutebolMod.LOG.info("SHOTS FIM"); srv.halt(false); }
