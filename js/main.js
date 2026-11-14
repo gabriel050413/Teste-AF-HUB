@@ -5,7 +5,7 @@ import { parseFFX } from './ffx.js';
 import { ffxToPreset } from './presets.js';
 import { TopazPanel } from './topaz-panel.js';
 import { setBgListener, ensureBgModel, bgStatus } from './bgremove.js';
-import { setGLLostListener, glLost } from './gl.js';
+import { setGLLostListener, glLost, gpuSync } from './gl.js';
 import { createEffectInstance, setPluginLookup, upgradeLayerEffects, applyPreset } from './presets.js';
 import { renderFrame, hitTest, layerCorners, forgetLayer } from './renderer.js';
 import { startRenderWorker, workerEligible } from './render-client.js';
@@ -179,7 +179,7 @@ async function preStart() {
         const r0 = performance.now();
         try {
           renderFrame(preCtx, P, t, q, { exact: true });
-          preCtx.getImageData(0, 0, 1, 1); // espera a GPU terminar: o tempo medido é o custo real do quadro
+          gpuSync(); // espera a GPU terminar (pelo WebGL): o tempo medido é o custo real do quadro
           ok = ep === prepareEpoch() && !glLost() && exactFramesReady(P, t); // sem a imagem de algum vídeo: não guarda (quadro preto)
         } catch { ok = false; }
         // projeto pesado (remover fundo, Twixtor, Shatter…): cada quadro travaria a tela por muito tempo — renderiza a
@@ -336,7 +336,7 @@ function loop(now) {
         // espera a GPU terminar este quadro antes de pedir o próximo (como o AE/CapCut). Sem isso, com efeitos pesados
         // os quadros se acumulavam na fila da placa e a tela congelava 10–25 s de uma vez (parecia que o app caiu);
         // e o tempo medido passa a ser o real, então a resolução adaptativa reage na hora.
-        backCtx.getImageData(0, 0, 1, 1);
+        gpuSync();
       } catch (e) { ok = false; console.warn('quadro falhou', e); }
       const ms = performance.now() - r0;
       if (ok && glLosses === lost0 && !glLost()) {

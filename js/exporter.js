@@ -1,6 +1,6 @@
 // Exportação: MP4 quadro a quadro (WebCodecs + mp4-muxer, com áudio) e fallback em tempo real (MediaRecorder).
 import { renderFrame, resetRenderCaches } from './renderer.js';
-import { getGL, glLost } from './gl.js';
+import { getGL, glLost, gpuSync } from './gl.js';
 import { prepare, pauseAll, setExporting } from './media.js';
 import { startRenderWorker } from './render-client.js';
 import { renderMix, stopAudio } from './audio.js';
@@ -189,7 +189,7 @@ export async function exportMP4(store, { scale = 1, bitrate, fpsOverride } = {})
         }
         // espera a GPU terminar o quadro antes de entregar ao codificador: com efeitos pesados o codificador ficava
         // esperando a placa, a fila enchia e o app achava que o codificador tinha travado (exportação falhava)
-        ctx.getImageData(0, 0, 1, 1);
+        gpuSync();
       }
       const frame = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / fps), duration: Math.round(1e6 / fps) });
       ui.preview?.(canvas);

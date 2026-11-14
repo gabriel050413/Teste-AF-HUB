@@ -497,4 +497,17 @@ export function getGL() {
   } catch (e) { failed = true; console.warn('WebGL indisponível — efeitos desativados', e); }
   return engine;
 }
+/**
+ * Espera a GPU terminar o que foi pedido até agora (efeitos do quadro). Lê 1 pixel do contexto WebGL — NUNCA de uma
+ * tela 2D: ler telas 2D a cada quadro faz o Chrome tirá-las da GPU e desenhar no processador (a prévia caía para ~5 fps
+ * mesmo sem efeitos na v1.1.1–v1.2.1).
+ */
+const syncPx = new Uint8Array(4);
+export function gpuSync() {
+  const e = engine;
+  if (!e || e.gl.isContextLost()) return;
+  const gl = e.gl;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, syncPx);
+}
 export function glLost() { return !!engine && engine.gl.isContextLost(); }
