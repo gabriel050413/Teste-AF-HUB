@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.3
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.4
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v2.4 — texturas por jogador
+- Cada jogador dos clubes reais agora é um **boneco com skin própria**: uniforme do clube (camisa, calção, meiões, chuteiras), **número nas costas**, tom de pele, cabelo (curto, raspado, longo, cacheado, penteado, careca) e barba aproximados do jogador real. Goleiros com camisa de manga comprida e luvas. Se as camisas dos dois times forem parecidas, o visitante usa a reserva.
+- As skins vêm dentro do mod (408 texturas). A aparência de cada um está em `aparencia.txt` (feita de memória, é só uma aproximação visual, não um rosto fotográfico). Para ajustar: edite o arquivo e rode `python3 tools/gerar_skins.py` (precisa de `pillow`).
+- Saqueadores x Vindicadores continuam com Pillagers e Vindicators.
 
 ## Novidades da v2.3 — narrador, arbitragem e cerimônia
 - **Narrador e comentarista com voz** (TTS offline **Kokoro-82M**, licença Apache-2.0, vozes pt-BR `pm_alex` = narrador, `pm_santa` = comentarista). Narra gol (com o nome do artilheiro, minuto e placar), defesas, chutes, faltas, cartões, escanteios, impedimentos, dribles, enfiadas, cruzamentos, intervalo, fim de jogo e replays; o comentarista entra de vez em quando. As frases são montadas com clipes que vão **dentro do mod** (precisa do mod instalado no cliente para ouvir). `/futebol narrador on|off`, `/futebol narrador volume <0-2>`, `/futebol narrador legenda true|false` (mostra a fala escrita). A categoria de som é "Voz" (ajustável nas opções de som).

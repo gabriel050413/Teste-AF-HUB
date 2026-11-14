@@ -1,6 +1,6 @@
 package com.futebol;
 
-import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 /** Um jogador em campo: a entidade + estado de IA/físico. */
@@ -9,7 +9,7 @@ public final class FPlayer {
 
     public final int team;
     public final Roster.Def def;
-    public Mob e;
+    public LivingEntity e;
 
     // movimento
     public double vx, vz;               // velocidade horizontal própria (blocos/tick)

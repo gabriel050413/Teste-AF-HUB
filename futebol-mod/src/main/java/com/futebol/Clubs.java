@@ -18,12 +18,18 @@ public final class Clubs {
     private Clubs() {}
 
     static final int VERSAO = 2;
+    /** Texturas de jogador disponíveis (assets/futebol/textures/player). */
+    public static final java.util.Set<String> SKINS = new java.util.HashSet<>();
     public static final Map<String, Club> ALL = new LinkedHashMap<>();
 
     public static Club get(String id) { return id == null ? null : ALL.get(id.toLowerCase()); }
 
     public static void load() {
         ALL.clear();
+        SKINS.clear();
+        try (InputStream in = Clubs.class.getResourceAsStream("/futebol/skins.txt")) {
+            if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip).filter(l -> !l.isEmpty()).forEach(SKINS::add);
+        } catch (Exception ignored) {}
         // times de brincadeira
         ALL.put("saqueadores", new Club("saqueadores", "Saqueadores", "SAQ", 0xC62828, 0xFFFFFF, 0xEEEEEE, "442", "Pillagers", Roster.SAQUEADORES));
         ALL.put("vindicadores", new Club("vindicadores", "Vindicadores", "VIN", 0x1565C0, 0xFFFFFF, 0xEEEEEE, "442", "Vindicators", Roster.VINDICADORES));

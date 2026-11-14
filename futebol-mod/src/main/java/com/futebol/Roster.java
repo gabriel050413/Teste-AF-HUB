@@ -18,6 +18,9 @@ public final class Roster {
     /** Códigos de cor de chat. */
     public static final String[] COR_CHAT = {"§c", "§9"};
     public static final Club[] ATUAL = new Club[2];
+    public static final boolean[] KIT_ALT = new boolean[2];     // time usando a camisa reserva
+    public static final int[] GK_IDX = {0, 1};                  // cor do goleiro (índice da paleta)
+    static final int[] GK_PALETA = {0x2E7D32, 0xF9A825, 0xE91E63, 0x7E57C2};
 
     private static final int[] CHAT_RGB = {0xFF5555, 0x5555FF, 0xFFFF55, 0x55FF55, 0xFFFFFF, 0x55FFFF, 0xFFAA00, 0xAA00AA, 0xAAAAAA, 0xFF55FF};
     private static final String[] CHAT_COD = {"§c", "§9", "§e", "§a", "§f", "§b", "§6", "§5", "§7", "§d"};
@@ -37,8 +40,9 @@ public final class Roster {
     public static void apply(Club home, Club away) {
         ATUAL[0] = home; ATUAL[1] = away;
         int c0 = home.chest(), c1 = away.chest();
-        if (dist(c0, c1) < 110) c1 = away.alt();
-        if (dist(c0, c1) < 110) c1 = home.id().equals("saqueadores") ? 0x1565C0 : 0x222222;
+        KIT_ALT[0] = false; KIT_ALT[1] = false;
+        if (dist(c0, c1) < 110) { c1 = away.alt(); KIT_ALT[1] = true; }
+        if (dist(c0, c1) < 110 && home.id().equals("saqueadores")) c1 = 0x1565C0;
         int[] chest = {c0, c1};
         Club[] cl = {home, away};
         int[][] gkPal = {{0x2E7D32, 0xF9A825, 0xE91E63, 0x7E57C2}, {0xF9A825, 0x2E7D32, 0xE91E63, 0x7E57C2}};
@@ -49,6 +53,7 @@ public final class Roster {
         }
         for (int t = 0; t < 2; t++)
             for (int c : gkPal[t]) if (dist(c, chest[0]) > 90 && dist(c, chest[1]) > 90 && (t == 0 || c != COR_GOLEIRO[0])) { COR_GOLEIRO[t] = c; break; }
+        for (int t = 0; t < 2; t++) for (int k = 0; k < GK_PALETA.length; k++) if (GK_PALETA[k] == COR_GOLEIRO[t]) GK_IDX[t] = k;
     }
 
     //                                       vel fin pas dri des for vis fol ref agr

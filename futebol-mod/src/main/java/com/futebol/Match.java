@@ -15,6 +15,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.cubemob.SulfurCube;
 import net.minecraft.world.item.ItemStack;
@@ -139,7 +140,41 @@ public final class Match {
         level.addFreshEntity(ball);
     }
 
-    Mob makeMob(FPlayer p) {
+    /** Id da textura do jogador (clube_camisa_h|a|gN), ou null se não houver skin para ele. */
+    static String skinId(FPlayer p) {
+        String club = Roster.ATUAL[p.team].id();
+        String id = club + "_" + p.def.num() + "_" + (p.isGK() ? "g" + Roster.GK_IDX[p.team] : Roster.KIT_ALT[p.team] ? "a" : "h");
+        return Clubs.SKINS.contains(id) ? id : null;
+    }
+
+    /** Boneco com a skin do jogador (uniforme, número, cabelo, pele). */
+    LivingEntity skinned(FPlayer p, String skin) {
+        net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+        net.minecraft.nbt.CompoundTag prof = new net.minecraft.nbt.CompoundTag();
+        prof.putString("texture", "futebol:player/" + skin);
+        prof.putString("model", "wide");
+        tag.put("profile", prof);
+        tag.putBoolean("hide_description", true);
+        tag.putBoolean("immovable", false);
+        tag.putBoolean("Invulnerable", true);
+        tag.putBoolean("Silent", true);
+        var in = net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, level.registryAccess(), tag);
+        var o = net.minecraft.world.entity.EntityType.create(EntityTypes.MANNEQUIN, in, level, EntitySpawnReason.COMMAND);
+        if (o.isEmpty()) return null;
+        LivingEntity e = (LivingEntity) o.get();
+        e.addTag("futebol");
+        e.addTag("futebol_t" + p.team + "_n" + p.def.num());
+        e.setCustomName(nameTag(p));
+        e.setCustomNameVisible(true);
+        Vec3 w = W(p.team, p.def.u(), p.def.v());
+        e.snapTo(w.x, w.y, w.z, yawTo(attackDir[p.team], 0), 0);
+        level.addFreshEntity(e);
+        return e;
+    }
+
+    LivingEntity makeMob(FPlayer p) {
+        String sk = skinId(p);
+        if (sk != null) { LivingEntity m = skinned(p, sk); if (m != null) return m; }
         Roster.Def d = p.def;
         Mob e;
         if (p.isGK()) e = EntityTypes.VILLAGER.create(level, EntitySpawnReason.COMMAND);
@@ -1787,7 +1822,7 @@ public final class Match {
     // =====================================================================================
 
     void step(FPlayer p) {
-        Mob e = p.e;
+        LivingEntity e = p.e;
         Vec3 pos = e.position();
         double dx = p.tx - pos.x, dz = p.tz - pos.z, d = Math.hypot(dx, dz);
         double vmax = p.maxSpeed();
