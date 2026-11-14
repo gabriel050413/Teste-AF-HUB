@@ -107,6 +107,10 @@ function walk(children, ctx, group = null) {
         let label = null;
         collectPath(c.children, ctx, path, (l) => { if (!label) label = l; });
         if (path.length) ctx.targetPath = path;
+        // preset de várias propriedades soltas (KoreaW! Warp, sonheii glitchify): todos os caminhos vêm primeiro
+        // e depois os tdbs na mesma ordem — guarda a fila de caminhos de parâmetro para casar com cada tdbs
+        const last = path[path.length - 1];
+        if (last && (/-\d{4}$/.test(last) || last === 'ADBE Effect Built In Params')) (ctx.propPaths ||= []).push(path);
         // cada tdsp com um efeito-alvo corresponde, em ordem, a um bloco sspc
         const target = [...path].reverse().find((m) => !STRUCTURAL.has(m) && !/-\d{4}$/.test(m));
         if (target) ctx.targets.push({ mn: target, label });
@@ -129,6 +133,8 @@ function walk(children, ctx, group = null) {
         break;
       }
       case 'tdgp': {
+        // na fila de propriedades soltas, o "Built In Params" (máscara/GPU do efeito) vem como grupo: consome o caminho dele
+        if (!group && ctx.propPaths && ctx.propPaths[ctx.propIdx || 0]?.slice(-1)[0] === 'ADBE Effect Built In Params') ctx.propIdx = (ctx.propIdx || 0) + 1;
         ctx.groupPath.push(pending || '?');
         walk(c.children, ctx, pending || '?');
         ctx.groupPath.pop();
@@ -137,7 +143,9 @@ function walk(children, ctx, group = null) {
       case 'tdbs': {
         // preset de UMA propriedade de um efeito (ex.: só o "Speed %" do Twixtor, só o "Z Dist" do S_BlurMoCurves):
         // o caminho (tdsp) diz qual efeito e qual parâmetro → vira o efeito com essa propriedade animada
-        const tp = ctx.targetPath || [];
+        const queued = !pending && ctx.propPaths && (ctx.propIdx || 0) < ctx.propPaths.length ? ctx.propPaths[ctx.propIdx = (ctx.propIdx || 0) + 1, ctx.propIdx - 1] : null;
+        const tp = queued || ctx.targetPath || [];
+        if (queued && tp[tp.length - 1] === 'ADBE Effect Built In Params') break; // máscara/GPU do efeito: sem valor útil
         const paramMn = !pending && tp.length && /-\d{4}$/.test(tp[tp.length - 1]) ? tp[tp.length - 1] : null;
         const fxMn = paramMn ? tp[tp.length - 2] : null;
         const prop = parseProperty(c, pending || paramMn || '?', null, ctx);

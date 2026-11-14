@@ -59,6 +59,8 @@ const fontOf = (p) => `${p.italic ? 'italic ' : ''}${p.fontWeight || 400} ${p.fo
 
 export function contentSize(layer, proj = project) {
   const p = layer.props;
+  // grupo com tamanho próprio (cena interna do Alight Motion/Node Video): conteúdo em coordenadas da cena, centrado na posição
+  if (layer.type === 'group' && p.ownSize && p.width > 0 && p.height > 0) return { w: p.width, h: p.height };
   if (layer.type === 'adjustment' || layer.type === 'group' || layer.type === 'camera') return { w: proj?.width || 1080, h: proj?.height || 1920 };
   if (layer.type === 'text') {
     const ctx = textCtx();

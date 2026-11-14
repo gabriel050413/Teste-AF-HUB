@@ -1149,18 +1149,109 @@ async function cleanUnusedMedia() {
 }
 
 // ------------------------------------------------------------------ projeto
+// Projeto para levar a outro aparelho: o .json pode ir com as mídias dentro (vídeos, fotos, áudios, modelos 3D e
+// fontes importadas). Até PACK_JSON_MAX vai tudo no próprio .json (base64); acima disso vira .zip (sem o custo do base64).
+const PACK_JSON_MAX = 150 * 1024 * 1024;
+const projectJSON = (p) => JSON.stringify({ ...p, layers: stripBlobs(p.layers) });
+function stripBlobs(layers) {
+  return layers.map((l) => ({ ...l, props: { ...l.props, src: l.props.src?.startsWith('blob:') ? null : l.props.src, ...(l.props.layers ? { layers: stripBlobs(l.props.layers) } : {}) } }));
+}
+async function projectMediaIds(p) {
+  const ids = new Set();
+  for (const l of flatLayers(p.layers)) for (const [k, v] of Object.entries(l.props || {})) if (/Id$/.test(k) && typeof v === 'string' && v) ids.add(v);
+  for (const l of flatLayers(p.layers)) if (l.type === 'text') { const fam = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1]; if (fam && userFonts().some((f) => f.family === fam)) ids.add(`__font:${fam}`); }
+  const out = [];
+  for (const id of ids) { const b = await getMedia(id); if (b && typeof b !== 'string') out.push({ id, blob: b instanceof Blob ? b : new Blob([b]) }); }
+  return out;
+}
+const blobB64 = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).replace(/^data:[^,]*,/, '')); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+
 async function saveProject() {
-  const data = JSON.stringify({ ...store.project, layers: store.project.layers.map((l) => ({ ...l, props: { ...l.props, src: l.props.src?.startsWith('blob:') ? null : l.props.src } })) });
-  await saveFile(`projeto-${Date.now()}.motionframe.json`, new Blob([data], { type: 'application/json' }));
-  if (store.project.layers.some((l) => l.props.mediaId)) toast('Vídeos e áudios ficam salvos neste aparelho; o .json guarda a edição.', 'warn', 5000);
+  const p = store.project;
+  const media = await projectMediaIds(p);
+  const total = media.reduce((n, m) => n + m.blob.size, 0);
+  const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1);
+  let mode = 'json';
+  if (media.length) {
+    mode = await modal('Salvar projeto', `<p>O projeto usa <b>${media.length}</b> mídia(s) guardada(s) neste aparelho (${mb(total)} MB).</p>
+      <p class="muted small">Com as mídias, o arquivo abre completo em outro celular/PC/navegador (vídeos, fotos, áudios e fontes juntos). Só a edição é leve, mas no outro aparelho as mídias ficam offline até você reimportar.</p>`,
+      [{ label: 'Cancelar', value: null }, { label: 'Só a edição (.json)', value: 'json' }, { label: total > PACK_JSON_MAX ? `📦 Com mídias (.zip, ${mb(total)} MB)` : `📦 Com mídias (.json, ${mb(total)} MB)`, primary: true, value: 'pack' }]);
+    if (!mode) return;
+  }
+  const base = (p.name || 'projeto').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60) || 'projeto';
+  if (mode === 'json') {
+    await saveFile(`${base}.motionframe.json`, new Blob([projectJSON(p)], { type: 'application/json' }));
+    if (media.length) toast('Vídeos e áudios ficam salvos neste aparelho; o .json guarda a edição.', 'warn', 5000);
+    return;
+  }
+  toast('Empacotando o projeto com as mídias…', 'info', 2500);
+  const { blob, ext } = await buildProjectPack(p, media);
+  await saveFile(`${base}.motionframe.${ext}`, blob);
+  toast(`Projeto salvo com ${media.length} mídia(s) ✓ — no outro aparelho, toque em 📂 Abrir projeto e escolha este arquivo.`, 'ok', 5000);
+}
+async function buildProjectPack(p, media) {
+  const total = media.reduce((n, m) => n + m.blob.size, 0);
+  const types = Object.fromEntries(media.map((m) => [m.id, { type: m.blob.type || '', name: m.blob.name || '' }]));
+  if (total <= PACK_JSON_MAX) {
+    // monta o .json em pedaços (sem juntar uma string gigante na memória)
+    const parts = ['{"format":"motionframe-project-media","version":1,"project":', projectJSON(p), ',"media":{'];
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i];
+      parts.push(`${i ? ',' : ''}${JSON.stringify(m.id)}:{"type":${JSON.stringify(types[m.id].type)},"name":${JSON.stringify(types[m.id].name)},"b64":"`, await blobB64(m.blob), '"}');
+    }
+    parts.push('}}');
+    return { blob: new Blob(parts, { type: 'application/json' }), ext: 'json' };
+  }
+  const { makeZip } = await import('./zip-write.js');
+  const files = [{ name: 'project.json', data: JSON.stringify({ format: 'motionframe-project-media', version: 1, project: JSON.parse(projectJSON(p)), media: types }) }];
+  for (const m of media) files.push({ name: `media/${encodeURIComponent(m.id)}`, data: new Uint8Array(await m.blob.arrayBuffer()) });
+  return { blob: new Blob([makeZip(files)], { type: 'application/zip' }), ext: 'zip' };
+}
+
+/** Lê um projeto salvo "com mídias" (.json com base64 ou .zip): guarda as mídias neste aparelho e devolve o projeto. */
+async function unpackProject(file) {
+  if (/\.zip$/i.test(file.name)) {
+    const { readZip } = await import('./zip.js');
+    const z = await readZip(file);
+    if (!z.names.includes('project.json')) return null;
+    const meta = JSON.parse(await (await z.get('project.json')).text());
+    if (meta.format !== 'motionframe-project-media') return null;
+    for (const n of z.names) {
+      if (!n.startsWith('media/')) continue;
+      const id = decodeURIComponent(n.slice(6)), info = meta.media?.[id] || {};
+      const blob = await z.get(n, info.type || '');
+      await putMedia(id, info.name ? new File([blob], info.name, { type: info.type || blob.type }) : blob);
+    }
+    await flushMedia();
+    if (meta.project) await restoreFonts(meta.project);
+    return meta.project;
+  }
+  const data = JSON.parse(await file.text());
+  if (data.format !== 'motionframe-project-media') return data;
+  for (const [id, m] of Object.entries(data.media || {})) {
+    const blob = await (await fetch(`data:${m.type || 'application/octet-stream'};base64,${m.b64}`)).blob();
+    await putMedia(id, m.name ? new File([blob], m.name, { type: m.type || blob.type }) : blob);
+  }
+  await flushMedia();
+  await restoreFonts(data.project);
+  return data.project;
+}
+/** Fontes que vieram no pacote (__font:Família): registra para os textos aparecerem certos. */
+async function restoreFonts(project) {
+  const fams = new Set();
+  for (const l of flatLayers(project.layers || [])) if (l.type === 'text') { const fam = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1]; if (fam) fams.add(fam); }
+  const files = [];
+  for (const fam of fams) { const b = await getMedia(`__font:${fam}`); if (b && !userFonts().some((f) => f.family === fam)) files.push(new File([b], `${fam}.ttf`)); }
+  if (files.length) await importFonts(files).catch(() => {});
 }
 
 async function openProject() {
   const [f] = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,application/json', false);
   if (!f) return;
+  if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, false); }
   if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
   try {
-    const data = JSON.parse(await f.text());
+    const data = await unpackProject(f);
     if (data.format?.startsWith('motionframe-preset') || data.preset || data.presets) { library.importFiles([f]); openSheet('presets'); return; }
     if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto');
     await relinkMedia(data);
@@ -1869,12 +1960,25 @@ async function createProjectFlow() {
   toast('Projeto criado. Comece importando um vídeo (🎞 Vídeo / Foto).', 'ok', 3500);
 }
 
+async function openUnpacked(data, f, asNew) {
+  try {
+    if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto do MotionFrame');
+    if (asNew) {
+      data.id = uid('prj'); data.name = data.name || f.name.replace(/\.motionframe\.(json|zip)$/i, '');
+      saveProjectData(data, null);
+      await openProjectById(data.id);
+    } else { await relinkMedia(data); store.load(data); updateTitle(); layoutCanvas(); }
+    toast('Projeto aberto com as mídias ✓', 'ok', 4000);
+  } catch (e) { toast(`Não foi possível abrir: ${e.message}`, 'error'); }
+}
+
 async function importProjectFile() {
   const [f] = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,application/json', false);
   if (!f) return;
+  if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, true); }
   if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
   try {
-    const data = JSON.parse(await f.text());
+    const data = await unpackProject(f);
     if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto do MotionFrame');
     data.id = uid('prj');
     data.name = data.name || f.name.replace(/\.(motionframe\.)?json$/i, '');
@@ -1944,6 +2048,7 @@ async function openXMLFlow(file) {
       zipMedia = [];
       for (const n of z.names) {
         const short = n.split('/').pop(), ext = short.split('.').pop().toLowerCase();
+        if (/^screenshot_|nodevideo/i.test(short)) continue; // print do Node Video (mostra os ajustes do Time Slice), não é mídia do projeto
         if (TYPES[ext]) zipMedia.push(new File([await z.get(n, TYPES[ext])], short, { type: TYPES[ext] }));
         else if (/^(ttf|otf)$/.test(ext)) await importFonts([new File([await z.get(n)], short)]).catch(() => {});
       }
@@ -2100,4 +2205,4 @@ const home = new HomeScreen({
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.
-window.motionframe = { store, openSheet, openProjectById, home, goHome };
+window.motionframe = { store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };

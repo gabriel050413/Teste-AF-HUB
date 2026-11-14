@@ -9,6 +9,7 @@ import { escapeHtml } from './util.js';
 import { toast, storage } from './ui.js';
 import { getImage } from './media.js';
 import { WATERMARKS } from './watermarks.js';
+import { NODE_TRANSITIONS, nodeTransitionLayers, nodeTimeSlice } from './node-transitions.js';
 
 const WM_CAT = 'Marcas d’água';
 const MY_CAT = 'Meus efeitos (AE)';
@@ -55,6 +56,7 @@ function previewProject(item, dur, opts) {
   for (const l of [A, B]) l.transform.position.value = [PW / 2, PH / 2];
   A.inPoint = 0; A.outPoint = cut; B.inPoint = cut; B.outPoint = P.duration;
   if (item.adj) { P.layers = [adjOverCut(P, item, cut, dur), A, B]; return { P, cut }; }
+  if (item.node) { P.duration = Math.max(P.duration, cut + 0.9); B.outPoint = P.duration; P.layers = [...nodeTransitionLayers(P, item.key, item.xmlCut, cut), A, B]; return { P, cut }; }
   const { a, b } = item.make(dur);
   applyPreset(A, a, cut);
   if (b) applyPreset(B, b, cut);
@@ -93,7 +95,8 @@ export class TransitionsPanel {
   constructor(root, store, hooks = {}) {
     this.root = root; this.store = store; this.hooks = hooks;
     this.cat = 'Das edits'; this.sel = null; this.dur = storage.get(DUR_KEY, null);
-    this.items = [...EDIT_TRANSITIONS, ...composerItems().filter((x) => x.kind === 'trans').map((x) => ({ ...x, cat: 'Básicas', src: '' })), ...WATERMARKS.map((x) => ({ ...x, cat: x.overlay ? OV_CAT : WM_CAT, wm: true }))];
+    this.items = [...EDIT_TRANSITIONS, ...composerItems().filter((x) => x.kind === 'trans').map((x) => ({ ...x, cat: 'Básicas', src: '' })), ...WATERMARKS.map((x) => ({ ...x, cat: x.overlay ? OV_CAT : WM_CAT, wm: true })),
+      ...NODE_TRANSITIONS.map(([id, name, key, xmlCut, angle]) => ({ id, name, key, xmlCut, angle, node: true, dur: 1, cat: 'Das edits', src: 'Node Video (Alight Motion XML + Time Slice)' }))];
     this.thumbs = new Map();
     this.render();
   }
@@ -269,6 +272,18 @@ export class TransitionsPanel {
       }
     }
     if (!pairs.length) { toast('Não achei um corte: selecione o clipe que sai (o próximo clipe tem que começar no fim dele).', 'warn', 5000); return; }
+    if (it.node) {
+      for (const [a, b] of pairs) {
+        const cut = a.outPoint, ls = nodeTransitionLayers(st.project, it.key, it.xmlCut, cut);
+        st.project.layers.unshift(...ls);
+        const t0 = Math.min(...ls.map((l) => l.inPoint)), t1 = Math.max(...ls.map((l) => l.outPoint));
+        for (const c of [a, b]) if (c && (c.type === 'video' || c.type === 'group')) c.effects.push(nodeTimeSlice(t0, t1, it.angle));
+      }
+      st.commit('structure');
+      toast(`“${it.name}” aplicada ✓`, 'ok', 4000);
+      this.hooks.onApplied?.();
+      return;
+    }
     if (it.adj) {
       for (const [a] of pairs) { const adj = adjOverCut(st.project, it, a.outPoint, d); st.project.layers.unshift(adj); }
       st.commit('structure');

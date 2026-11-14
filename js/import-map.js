@@ -131,7 +131,9 @@ export function looksFromTools(tools, strength = 100) {
       // Bleach Bypass (negativo / cópia): [Silver %, Exposure Compensation] → menos cor e mais contraste
       case 'blby': case 'nbby': {
         const sv = clampN((v[0] ?? 100) / 100, 0, 1);
-        p.saturation *= 1 - sv * 0.55; p.contrast += sv * 22; p.exposure += v[1] || 0;
+        // a prata retida deixa a cópia mais densa (~1,2 stop com 100%); o "Exposure Compensation" do Looks existe para
+        // devolver esse brilho — somar só a compensação (sem a densidade) estourava os claros (CC Blue/Green Koreiia)
+        p.saturation *= 1 - sv * 0.55; p.contrast += sv * 22; p.exposure += (v[1] || 0) - sv * 1.2;
         break;
       }
       // Lightflex: [Flash (stops), Exposure, R, G, B] — "flash" de luz colorida que levanta as sombras
@@ -354,7 +356,8 @@ export function looksFromTools(tools, strength = 100) {
       // Two Strip (Technicolor de 2 tiras): laranja/ciano forte, pele quente (mantido: mais perto dos prints de referência)
       // Two Strip (Technicolor de 2 tiras): [Strength %, Exposure]. Só existem os registros vermelho e verde: o azul vira
       // a média de verde+azul → pele rosada/natural, azuis e verdes viram ciano (não é um Mojo laranja)
-      case '2stp': p.twoStrip = clampN((p.twoStrip || 0) + (v[0] || 0), 0, 100); p.exposure += v[1] || 0; break;
+      // O 2º valor não é em stops cheios: com 3,4 (CC Green Koreiia) o resultado ficava branco/lavado — escala ~0,3 de stop
+      case '2stp': p.twoStrip = clampN((p.twoStrip || 0) + (v[0] || 0), 0, 100); p.exposure += (v[1] || 0) * 0.3; break;
       // S Curve: [Contrast (1 = neutro), Midpoint, Brightness (0,5 = neutro), Black Point, White Point, Log]
       // S Curve: [Contrast (0 = neutro — preset "Zeroed Out" do Looks), Midpoint, Brightness, Black Point, White Point, Log]
       // A curva leva o Brightness (entrada) até o Midpoint (saída) — 0,5 → 0,5 = sem mudança — e o Contrast dá o S em volta desse ponto.
@@ -469,6 +472,26 @@ function looksExpand(fx, raw) {
 
 export const IMPORT_RULES = [
   // Continuum (BCC) com os controles reais (doc da Boris FX + índices dos .ffx): vêm antes das regras genéricas
+  // achados nos presets do Drive (OmarFX, hsn, 10mov)
+  { vendor: 'BCC', plugin: 'BCC Drop Shadow', to: 'dropShadow', match: ['BCC3Drop Shadow', 'BCC Drop Shadow', 'BCC_DROPSHADOW'], test: /bcc.*drop ?shadow/i,
+    map: { distance: { n: ['shadow distance'], conv: (v) => v * 4 }, opacity: { n: ['shadow intensity'] }, angle: { n: ['shadow angle'] }, color: { n: ['shadow color'] }, softness: { n: ['shadow softness'] } } },
+  { vendor: 'BCC', plugin: 'BCC Cross Glitch', to: 'glitch', match: ['BCC Cross Glitch'], test: /bcc.*cross ?glitch/i,
+    map: { amount: { n: ['glitch intensity'], conv: (v) => Math.min(100, v * 1.5) }, block: { n: ['block run length'], conv: (v) => Math.max(8, v * 0.4) }, speed: { n: ['glitch interval'], conv: (v) => Math.max(2, Math.min(60, 120 / Math.max(1, v))) }, seed: { n: ['intensity seed'] } } },
+  { vendor: 'BCC', plugin: 'BCC Spiral Blur', to: 'radialBlur', match: ['BCC3Spiral Blur', 'BCC Spiral Blur'], test: /bcc.*spiral ?blur/i,
+    // Spiral = giro + zoom ao redor do centro → dois Radial Blur (giro e zoom) com o mesmo centro
+    expand: (fx, raw) => {
+      const c = fx.params.find((q) => /^center$/i.test(q.name || ''))?.value || [0.5, 0.5];
+      const spin = Math.abs(raw('spin angle') ?? 0), zoom = Math.abs(raw('zoom amount') ?? 0);
+      const out = [];
+      if (spin > 0) out.push({ type: 'radialBlur', label: 'Spiral Blur · giro', params: { mode: 2, amount: Math.min(100, spin * 1.2), center: [c[0], c[1]] } });
+      if (zoom > 0 || !out.length) out.push({ type: 'radialBlur', label: 'Spiral Blur · zoom', params: { mode: 1, amount: Math.min(100, zoom), center: [c[0], c[1]] } });
+      return out;
+    } },
+  { vendor: 'Sapphire', plugin: 'S_FreezeFrame', to: 'posterizeTime', match: ['S_FreezeFrame'], map: { fps: { n: ['freeze frames'], conv: (v) => Math.max(1, Math.round(30 / Math.max(1, v))) } } },
+  // BCC+ (BCC 2023+): parâmetros principais com índices 1000+ — Blur é o tamanho, Blur X/Y em % (direção pelo Direction)
+  { vendor: 'BCC', plugin: 'BCC+ Directional Blur', to: 'bccDirBlur', match: ['BCC_DIRECTIONALBLUR'],
+    set: { threshold: 0 }, map: { amount: { i: 1002, conv: (v) => v * 2 }, angle: { i: 1000 }, mix: { i: 16 } } }, // só índices: o PixelChooser também tem um "Blur"
+  { vendor: 'BCC', plugin: 'BCC+ Blur', to: 'bccBlur', match: ['BCC_BLUR'], set: { lock: true }, map: { h: { i: 1001 }, v: { i: 1001 }, mix: { i: 16 } } },
   { vendor: 'BCC', plugin: 'BCC Directional Blur', to: 'bccDirBlur', match: ['BCC3Directional Blur', 'BCC Directional Blur', 'BCC+Directional Blur'], test: /bcc.*directional ?blur/i,
     map: { amount: { i: 2, n: ['blur amount'] }, angle: { i: 3, n: ['angle'] }, thin: { i: 4, n: ['thin'] }, spread: { i: 5, n: ['spread'] }, threshold: { i: 6, n: ['blur threshold'] },
       maxDev: { i: 15, n: ['maximum deviation'] }, displace: { i: 8, n: ['displace pixels'] }, applyMode: { i: 9, n: ['apply mode'], conv: (v) => (v > 15 ? 1 : v) },
@@ -487,7 +510,7 @@ export const IMPORT_RULES = [
   { vendor: 'BCC', plugin: 'BCC Glow', to: 'bccGlow', match: ['BCC Glow', 'BCC+Glow', 'BCC3Glow'],
     map: { blend: { n: ['blend'] }, brightness: { n: ['brightness', 'glow intensity'] }, blurX: { n: ['blur x', 'glow radius', 'radius'] }, blurY: { n: ['blur y'] }, gang: { n: ['blur gang'] },
       color: { n: ['color', 'glow color'] }, position: { n: ['position'] }, range: { n: ['range'] }, under: { n: ['glow under source'] }, mix: { n: ['mix with original'] } } },
-  { vendor: 'BCC', plugin: 'BCC Blur', to: 'bccBlur', match: ['BCC_BLUR', 'BCC Blur', 'BCC3Blur'],
+  { vendor: 'BCC', plugin: 'BCC Blur', to: 'bccBlur', match: ['BCC Blur', 'BCC3Blur'],
     map: { h: { n: ['horizontal blur', 'blur amount'] }, v: { n: ['vertical blur'] }, lock: { n: ['lock blur'] }, channels: { n: ['channels'] }, mix: { n: ['mix with original'] } } },
   { vendor: 'BCC', plugin: 'BCC Temporal Blur', to: 'bccTemporalBlur', match: ['BCC3Temporal Blur', 'BCC Temporal Blur'], test: /bcc.*temporal ?blur/i,
     map: { amount: { n: ['amount (frames)', 'amount'] }, lockWhole: { n: ['lock to whole frames'] }, separation: { n: ['frame separation'] }, offset: { n: ['frame offset'] },
@@ -849,7 +872,9 @@ export const IMPORT_RULES = [
     map: { temperature: { n: ['temperature'] }, tint: { n: ['tint'] }, exposure: { n: ['exposure'] }, contrast: { n: ['contrast'] }, highlights: { n: ['highlights'] }, shadows: { n: ['shadows'] }, whites: { n: ['whites'] }, blacks: { n: ['blacks'] }, saturation: { n: ['saturation'], conv: (v) => v - 100 }, vibrance: { n: ['vibrance'] }, fade: { n: ['faded film'] } } },
   { vendor: ADOBE, plugin: 'Vibrance', to: 'vibrance', match: ['ADBE Vibrance'], map: { vibrance: { n: ['vibrance'] }, saturation: { n: ['saturation'] } } },
   { vendor: ADOBE, plugin: 'Tint', to: 'tint', match: ['ADBE Tint'], map: { black: { i: 1, n: ['map black to'] }, white: { i: 2, n: ['map white to'] }, amount: { i: 3, n: ['amount to tint'] } } },
-  { vendor: ADOBE, plugin: 'Black & White', to: 'blackWhite', match: ['ADBE Black&White', 'ADBE Black & White'] },
+  { vendor: ADOBE, plugin: 'Black & White', to: 'blackWhite', match: ['ADBE Black&White', 'ADBE Black & White'], set: { weights: true },
+    map: { reds: { i: 1, n: ['reds'] }, yellows: { i: 2, n: ['yellows'] }, greens: { i: 3, n: ['greens'] }, cyans: { i: 4, n: ['cyans'] }, blues: { i: 5, n: ['blues'] }, magentas: { i: 6, n: ['magentas'] },
+      tint: { i: 7, n: ['tint:', 'tint'] }, tintColor: { i: 8, n: ['tint color'] } } },
   { vendor: ADOBE, plugin: 'Luma Key', to: 'lumaKey', match: ['ADBE Luma Key'], map: { type: { i: 1, n: ['key type'] }, threshold: { i: 2, n: ['threshold'] }, tolerance: { i: 3, n: ['tolerance'] }, feather: { i: 5, n: ['edge feather'] } } },
   { vendor: ADOBE, plugin: 'Bevel Alpha', to: 'bevelAlpha', match: ['ADBE Bevel Alpha'], map: { thickness: { i: 1, n: ['edge thickness'] }, angle: { i: 2, n: ['light angle'] }, color: { i: 3, n: ['light color'] }, intensity: { i: 4, n: ['light intensity'] } } },
   { vendor: ADOBE, plugin: 'Crop Edges', to: 'cropEdges', match: ['ADBE CM CropEdges'], map: { amount: { i: 1, n: ['crop amount (per edge)', 'crop amount'] } } },
@@ -865,7 +890,7 @@ export const IMPORT_RULES = [
   { vendor: ADOBE, plugin: 'Wave Warp', to: 'waveWarp', match: ['ADBE Wave Warp'],
     map: { waveType: { i: 1, n: ['wave type'], conv: (v) => Math.min(4, Math.max(1, v)) }, height: { i: 2, n: ['wave height'] }, width: { i: 3, n: ['wave width'] }, direction: { i: 4, n: ['direction'] }, speed: { i: 5, n: ['wave speed'] }, phase: { n: ['phase'] } } },
   { vendor: ADOBE, plugin: 'Turbulent Displace', to: 'turbulentDisplace', match: ['ADBE Turbulent Displace'],
-    map: { amount: { n: ['amount'] }, size: { n: ['size'] }, complexity: { n: ['complexity'] }, evolution: { n: ['evolution'] } }, set: { evoSpeed: 0 } },
+    map: { amount: { i: 2, n: ['amount'] }, size: { i: 3, n: ['size'] }, complexity: { i: 5, n: ['complexity'] }, evolution: { i: 6, n: ['evolution'] } }, set: { evoSpeed: 0 } },
   { vendor: ADOBE, plugin: 'Bulge', to: 'bulge', match: ['ADBE Bulge'], map: { radius: { n: ['horizontal radius'] }, strength: { n: ['bulge height'], conv: (v) => Math.max(-1, Math.min(1, v / 2)) } } },
   { vendor: 'Cycore (CC)', plugin: 'CC Lens', to: 'bulge', match: ['CC Lens'], map: { radius: { n: ['size'], conv: (v) => v * 8 }, strength: { n: ['convergence'], conv: (v) => Math.max(-1, Math.min(1, v / 100)) } } },
   { vendor: ADOBE, plugin: 'Twirl', to: 'twirl', match: ['ADBE Twirl'], map: { angle: { n: ['angle'] }, radius: { n: ['twirl radius'], conv: (v) => v * 10 } } },
@@ -961,11 +986,30 @@ export function matchEffect(matchName, displayName = '') {
   return null;
 }
 
+// Nomes de parâmetros do After Effects em português (presets salvos com o AE em PT-BR) → nome em inglês usado nos maps
+const PT_PARAM = {
+  'brilho': 'brightness', 'contraste': 'contrast', 'valor': 'amount', 'quantidade': 'amount', 'tamanho': 'size', 'complexidade': 'complexity',
+  'evolução': 'evolution', 'deslocar (turbulência)': 'offset (turbulence)', 'deslocamento': 'displacement', 'ângulo': 'angle', 'raio': 'radius',
+  'desfoque': 'blurriness', 'desfoque gaussiano': 'blurriness', 'dimensões do desfoque': 'blur dimensions', 'centro': 'center', 'opacidade': 'opacity',
+  'cor': 'color', 'matiz': 'hue', 'saturação': 'saturation', 'luminosidade': 'lightness', 'exposição': 'exposure', 'gama': 'gamma',
+  'mapear preto para': 'map black to', 'mapear branco para': 'map white to', 'quantidade de tingimento': 'amount to tint', 'quantidade de tint': 'amount to tint',
+  'mesclar com original': 'blend with original', 'mesclar com o original': 'blend with original', 'centro do mosaico': 'tile center', 'largura do mosaico': 'tile width',
+  'altura do mosaico': 'tile height', 'largura da saída': 'output width', 'altura da saída': 'output height', 'bordas espelhadas': 'mirror edges', 'fase': 'phase',
+  'deslocamento horizontal': 'horizontal displacement', 'vermelhos': 'reds', 'amarelos': 'yellows', 'verdes': 'greens', 'cianos': 'cyans', 'azuis': 'blues', 'magentas': 'magentas',
+  'cor da sombra': 'shadow color', 'direção': 'direction', 'distância': 'distance', 'suavidade': 'softness', 'nitidez': 'sharpen amount', 'quantidade de nitidez': 'sharpen amount',
+  'limite': 'threshold', 'limiar': 'threshold', 'intensidade': 'intensity', 'altura da onda': 'wave height', 'largura da onda': 'wave width', 'velocidade da onda': 'wave speed',
+  'tipo de onda': 'wave type', 'escala': 'scale', 'rotação': 'rotation', 'posição': 'position', 'ponto de ancoragem': 'anchor point', 'compensação': 'offset',
+  'estilo de distorção': 'warp style', 'eixo distorção': 'warp axis', 'curvar': 'bend', 'distorção horizontal': 'horizontal distortion', 'distorção vertical': 'vertical distortion',
+  'campo de visão (fov)': 'field of view (fov)', 'inverter distorção da lente': 'reverse lens distortion', 'canal': 'channel', 'cor inicial': 'start color', 'cor final': 'end color',
+  'formato do gradiente': 'ramp shape', 'iniciar gradiente': 'start of ramp', 'finalizar gradiente': 'end of ramp', 'blocos horizontais': 'horizontal blocks', 'blocos verticais': 'vertical blocks',
+};
+const pname = (p) => { const n = normalize(p.name); return PT_PARAM[n] || n; };
+
 /** Encontra o parâmetro do .ffx correspondente a uma entrada do map (nome exato > nome contido > índice). */
 export function findParam(params, mapping, fallbackNames = []) {
   const names = [...(mapping?.n || []), ...fallbackNames].map(normalize).filter(Boolean);
   for (const n of names) {
-    const hit = params.find((p) => normalize(p.name) === n);
+    const hit = params.find((p) => normalize(p.name) === n) || params.find((p) => pname(p) === n);
     if (hit) return hit;
   }
   // índice antes de nome parcial: funciona com After Effects em outros idiomas (ex.: alemão)
