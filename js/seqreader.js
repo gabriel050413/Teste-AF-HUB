@@ -103,7 +103,7 @@ export class SeqReader {
   }
 
   /** Canvas do quadro mostrado em t (s, tempo do arquivo). */
-  async frameAt(t) {
+  async frameAt(t, wait = 4000) {
     const i = this.sampleAt(Math.max(0, t));
     if (this.frames.has(i)) return this.frames.get(i);
     // pedido para trás (ou muito à frente): recomeça no keyframe anterior em vez de decodificar tudo
@@ -111,7 +111,7 @@ export class SeqReader {
     // ou já saiu do decodificador e foi descartado (pedido para trás)
     const passed = this.lastOut != null && this.pts[i] < this.lastOut - 1e-6;
     if (!this.dec || this.err || i < this.base || i >= this.fed + 90 || passed) this.reset(this.keyBefore(i));
-    const T = this.v.table, deadline = performance.now() + 4000;
+    const T = this.v.table, deadline = performance.now() + wait;
     // B-frames: o quadro sai alguns pacotes depois → alimenta um pouco à frente
     let ahead = Math.min(T.n - 1, i + 4);
     await this.feed(ahead);

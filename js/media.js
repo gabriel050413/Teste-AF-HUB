@@ -246,6 +246,20 @@ function activeVideos(project, t) {
  * exact=true (exportação): busca o quadro exato e aguarda (await).
  * exact=false (prévia): reprodução nativa com playbackRate quando tocando; busca quando pausado.
  */
+/** Depois de prepare(exact): todo vídeo visível em t tem o quadro exato pronto (não vazio)? Pré-renderização e Worker
+ *  só guardam o quadro se sim — antes, quando o leitor demorava, a camada saía vazia e um quadro PRETO ia para a prévia. */
+export function exactFramesReady(project, t) {
+  for (const { l } of activeVideos(project, t)) {
+    const e = videos.get(l.id), fr = e?.frame;
+    if (!e || !fr) return false;
+    for (const st of [fr.a, fr.b]) {
+      if (st === null || st === undefined) continue;
+      const c = e.snaps?.get(Math.round(st * 1000));
+      if (!c || !c.width || !c.height) return false;
+    }
+  }
+  return true;
+}
 let prepEpoch = 0;
 /** Conta as chamadas de prepare(): a pré-renderização confere se ninguém trocou os quadros enquanto ela esperava. */
 export const prepareEpoch = () => prepEpoch;
@@ -286,7 +300,8 @@ export function prepare(project, t, { exact = false, playing = false } = {}) {
           const key = Math.round(st * 1000);
           if (e.snaps.has(key)) continue;
           if (rd) {
-            const c = await rd.frameAt(st).catch(() => null);
+            // no Worker não há outro jeito de ler o vídeo: com a máquina ocupada, espera mais antes de desistir
+            const c = (await rd.frameAt(st).catch(() => null)) || (IN_WORKER ? await rd.frameAt(st, 15000).catch(() => null) : null);
             if (c) {
               if (e.snaps.size >= 4) { const [k0, old] = e.snaps.entries().next().value; e.snaps.delete(k0); dropSnap(e, old); }
               c._rd = true; e.snaps.set(key, c); continue;
