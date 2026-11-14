@@ -87,7 +87,9 @@ export class GLEngine {
   constructor() {
     this.canvas = typeof document !== 'undefined' ? document.createElement('canvas') : new OffscreenCanvas(16, 16); // Worker: OffscreenCanvas
     this.canvas.width = this.canvas.height = 16;
-    const opts = { premultipliedAlpha: true, preserveDrawingBuffer: true, alpha: true, antialias: false };
+    // powerPreference: em PCs com duas placas (ex.: Ryzen com Radeon integrada + RTX), pede a placa dedicada — sem isso o
+    // navegador pode usar a integrada, bem mais fraca, e a prévia cai muito de fps
+    const opts = { premultipliedAlpha: true, preserveDrawingBuffer: true, alpha: true, antialias: false, powerPreference: 'high-performance' };
     this.gl = this.canvas.getContext('webgl', opts) || this.canvas.getContext('experimental-webgl', opts);
     if (!this.gl) throw new Error('WebGL indisponível');
     const gl = this.gl;
@@ -509,5 +511,11 @@ export function gpuSync() {
   const gl = e.gl;
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, syncPx);
+}
+/** Nome da placa de vídeo que o app está usando (para conferir se é a dedicada). */
+export function gpuName() {
+  const e = getGL();
+  if (!e) return 'sem aceleração (WebGL indisponível)';
+  try { const x = e.gl.getExtension('WEBGL_debug_renderer_info'); return String(x ? e.gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : e.gl.getParameter(e.gl.RENDERER)); } catch { return 'desconhecida'; }
 }
 export function glLost() { return !!engine && engine.gl.isContextLost(); }

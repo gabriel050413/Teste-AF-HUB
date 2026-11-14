@@ -209,6 +209,8 @@ fn main() {
                 .inner_size(1440.0, 900.0)
                 .min_inner_size(900.0, 600.0)
                 .maximized(true)
+                // GPU dedicada (RTX) mesmo em PCs com vídeo integrado + aceleração sem lista de bloqueio, como no Electron
+                .additional_browser_args("--force_high_performance_gpu --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-background-timer-throttling --disable-renderer-backgrounding --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection")
                 .build()?;
             let handle = app.handle().clone();
             let ul2 = ul.clone();
