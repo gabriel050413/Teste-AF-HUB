@@ -300,7 +300,8 @@ export function prepare(project, t, { exact = false, playing = false } = {}) {
           const key = Math.round(st * 1000);
           if (e.snaps.has(key)) continue;
           if (rd) {
-            const c = await rd.frameAt(st).catch(() => null);
+            // no Worker não há outro jeito de ler o vídeo: com a máquina ocupada, espera mais antes de desistir
+            const c = (await rd.frameAt(st).catch(() => null)) || (IN_WORKER ? await rd.frameAt(st, 15000).catch(() => null) : null);
             if (c) {
               if (e.snaps.size >= 4) { const [k0, old] = e.snaps.entries().next().value; e.snaps.delete(k0); dropSnap(e, old); }
               c._rd = true; e.snaps.set(key, c); continue;
