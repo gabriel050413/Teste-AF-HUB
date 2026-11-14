@@ -37,10 +37,16 @@ vec4 sampleAt(float s, float r, vec2 sh) {
   vec2 px = (v_uv - u_c) * u_size - sh * u_rect.zw * u_size;
   px = mat2(cos(r), -sin(r), sin(r), cos(r)) * px / s;
   vec2 cu = contentUV(u_c + px / u_size);
-  if ((u_wrap.x < 1.5 && (cu.x < 0.0 || cu.x > 1.0)) || (u_wrap.y < 1.5 && (cu.y < 0.0 || cu.y > 1.0))) return vec4(0.0);
+  vec2 w = wrapUV(cu);
   vec2 e = u_texel / u_rect.zw * 0.75; // meio texel para dentro: sem linha nas emendas
-  cu = clamp(wrapUV(cu), e, 1.0 - e);
-  return texture2D(u_tex, fromContent(cu));
+  vec2 cl = clamp(w, e, 1.0 - e);
+  // bordas transparentes: não corta no retângulo do conteúdo — a folga em volta também tem pixels
+  // (letras de animadores de texto, brilho de efeitos anteriores); só fica transparente fora da textura
+  if (u_wrap.x < 1.5) cl.x = w.x;
+  if (u_wrap.y < 1.5) cl.y = w.y;
+  vec2 tu = fromContent(cl);
+  if (tu.x < 0.0 || tu.x > 1.0 || tu.y < 0.0 || tu.y > 1.0) return vec4(0.0);
+  return texture2D(u_tex, tu);
 }
 void main() {
   vec4 acc = vec4(0.0); float wsum = 0.0;

@@ -67,7 +67,9 @@ void main() {
     g.rgb = mix(g.rgb, t, u_tmix);
   }
   vec3 o = u_add > 0.5 ? s.rgb + g.rgb : s.rgb + g.rgb - s.rgb * clamp(g.rgb, 0.0, 1.0);
-  gl_FragColor = fixpre(vec4(o, max(s.a, clamp(max(g.a, max(g.r, max(g.g, g.b))), 0.0, 1.0))));
+  // brilho é luz somada: a opacidade que ele acrescenta vem do quanto ele ilumina (RGB), não do alfa borrado —
+  // com o alfa, pixels coloridos/escuros (ou tint) viravam um halo ESCURO em volta da camada sobre o fundo
+  gl_FragColor = fixpre(vec4(o, max(s.a, clamp(max(g.r, max(g.g, g.b)), 0.0, 1.0))));
 }`);
 
 const RAYS = frag(`
