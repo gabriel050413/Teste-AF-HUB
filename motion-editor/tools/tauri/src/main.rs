@@ -210,6 +210,16 @@ fn main() {
                 .min_inner_size(900.0, 600.0)
                 .maximized(true)
                 // GPU dedicada (RTX) mesmo em PCs com vídeo integrado + aceleração sem lista de bloqueio, como no Electron
+                // downloads (botão "Baixar" da exportação): aceita e salva na pasta Downloads do Windows
+                .on_download(|_webview, event| {
+                    if let tauri::webview::DownloadEvent::Requested { destination, .. } = event {
+                        if let Some(dl) = dirs::download_dir() {
+                            let name = destination.file_name().map(|n| n.to_os_string()).unwrap_or_else(|| "MotionFrame.mp4".into());
+                            *destination = dl.join(name);
+                        }
+                    }
+                    true
+                })
                 .additional_browser_args("--force_high_performance_gpu --ignore-gpu-blocklist --enable-gpu-rasterization --enable-zero-copy --disable-background-timer-throttling --disable-renderer-backgrounding --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection")
                 .build()?;
             let handle = app.handle().clone();
