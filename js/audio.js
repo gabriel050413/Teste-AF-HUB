@@ -1,3 +1,4 @@
+import { valueAt } from './anim.js';
 // Áudio: camadas de música e o som dos vídeos, com reprodução sincronizada (WebAudio), forma de onda e mixagem offline.
 import { extractAudioADTS } from './mp4audio.js';
 import { flatLayers } from './state.js';
@@ -102,11 +103,60 @@ function audioLayers(project) {
       const i0 = l.inPoint + shift, i1 = Math.max(i0, lo), o1 = Math.min(l.outPoint + shift, hi);
       if (o1 <= i1) continue;
       const rate = l.type === 'video' ? (l.props.speed ?? 1) : 1;
-      out.push({ type: l.type, id: l.id, inPoint: i1, outPoint: o1, props: { ...l.props, sourceStart: (l.props.sourceStart || 0) + (i1 - i0) * rate } });
+      out.push({ type: l.type, id: l.id, effects: l.effects, inPoint: i1, outPoint: o1, props: { ...l.props, sourceStart: (l.props.sourceStart || 0) + (i1 - i0) * rate } });
     }
   };
   walk(project.layers, 0, -Infinity, Infinity);
   return out;
+}
+
+// ---- efeitos de áudio da camada (Bass & Treble, Reverb — js/fx/audio-fx.js) → cadeia do Web Audio
+const audioFxOf = (l) => (l.effects || []).filter((f) => f.enabled !== false && (f.type === 'audBassTreble' || f.type === 'audReverb'));
+const pv = (pr, t) => (pr && typeof pr === 'object' ? valueAt(pr, t) : pr);
+/** Agenda um AudioParam a partir de keyframes (amostras a cada 50 ms) ou valor fixo. */
+function schedParam(param, pr, fn, l, ctxStart, fromT) {
+  const at = (tt) => ctxStart + Math.max(0, tt - fromT);
+  const t0 = Math.max(fromT, l.inPoint);
+  param.setValueAtTime(fn(pv(pr, t0)), at(t0));
+  if (pr && typeof pr === 'object' && pr.keys?.length > 1) for (let tt = t0 + 0.05; tt < l.outPoint; tt += 0.05) param.linearRampToValueAtTime(fn(pv(pr, tt)), at(tt));
+}
+function impulse(ctx, secs, decay, diffusion) {
+  const n = Math.max(64, Math.round(ctx.sampleRate * secs)), b = ctx.createBuffer(2, n, ctx.sampleRate);
+  const k = 1.5 + (1 - decay / 100) * 5, dens = 0.35 + (diffusion / 100) * 0.65;
+  for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() < dens ? Math.random() * 2 - 1 : 0) * Math.pow(1 - i / n, k); }
+  return b;
+}
+/** Liga src → (efeitos) → dest; devolve o nó de entrada. */
+function audioChain(ctx, l, dest, ctxStart, fromT) {
+  const list = audioFxOf(l);
+  if (!list.length) return dest;
+  let head = null, tail = null;
+  const add = (inp, out = inp) => { if (tail) tail.connect(inp); else head = inp; tail = out; };
+  for (const f of list) {
+    const P = f.params;
+    if (f.type === 'audBassTreble') {
+      const lo = ctx.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 250;
+      const hi = ctx.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 3500;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.5;
+      schedParam(lo.gain, P.bass, (v) => (v || 0) * 0.24, l, ctxStart, fromT);
+      schedParam(hi.gain, P.treble, (v) => (v || 0) * 0.24, l, ctxStart, fromT);
+      // agudos negativos também fecham um passa-baixa: −88 ≈ 500 Hz → som abafado de verdade (End Muffled Audio)
+      schedParam(lp.frequency, P.treble, (v) => Math.min(20000, 20000 * Math.pow(2, Math.min(0, v || 0) * 0.06)), l, ctxStart, fromT);
+      lo.connect(hi).connect(lp); add(lo, lp);
+    } else {
+      const inp = ctx.createGain(), out = ctx.createGain(), dry = ctx.createGain(), wet = ctx.createGain();
+      const conv = ctx.createConvolver(), tone = ctx.createBiquadFilter();
+      const time = pv(P.time, l.inPoint) || 100, decay = pv(P.decay, l.inPoint) ?? 25, diff = pv(P.diffusion, l.inPoint) ?? 75;
+      conv.buffer = impulse(ctx, Math.min(6, (time / 1000) * (1 + decay / 25) + 0.05), decay, diff);
+      tone.type = 'lowpass'; tone.frequency.value = 1500 + (pv(P.brightness, l.inPoint) ?? 10) * 180;
+      schedParam(dry.gain, P.dry, (v) => (v ?? 90) / 100, l, ctxStart, fromT);
+      schedParam(wet.gain, P.wet, (v) => ((v ?? 10) / 100) * 1.6, l, ctxStart, fromT);
+      inp.connect(dry).connect(out); inp.connect(conv).connect(tone).connect(wet).connect(out);
+      add(inp, out);
+    }
+  }
+  tail.connect(dest);
+  return head;
 }
 
 /** Volume com fade in/out (automação de ganho). t0 = instante do contexto em que a camada começa a tocar. */
@@ -154,7 +204,7 @@ export function playAudio(project, t) {
       src.buffer = buf;
       src.playbackRate.value = rate;
       const gain = ac.createGain();
-      src.connect(gain).connect(ac.destination);
+      src.connect(gain).connect(audioChain(ac, l, ac.destination, now, t));
       scheduleGain(gain, l, now, t);
       src.start(now + startAt, offset, dur);
       playing.push(src);
@@ -181,7 +231,7 @@ export async function renderMix(project, sampleRate = 48000) {
     const gain = oac.createGain();
     const rate = l.type === 'video' ? (l.props.speed ?? 1) : 1;
     src.playbackRate.value = rate;
-    src.connect(gain).connect(oac.destination);
+    src.connect(gain).connect(audioChain(oac, l, oac.destination, 0, 0));
     const offset = l.props.sourceStart || 0;
     scheduleGain(gain, l, 0, 0);
     if (offset < buf.duration) src.start(Math.max(0, l.inPoint), offset, Math.max(0, l.outPoint - l.inPoint) * rate);
