@@ -56,7 +56,7 @@ const textCtx = () => {
   if (!textCtx.c) textCtx.c = makeCanvas(4, 4).getContext('2d');
   return textCtx.c;
 };
-const fontOf = (p) => `${p.italic ? 'italic ' : ''}${p.fontWeight || 400} ${p.fontSize}px ${p.fontFamily}`;
+const fontOf = (p) => `${p.italic ? 'italic ' : ''}${p.fontWeight || 400} ${+(p.fontSize * (p.fontScale || 1)).toFixed(2)}px ${p.fontFamily}`; // fontScale: compensa a Inter, mais larga que a SF Pro
 
 export function contentSize(layer, proj = project) {
   const p = layer.props;
