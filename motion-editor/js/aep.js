@@ -314,7 +314,14 @@ function convTextAnimators(list, t0) {
         selectors.push({ type: 'wiggly', mode: fixed('ADBE Text Selector Mode', 3), max: num('ADBE Text Wiggly Max Amount', 100) || num('ADBE Text Selector Max Amount', 100), min: num('ADBE Text Wiggly Min Amount', -100),
           freq: num('ADBE Text Temporal Freq', 2), correlation: num('ADBE Text Character Correlation', 50), tphase: num('ADBE Text Temporal Phase', 0), sphase: num('ADBE Text Spatial Phase', 0), based: fixed('ADBE Text Range Type2', 1) });
       } else if (sNode.mn === 'ADBE Text Expressible Selector') {
-        selectors.push({ type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) }); // padrão do AE: Interseção
+        // padrão do AE: Interseção. Expressões do tipo "delay/freq/amplitude/decay" (oscilação amortecida por caractere,
+        // a entrada clássica de texto) viram parâmetros; o resto continua sem efeito (o código não é executado).
+        const ex = q('ADBE Text Expressible Amount')?.prop?.expression || '';
+        const pick = (nm) => { const m = new RegExp(`${nm}\\s*=\\s*([-\\d.]+)`).exec(ex); return m ? +m[1] : null; };
+        const base = { type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) };
+        const delay = pick('delay'), freq = pick('freq'), amp = pick('amplitude'), decay = pick('decay');
+        if (delay != null && freq != null && amp != null && decay != null && /Math\.exp\(/.test(ex)) selectors.push({ ...base, delay, freq, amp, decay, t0ae: t0, k: AE_TIME_SCALE });
+        else selectors.push(base);
       } else {
         selectors.push({ type: 'range', start: num('ADBE Text Percent Start', 0), end: num('ADBE Text Percent End', 100), offset: num('ADBE Text Percent Offset', 0),
           amount: num('ADBE Text Selector Max Amount', 100), shape: fixed('ADBE Text Range Shape', 1), smooth: num('ADBE Text Selector Smoothness', 100),
