@@ -29,6 +29,7 @@ import { probeMp4, needsProxy, proxySupported, makeProxy } from './proxy.js';
 import { keepAwake as keepScreenOn } from './platform.js';
 import { getEffectDef } from './effects.js';
 import { modal, toast, pickFiles, storage } from './ui.js';
+import { syncClipsToBeat, beatEffects, recordVoice, transcribe, buildCaptions, CAPTION_STYLES } from './quick-tools.js';
 import { formatTime, formatSimple, uid, deepClone, escapeHtml } from './util.js';
 import { putMedia, getMedia, pruneMedia, flushMedia, pendingMediaCount, ensurePersistentStorage } from './idb.js';
 import { saveFile, registerServiceWorker } from './platform.js';
@@ -874,6 +875,7 @@ hintBar.className = 'hint-bar';
 toolbar.before(hintBar);
 // explicação de cada botão (aparece ao parar o mouse em cima, no PC)
 const TIPS = {
+  quick: 'Legendas automáticas, narração, cortes e efeitos na batida da música', howto: 'Passo a passo das tarefas mais comuns',
   'add-media': 'Importar vídeo ou foto do aparelho (Ctrl+I)', 'add-audio': 'Adicionar música', 'add-text': 'Nova camada de texto (Ctrl+Alt+Shift+T)', add: 'Sólido, formas, ajuste, Null, câmera…',
   presets: 'Presets prontos: CC, shakes, transições… e os .ffx que você importar', 'add-adjustment': 'Camada de ajuste: efeitos nela valem para tudo que está embaixo (Ctrl+Alt+Y)',
   group: 'Pré-compor: junta as camadas selecionadas numa composição (Ctrl+Shift+C)', 'import-ffx': 'Importar preset do After Effects (.ffx), Frameify, Looks…', comp: 'Tamanho, fps e duração da composição (Ctrl+K)',
@@ -901,7 +903,7 @@ function simpleItems(layer, t, many) {
       ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
       ['deselect', '✕', 'Fechar'], ['sep'],
       ...(t === 'group' ? [['open-group', '📂', 'Abrir grupo', true]] : []),
-      ['presets', '★', 'Presets', true], ['transitions', 'transition', 'Transições', true], ['effects', '✦', 'Efeitos', true],
+      ['presets', '★', 'Presets', true], ['transitions', 'transition', 'Transições', true], ['effects', '✦', 'Efeitos', true], ['quick', '✨', 'Rápidas'],
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true]] : []),
       ['props', '☰', 'Editar'], ['keys', '📈', 'Animar'],
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Volume']] : []),
@@ -921,7 +923,7 @@ function simpleItems(layer, t, many) {
   }
   const main = [
     ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
-    ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['transitions', 'transition', 'Transições'], ['presets', '★', 'Presets'], ['add', '＋', 'Mais camadas'],
+    ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['transitions', 'transition', 'Transições'], ['presets', '★', 'Presets'], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
     ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
     ['more', '⋯', 'Mais'],
   ];
@@ -958,7 +960,7 @@ function renderToolbar() {
     ]
     : [
       ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
-      ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['add', '＋', 'Mais camadas'],
+      ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
       ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
     ];
   toolbar.innerHTML = items.map(([cmd, icon, label, hot]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span></button>`)).join('');
@@ -1095,6 +1097,7 @@ async function importMedia(files) {
     const start = seqT ?? (hasContent ? store.time : 0);
     l.inPoint = start;
     const len = isVideo && Number.isFinite(dims.d) ? dims.d : 3;
+    if (isVideo && Number.isFinite(dims.d)) l.props.mediaDuration = dims.d; // duração do arquivo (Sincronizar com a batida sabe até onde pode esticar)
     if (!hasContent && seqT == null && isVideo) store.project.duration = Math.min(600, Math.max(1, Math.ceil(dims.d * 10) / 10));
     if (seqT != null || hasContent) store.project.duration = Math.min(600, Math.max(store.project.duration, Math.ceil((start + len) * 10) / 10));
     l.outPoint = Math.min(store.project.duration, start + len);
@@ -1551,6 +1554,12 @@ const commands = {
     });
     if (cmd) commands[cmd]?.();
   },
+  quick: () => quickToolsHub(),
+  howto: () => howToGuide(),
+  captions: () => captionsFlow(),
+  voice: () => voiceFlow(),
+  'beat-sync': () => beatSyncFlow(),
+  'beat-fx': () => beatFxFlow(),
   'ui-mode': () => { const s0 = getSettings(); setSettings({ ...s0, uiMode: s0.uiMode === 'ae' ? 'simple' : 'ae' }); toolbarMore = false; renderToolbar(); timeline.render(); toast(getSettings().uiMode === 'ae' ? 'Interface avançada (After Effects) ligada.' : 'Interface simples ligada.', 'ok'); },
   new: () => createProjectFlow(),
   undo: () => store.undo(),
@@ -1938,6 +1947,117 @@ async function downloadLink(url, onProg) {
   } else await get(url, decodeURIComponent(url.split('/').pop().split('?')[0]) || 'arquivo');
   return files;
 }
+// ------------------------------------------------------------------ ferramentas rápidas (estilo CapCut)
+const QUICK = [
+  ['captions', '💬', 'Legendas automáticas', 'Escuta a fala do vídeo e escreve as legendas animadas sozinho.'],
+  ['voice', '🎙', 'Gravar narração', 'Fale no microfone enquanto o vídeo toca — vira uma faixa de áudio.'],
+  ['beat-sync', '🥁', 'Cortes na batida', 'Ajusta cada clipe para trocar exatamente na batida da música.'],
+  ['beat-fx', '💥', 'Efeito na batida', 'Zoom, flash ou tremida em cada batida da música.'],
+  ['transitions', '🔀', 'Transições', 'Escolha uma transição e toque em Aplicar no corte.'],
+  ['presets', '🎨', 'Cor (CC) e efeitos prontos', 'Presets de cor, shake, reverse e mais — um toque aplica.'],
+  ['speed', '⏱', 'Velocidade / câmera lenta', 'Câmera lenta suave, velocity edit e reverse (selecione o clipe).'],
+  ['topaz', '✨', 'Melhorar qualidade', 'Deixa o clipe mais nítido e liso (selecione o vídeo).'],
+  ['bg-remove', '✂︎', 'Tirar fundo', 'Recorta a pessoa do fundo (selecione o clipe).'],
+  ['export', '⤓', 'Exportar vídeo', 'Gera o .mp4 para postar.'],
+];
+async function quickToolsHub() {
+  const cmd = await modal('✨ Ferramentas rápidas', `<div class="quick-grid">${QUICK.map(([c, i, t, d]) => `<button data-q="${c}"><span class="qi">${i}</span><span class="qt"><b>${escapeHtml(t)}</b><small>${escapeHtml(d)}</small></span></button>`).join('')}</div>`,
+    [{ label: 'Fechar', value: null }], { wide: true, onMount: (w, close) => w.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => close(b.dataset.q))) });
+  if (!cmd) return;
+  if (['speed', 'topaz', 'bg-remove'].includes(cmd) && !store.layer()) { toast('Primeiro toque no clipe (na timeline ou na prévia) e depois escolha de novo.', 'warn', 5000); return; }
+  commands[cmd]?.();
+}
+
+const HOWTO = [
+  ['Colocar meu vídeo', ['Toque em 🎞 Vídeo / Foto.', 'Escolha um ou vários clipes — eles entram um depois do outro.'], 'add-media'],
+  ['Cortar um pedaço', ['Arraste a agulha branca até o ponto do corte.', 'Toque no clipe e em ✂ Dividir.', 'Toque no pedaço que sobrou e em 🗑 Excluir.'], null],
+  ['Transição entre dois clipes', ['Toque no clipe que SAI.', 'Toque em Transições, escolha uma e toque em Aplicar no corte.'], 'transitions'],
+  ['Câmera lenta / velocity', ['Toque no clipe.', 'Toque em ⏱ Velocidade e escolha um preset (Velocity, Slow suave…).'], null],
+  ['Cor (CC) bonita', ['Toque no clipe (ou em nada, para valer no vídeo todo).', 'Toque em ★ Presets › CC e escolha uma.'], 'presets'],
+  ['Legendas automáticas', ['Toque em ✨ Ferramentas rápidas › 💬 Legendas automáticas.', 'Escolha o estilo — as legendas entram animadas e dá para editar o texto depois.'], 'captions'],
+  ['Narração com a minha voz', ['Coloque a agulha onde a fala começa.', '✨ Ferramentas rápidas › 🎙 Gravar narração › Gravar.'], 'voice'],
+  ['Cortes no ritmo da música', ['Coloque a música (♪ Música) e os clipes.', '✨ Ferramentas rápidas › 🥁 Cortes na batida › escolha a cada quantas batidas troca.'], 'beat-sync'],
+  ['Texto / título', ['Toque em T Texto, escreva e arraste na prévia.', 'Em Animar (📈) ou ❖ Animações prontas ele ganha movimento.'], 'add-text'],
+  ['Exportar e postar', ['Toque em ⤓ Exportar, escolha a qualidade e salve ou compartilhe.'], 'export'],
+  ['Levar para outro aparelho', ['Tela inicial › Mais opções › 📦 Transferir tudo › Exportar.', 'No outro aparelho/programa: Importar a transferência.'], null],
+];
+async function howToGuide() {
+  const cmd = await modal('❓ Como fazer', `<div class="howto">${HOWTO.map(([t, steps, c], i) => `<details ${i === 0 ? 'open' : ''}><summary>${escapeHtml(t)}</summary><ol>${steps.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>${c ? `<button class="primary small" data-h="${c}">Fazer agora</button>` : ''}</details>`).join('')}</div>
+    <p class="muted small">Dica: passe o mouse (ou segure o dedo) em cima de qualquer botão para ver o que ele faz.</p>`,
+  [{ label: 'Fechar', value: null }], { wide: true, onMount: (w, close) => w.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => close(b.dataset.h))) });
+  if (cmd) commands[cmd]?.();
+}
+
+async function captionsFlow() {
+  if (!store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false))) { toast('O projeto precisa ter som (vídeo com fala ou narração) para criar legendas.', 'warn', 5000); return; }
+  let style = 'pop', quality = 'rapido', lang = 'portuguese';
+  const ok = await modal('💬 Legendas automáticas', `<p>Vou escutar a fala do projeto e escrever as legendas. Tudo acontece no seu aparelho (na 1ª vez baixa o reconhecimento de fala, uns 40 MB).</p>
+    <label>Estilo <select id="capSt">${CAPTION_STYLES.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select></label>
+    <label>Idioma <select id="capLg"><option value="portuguese">Português</option><option value="english">Inglês</option><option value="spanish">Espanhol</option></select></label>
+    <label>Precisão <select id="capQ"><option value="rapido">Rápida (modelo pequeno)</option><option value="melhor">Melhor (mais lento, ~80 MB)</option></select></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Criar legendas', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#capSt').onchange = (e) => { style = e.target.value; }; w.querySelector('#capQ').onchange = (e) => { quality = e.target.value; }; w.querySelector('#capLg').onchange = (e) => { lang = e.target.value; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    const words = await transcribe(store.project, { quality, language: lang, onProg: (t) => toast(t, 'info', 2500) });
+    if (!words.length) { toast('Não ouvi fala nesse áudio.', 'warn'); return; }
+    const n = buildCaptions(store, words, style);
+    toast(`${n} legenda(s) criada(s) ✓ — toque numa para corrigir o texto. Elas ficam no grupo “Legendas”.`, 'ok', 6000);
+  } catch (e) { toast(`Não deu para criar as legendas: ${e.message}`, 'error', 8000); }
+}
+
+async function voiceFlow() {
+  let stop; const stopSignal = new Promise((r) => { stop = r; });
+  const at = store.time;
+  let started = false;
+  const done = modal('🎙 Gravar narração', `<p>O vídeo toca a partir da agulha enquanto você fala. Toque em <b>Parar</b> quando terminar.</p><p class="rec-time" id="recT">Pronto para gravar</p>`,
+    [{ label: 'Cancelar', value: 'cancel' }, { label: '● Gravar / ■ Parar', primary: true, value: 'toggle' }], { onMount: (w) => {
+      const btn = [...w.querySelectorAll('button')].find((b) => /Gravar/.test(b.textContent));
+      if (!btn) return;
+      btn.addEventListener('click', (e) => {
+        if (started) return; // o 2º toque fecha o modal (valor 'toggle') e para
+        e.stopImmediatePropagation(); e.preventDefault(); started = true; btn.textContent = '■ Parar';
+        recordVoice((s) => { const el = w.querySelector('#recT'); if (el) el.textContent = `● Gravando ${s.toFixed(1)} s`; }, stopSignal).then(async (file) => {
+          setPlaying(false);
+          const before = new Set(store.project.layers.map((l) => l.id));
+          await importMedia([file]);
+          const nl = store.project.layers.find((l) => !before.has(l.id) && l.type === 'audio');
+          if (nl) { const d = nl.outPoint - nl.inPoint; nl.inPoint = at; nl.outPoint = at + d; nl.name = 'Narração'; if (nl.outPoint > store.project.duration) store.project.duration = Math.min(600, Math.ceil(nl.outPoint * 10) / 10); store.commit('structure'); }
+          toast('Narração adicionada ✓', 'ok');
+        }).catch((err) => toast(`Microfone: ${err.message}`, 'error', 6000));
+        setPlaying(true);
+      }, true);
+    } });
+  const r = await done;
+  stop();
+  if (r !== 'toggle' && started) toast('Gravação cancelada: o áudio foi descartado.', 'info');
+}
+
+async function beatSyncFlow() {
+  let every = 2;
+  const ok = await modal('🥁 Cortes na batida', `<p>Cada clipe vai durar o mesmo número de batidas da música — os cortes caem certinho no ritmo.</p>
+    <label>Trocar de clipe a cada <select id="bsN"><option value="1">1 batida (bem rápido)</option><option value="2" selected>2 batidas</option><option value="4">4 batidas (1 compasso)</option><option value="8">8 batidas (lento)</option></select></label>
+    <p class="muted small">Vale para os clipes selecionados (ou todos, se nenhum estiver selecionado), na ordem da timeline.</p>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Sincronizar', primary: true, value: true }], { onMount: (w) => { w.querySelector('#bsN').onchange = (e) => { every = +e.target.value; }; } });
+  if (!ok) return;
+  try { const r = await syncClipsToBeat(store, every); toast(`${r.clips} clipe(s) no ritmo da música ✓ (${r.beats} batidas encontradas)`, 'ok', 5000); }
+  catch (e) { toast(`Não deu: ${e.message}`, 'warn', 6000); }
+}
+
+async function beatFxFlow() {
+  let kind = 'zoom', strength = 1;
+  const target = store.layer();
+  const ok = await modal('💥 Efeito na batida', `<p>Coloca um efeito em cada batida da música${target ? ` no clipe <b>${escapeHtml(target.name)}</b>` : ' sobre o vídeo todo'}.</p>
+    <label>Efeito <select id="bfK"><option value="zoom">Zoom (pulsar)</option><option value="flash">Flash de luz</option><option value="shake">Tremida</option><option value="blur">Borrão rápido</option></select></label>
+    <label>Força <select id="bfS"><option value="0.6">Suave</option><option value="1" selected>Normal</option><option value="1.6">Forte</option></select></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Aplicar', primary: true, value: true }], { onMount: (w) => { w.querySelector('#bfK').onchange = (e) => { kind = e.target.value; }; w.querySelector('#bfS').onchange = (e) => { strength = +e.target.value; }; } });
+  if (!ok) return;
+  try { const r = await beatEffects(store, kind, strength, target); toast(`Efeito em ${r.beats} batida(s) ✓`, 'ok', 4000); }
+  catch (e) { toast(`Não deu: ${e.message}`, 'warn', 6000); }
+}
+
 /** Transferir tudo entre programas/aparelhos (MotionFrame.exe antigo → leve, PC → outro PC). */
 async function transferFlow() {
   const go = await modal('Transferir tudo', `<p>Leva <b>todos os projetos</b>, as mídias, fontes, presets, configurações e o <b>acesso deste aparelho</b> para outro programa (ex.: do MotionFrame.exe antigo para o <b>MotionFrame leve</b>).</p>
