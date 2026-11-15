@@ -33,9 +33,23 @@ function logCrash(msg) { try { fs.appendFileSync(path.join(app.getPath('userData
 // a GPU caiu (driver/memória de vídeo): o Chromium recria sozinho; só registra
 app.on('child-process-gone', (_e, d) => { if (d.reason !== 'clean-exit') logCrash(`${d.type}: ${d.reason} (código ${d.exitCode})`); });
 
+// "Importar de link": baixa de nuvens públicas sem o bloqueio de CORS do navegador (só hosts de nuvem conhecidos)
+const PROXY_OK = /^(drive\.google\.com|drive\.usercontent\.google\.com|docs\.google\.com|[\w-]+\.googleusercontent\.com|dl\.dropboxusercontent\.com|www\.dropbox\.com|api\.onedrive\.com|[\w.-]+\.sharepoint\.com|onedrive\.live\.com|1drv\.ms)$/i;
+function proxyFetch(u, res, hops = 0) {
+  let url; try { url = new URL(u); } catch { res.writeHead(400); res.end(); return; }
+  if (url.protocol !== 'https:' || !PROXY_OK.test(url.hostname) || hops > 6) { res.writeHead(403); res.end(); return; }
+  require('https').get(url, { headers: { 'User-Agent': 'Mozilla/5.0 MotionFrame' } }, (up) => {
+    if (up.statusCode >= 300 && up.statusCode < 400 && up.headers.location) { up.resume(); return proxyFetch(new URL(up.headers.location, url).href, res, hops + 1); }
+    const h = { 'Content-Type': up.headers['content-type'] || 'application/octet-stream' };
+    if (up.headers['content-disposition']) h['Content-Disposition'] = up.headers['content-disposition'];
+    if (up.headers['content-length']) h['Content-Length'] = up.headers['content-length'];
+    res.writeHead(up.statusCode || 502, h); up.pipe(res);
+  }).on('error', () => { res.writeHead(502); res.end(); });
+}
 function serve() {
   return new Promise((resolve, reject) => {
     const srv = http.createServer((req, res) => {
+      if (req.url.startsWith('/__fetch?')) return proxyFetch(new URL(req.url, 'http://x').searchParams.get('u'), res);
       let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
       if (p.endsWith('/')) p += 'index.html';
       // versão baixada (se for mais nova que a do .exe) primeiro; o que não veio na atualização (vendor/) sai do .exe

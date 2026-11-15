@@ -7,8 +7,8 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v134';
-export const APP_LABEL = 'v1.3.4';
+export const APP_VERSION = 'v135';
+export const APP_LABEL = 'v1.3.5';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -158,6 +158,7 @@ export class HomeScreen {
         <div class="home-actions">
           <button data-h="createAdvanced"><span>⚙</span>Projeto personalizado</button>
           <button data-h="importProject"><span>📂</span>Abrir projeto</button>
+          <button data-h="importLink"><span>🔗</span>Importar de link</button>
           <button data-h="presets"><span>★</span>Meus presets</button>
         </div>
         <details class="home-more"><summary>Mais opções</summary><div class="home-actions">

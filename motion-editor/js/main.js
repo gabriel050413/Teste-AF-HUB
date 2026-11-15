@@ -44,7 +44,7 @@ applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · ef
 import { ico, iconize } from './icons.js';
 import { translateDOM, getLang, setLang } from './i18n.js';
 import { EFFECTS } from './effects.js';
-import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange } from './fonts.js';
+import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont } from './fonts.js';
 
 const store = new Store();
 const AUTOSAVE_KEY = 'motionframe.autosave.v2';
@@ -1863,6 +1863,89 @@ async function expandZips(files) {
   }
   return out;
 }
+// ---- Importar de um link (Google Drive, Dropbox, OneDrive ou link direto): baixa o projeto e o que vier junto
+// (pasta inteira do Drive: .aep/.xml/.zip + mídias + fontes + presets) e abre tudo no MotionFrame — sem ter nada no PC.
+const DRIVE_ID = (u) => /\/d\/([\w-]{20,})/.exec(u)?.[1] || /[?&]id=([\w-]{20,})/.exec(u)?.[1] || null;
+/** Busca texto/bytes sem bloqueio de CORS: app de desktop (servidor local), APK (HTTP nativo) ou direto no navegador. */
+async function fetchAny(url, asText) {
+  const local = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
+  if (local) {
+    const r = await fetch(`/__fetch?u=${encodeURIComponent(url)}`).catch(() => null);
+    if (r?.ok) return asText ? r.text() : { blob: await r.blob(), headers: r.headers };
+  }
+  const CH = window.Capacitor?.Plugins?.CapacitorHttp;
+  if (CH && window.Capacitor?.isNativePlatform?.()) {
+    const r = await CH.request({ url, method: 'GET', responseType: asText ? 'text' : 'blob' });
+    if (asText) return String(r.data);
+    const bin = atob(r.data); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return { blob: new Blob([u8]), headers: new Headers(r.headers || {}) };
+  }
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return asText ? r.text() : { blob: await r.blob(), headers: r.headers };
+}
+const nameFromHeaders = (h, fallback) => {
+  const cd = h?.get?.('content-disposition') || '';
+  const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+  return m ? decodeURIComponent(m[1]) : fallback;
+};
+/** Lista os arquivos de uma pasta pública do Drive (e das subpastas). */
+async function listDriveFolder(id, depth = 0, out = []) {
+  const html = await fetchAny(`https://drive.google.com/embeddedfolderview?id=${id}`, true);
+  const re = /<div class="flip-entry" id="entry-([\w-]+)"[\s\S]*?<a href="([^"]+)"[\s\S]*?<div class="flip-entry-title">([^<]+)<\/div>/g;
+  let m;
+  const dec = (t) => t.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  while ((m = re.exec(html))) {
+    const [, fid, href, title] = m;
+    if (/\/folders\//.test(href)) { if (depth < 2) await listDriveFolder(fid, depth + 1, out); }
+    else out.push({ id: fid, name: dec(title).trim() });
+  }
+  return out;
+}
+async function downloadLink(url, onProg) {
+  url = url.trim();
+  const files = [];
+  const get = async (u, name) => { const { blob, headers } = await fetchAny(u, false); const n = nameFromHeaders(headers, name); files.push(new File([blob], n, { type: blob.type || '' })); onProg?.(files.length, n); };
+  if (/drive\.google\.com\/(drive\/)?(u\/\d+\/)?folders\//.test(url) || /embeddedfolderview/.test(url)) {
+    const fid = /folders\/([\w-]+)/.exec(url)?.[1] || DRIVE_ID(url);
+    let list;
+    try { list = await listDriveFolder(fid); } catch (e) {
+      throw new Error('o navegador não deixa ler pastas do Drive. No app de PC/APK funciona; aqui, compacte a pasta em .zip no Drive ou cole os links dos arquivos (um por linha).');
+    }
+    if (!list.length) throw new Error('a pasta está vazia ou não é pública (compartilhe como “qualquer pessoa com o link”).');
+    // ignora o que o MotionFrame não usa (.rar, .exe…) para não baixar à toa
+    const useful = list.filter((f) => !/\.(rar|7z|exe|msi|dmg|pdf|txt|url|ini|db)$/i.test(f.name));
+    for (const f of useful) await get(`https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=t`, f.name);
+    const skipped = list.length - useful.length;
+    if (skipped) toast(`${skipped} arquivo(s) da pasta ignorado(s) (.rar, .exe… — o MotionFrame não abre).`, 'warn', 5000);
+  } else if (/drive\.google\.com|drive\.usercontent|docs\.google\.com/.test(url) && DRIVE_ID(url)) {
+    await get(`https://drive.usercontent.google.com/download?id=${DRIVE_ID(url)}&export=download&confirm=t`, 'arquivo');
+  } else if (/dropbox\.com/.test(url)) {
+    await get(url.replace(/[?&]dl=0/, '').replace('www.dropbox.com', 'dl.dropboxusercontent.com'), decodeURIComponent(url.split('/').pop().split('?')[0]));
+  } else if (/1drv\.ms|onedrive\.live\.com/.test(url)) {
+    const enc = btoa(url).replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+    await get(`https://api.onedrive.com/v1.0/shares/u!${enc}/root/content`, 'arquivo');
+  } else await get(url, decodeURIComponent(url.split('/').pop().split('?')[0]) || 'arquivo');
+  return files;
+}
+async function importFromLink() {
+  let typed = '';
+  const txt = await modal('Importar de um link', `<p>Cole o link do projeto (<b>.aep, .xml, .zip</b>, projeto do MotionFrame) ou de uma <b>pasta do Google Drive</b> com o projeto, as mídias, as fontes e os presets. O MotionFrame baixa tudo e abre junto — sem precisar ter nada no aparelho.</p>
+    <textarea id="lnkIn" rows="4" style="width:100%" placeholder="https://drive.google.com/drive/folders/…&#10;(pode colar vários links, um por linha)"></textarea>
+    <p class="muted small">Funciona com Google Drive (arquivo ou pasta pública), Dropbox, OneDrive e links diretos. Fontes que faltarem são baixadas do Google Fonts.</p>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Baixar e abrir', primary: true, value: 'go' }], { onMount: (w) => { const i = w.querySelector('#lnkIn'); i?.addEventListener('input', () => { typed = i.value; }); setTimeout(() => i?.focus(), 50); } });
+  const raw = txt === 'go' ? typed : null;
+  const links = String(raw || '').split(/\s+/).filter((u) => /^https?:\/\//.test(u));
+  if (!links.length) return;
+  const all = [];
+  try {
+    for (const u of links) all.push(...await downloadLink(u, (n, name) => toast(`Baixando ${n}: ${name}`, 'info', 1500)));
+  } catch (e) { toast(`Não deu para baixar: ${e.message}`, 'error', 8000); if (!all.length) return; }
+  toast(`${all.length} arquivo(s) baixado(s) — abrindo…`, 'ok', 2500);
+  if (home.visible) await ensureSomeProject();
+  await routeFiles(all);
+}
+
 /** Textos do projeto com nome de fonte do AE (PostScript: "DancingScript-Regular") → família instalada ("Dancing Script"). */
 function matchFontsToInstalled() {
   const key = (n) => String(n || '').toLowerCase().replace(/[-_ ](regular|bold|italic|medium|light|black|semibold|thin|heavy|book|roman)\b.*$/g, '').replace(/[^a-z0-9]/g, '');
@@ -1875,6 +1958,21 @@ function matchFontsToInstalled() {
     if (hit && hit !== first) { l.props.fontFamily = `"${hit}", ${l.props.fontFamily}`; n++; }
   }
   if (n) { store.commit('structure'); toast(`${n} texto(s) usando as fontes do pacote ✓`, 'ok', 3500); }
+  resolveProjectFonts();
+}
+/** Fontes que o projeto pede e não estão no aparelho: baixa do Google Fonts (sem precisar ter a fonte no PC). */
+async function resolveProjectFonts() {
+  const fams = userFonts().map((f) => f.family.toLowerCase());
+  let n = 0;
+  for (const l of flatLayers(store.project.layers)) {
+    if (l.type !== 'text') continue;
+    const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
+    if (!first || fams.includes(first.toLowerCase()) || /^(inter|system-ui|sans-serif|serif|monospace|impact|arial|georgia)$/i.test(first)) continue;
+    const g = await resolveGoogleFont(first);
+    if (g && g !== first) { l.props.fontFamily = `"${g}", ${l.props.fontFamily}`; n++; }
+    else if (g) n++;
+  }
+  if (n) { frameCacheClear(); store.commit('structure'); toast(`${n} texto(s) com a fonte baixada do Google Fonts ✓`, 'ok', 3500); }
 }
 
 /**
@@ -1893,6 +1991,14 @@ async function routeFiles(files) {
   const mfjson = files.filter((f) => /\.motionframe\.json$/i.test(f.name));
   const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name) && !mfjson.includes(f));
   const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()]);
+  // vários projetos no pacote/pasta: pergunta qual abrir (os presets, fontes e mídias entram de qualquer jeito)
+  const projs = [...mfjson, ...aep, ...xml];
+  if (!pack && projs.length > 1) {
+    const pick = await modal('Qual projeto abrir?', `<div class="menu-list">${projs.map((f, i) => `<button data-p="${i}">${/\.aep/i.test(f.name) ? 'Ae' : /\.json/i.test(f.name) ? '🎬' : '📄'} ${escapeHtml(f.name)}</button>`).join('')}</div>`,
+      [{ label: 'Nenhum (só presets/fontes)', value: -1 }], { onMount: (w, close) => w.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => close(+b.dataset.p))) });
+    const chosen = pick >= 0 ? projs[pick] : null;
+    for (const arr of [mfjson, aep, xml]) arr.splice(0, arr.length, ...arr.filter((f) => f === chosen));
+  }
   const project = pack || mfjson[0] || aep[0] || xml[0];
   const done = [];
   if (fonts.length) { const r = await importFonts(fonts).catch(() => ({ ok: [] })); if (r.ok?.length) done.push(`${r.ok.length} fonte(s)`); }
@@ -2075,6 +2181,7 @@ async function openAEPFlow(file, { media: given = null } = {}) {
   p.id = uid('prj');
   saveProjectData(p, null);
   await openProjectById(p.id);
+  matchFontsToInstalled();
   const extra = [...res.notes, ...(res.unsupported.length ? [`Efeitos sem equivalente: ${res.unsupported.slice(0, 8).join(', ')}.`] : [])];
   if (res.media.length && given?.length) { await relinkAEMedia({ files: given }); return; } // veio tudo junto: conecta direto
   if (res.media.length) {
@@ -2223,6 +2330,7 @@ const home = new HomeScreen({
   create: () => quickProjectFlow(),
   createAdvanced: () => createProjectFlow(),
   importProject: () => importProjectFile(),
+  importLink: () => importFromLink(),
   logoAnim: () => animateLogoFlow(),
   demoLogo: async () => {
     // projeto de exemplo de motion design: logo feita com o pacote MoGraph (formas com Trim Paths, texto cinético, logo reveal)

@@ -178,3 +178,32 @@ export async function pickFont(current = '') {
     },
   });
 }
+
+/**
+ * Nome de fonte do After Effects/Alight (PostScript: "DancingScript-Regular", "MetalMania-Regular", "BebasNeue-Bold")
+ * → família do Google Fonts ("Dancing Script"). Procura na lista conhecida e, se não achar, pergunta ao Google Fonts
+ * direto (css2). Devolve a família carregada ou null.
+ */
+const resolved = new Map();
+export async function resolveGoogleFont(name) {
+  const raw = String(name || '').replace(/^"|"$/g, '').trim();
+  if (!raw || typeof document === 'undefined') return null;
+  if (resolved.has(raw)) return resolved.get(raw);
+  const key = (n) => n.toLowerCase().replace(/[-_ ]?(regular|bold|italic|medium|light|black|semibold|extrabold|thin|heavy|book|roman|condensed)\b/g, '').replace(/[^a-z0-9]/g, '');
+  const k = key(raw);
+  let fam = GOOGLE_FONTS.find((f) => key(f) === k) || null;
+  if (!fam) {
+    // "DancingScript-Regular" → "Dancing Script"; "Metal_Mania" → "Metal Mania"
+    const guess = raw.replace(/[-_](Regular|Bold|Italic|Medium|Light|Black|SemiBold|ExtraBold|Thin|Heavy|Book|Roman)+$/i, '').replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+    try {
+      const r = await fetch(`https://fonts.googleapis.com/css2?family=${encodeURIComponent(guess).replace(/%20/g, '+')}&display=swap`);
+      if (r.ok) fam = guess;
+    } catch { /* sem internet */ }
+  }
+  if (fam) {
+    if (!GOOGLE_FONTS.includes(fam)) GOOGLE_FONTS.push(fam);
+    await ensureFont(`"${fam}"`);
+  }
+  resolved.set(raw, fam);
+  return fam;
+}

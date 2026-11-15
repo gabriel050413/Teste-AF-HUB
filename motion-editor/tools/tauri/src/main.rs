@@ -81,6 +81,11 @@ fn serve(use_live: Arc<AtomicBool>) {
         }
     };
     for req in server.incoming_requests() {
+        if req.url().starts_with("/__fetch?") {
+            // "Importar de link": baixa de nuvens públicas sem o bloqueio de CORS (thread própria: arquivos grandes)
+            std::thread::spawn(move || proxy_fetch(req));
+            continue;
+        }
         let raw = req.url().split('?').next().unwrap_or("/").to_string();
         let mut path = percent_decode(raw.trim_start_matches('/'));
         if path.is_empty() || path.ends_with('/') {
@@ -109,6 +114,51 @@ fn serve(use_live: Arc<AtomicBool>) {
             None => {
                 let _ = req.respond(tiny_http::Response::empty(404));
             }
+        }
+    }
+}
+
+fn proxy_host_ok(url: &str) -> bool {
+    let rest = match url.strip_prefix("https://") { Some(r) => r, None => return false };
+    let host = rest.split(['/', '?', ':']).next().unwrap_or("").to_ascii_lowercase();
+    ["drive.google.com", "drive.usercontent.google.com", "docs.google.com", "dl.dropboxusercontent.com", "www.dropbox.com", "api.onedrive.com", "onedrive.live.com", "1drv.ms"]
+        .contains(&host.as_str())
+        || host.ends_with(".googleusercontent.com")
+        || host.ends_with(".sharepoint.com")
+}
+
+fn proxy_fetch(req: tiny_http::Request) {
+    let q = req.url().splitn(2, '?').nth(1).unwrap_or("").to_string();
+    let u = q.split('&').find_map(|kv| kv.strip_prefix("u=")).map(|v| percent_decode(&v.replace('+', " "))).unwrap_or_default();
+    if !proxy_host_ok(&u) {
+        let _ = req.respond(tiny_http::Response::empty(403));
+        return;
+    }
+    let agent = ureq::AgentBuilder::new().redirects(8).build();
+    match agent.get(&u).set("User-Agent", "Mozilla/5.0 MotionFrame").call() {
+        Ok(r) => {
+            // redirecionamentos podem sair da lista: confere o destino final também
+            if !proxy_host_ok(r.get_url()) {
+                let _ = req.respond(tiny_http::Response::empty(403));
+                return;
+            }
+            let ct = r.header("Content-Type").unwrap_or("application/octet-stream").to_string();
+            let cd = r.header("Content-Disposition").map(|s| s.to_string());
+            let mut body = Vec::new();
+            if r.into_reader().read_to_end(&mut body).is_err() {
+                let _ = req.respond(tiny_http::Response::empty(502));
+                return;
+            }
+            let mut resp = tiny_http::Response::from_data(body).with_header(tiny_http::Header::from_bytes(&b"Content-Type"[..], ct.as_bytes()).unwrap());
+            if let Some(cd) = cd {
+                if let Ok(h) = tiny_http::Header::from_bytes(&b"Content-Disposition"[..], cd.as_bytes()) {
+                    resp = resp.with_header(h);
+                }
+            }
+            let _ = req.respond(resp);
+        }
+        Err(_) => {
+            let _ = req.respond(tiny_http::Response::empty(502));
         }
     }
 }
