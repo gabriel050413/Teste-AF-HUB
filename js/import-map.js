@@ -116,10 +116,20 @@ export function looksFromTools(tools, strength = 100) {
         break;
       }
       // 3-Way Color Corrector: [?, ?, ?, Saturation, Lift RGB, Gamma RGB, Gain RGB]
-      case '3wcc':
-        ['R', 'G', 'B'].forEach((c, i) => { p[`lift${c}`] += (v[4 + i] ?? 1) - 1; p[`gamma${c}`] *= v[7 + i] ?? 1; p[`gain${c}`] *= v[10 + i] ?? 1; });
-        if (v[3] !== undefined) p.saturation *= clampN(v[3], 0, 300) / 100;
+      case '3wcc': {
+        // 3-Way Color: [força Sombras, força Meios, força Realces, Strength %, cor Sombras RGB, cor Meios RGB, cor Realces RGB, …].
+        // As cores das rodas vêm "com brilho" (1,10/1,30/1,60): o matiz é a cor dividida pela luminância dela, e cada roda
+        // pesa pela própria força (0,3 = 30%). Somar a cor crua deixava as sombras +0,6 azuis (Soft Focus do freevisuals).
+        const k = (v[3] ?? 100) / 100;
+        const wheel = (o, amt, fn) => {
+          const c = [v[o] ?? 1, v[o + 1] ?? 1, v[o + 2] ?? 1], L = Math.max(1e-3, 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]);
+          ['R', 'G', 'B'].forEach((ch, i) => fn(ch, (c[i] / L - 1) * amt * k, (L - 1) * amt * k));
+        };
+        wheel(4, v[0] ?? 0.3, (ch, d, l) => { p[`lift${ch}`] += d * 0.35 + l * 0.15; });
+        wheel(7, v[1] ?? 0.2, (ch, d, l) => { p[`gamma${ch}`] *= 1 + d * 0.8 + l * 0.4; });
+        wheel(10, v[2] ?? 0.15, (ch, d, l) => { p[`gain${ch}`] *= 1 + d * 0.9 + l * 0.6; });
         break;
+      }
       // Black & White: pesos R, G, B do mono
       case 'mono': { const w = [v[0] ?? 0.3, v[1] ?? 0.59, v[2] ?? 0.11]; p.mixR = w; p.mixG = w.slice(); p.mixB = w.slice(); p.mixAmt = 1; break; }
       // Film Grain: [?, Amount] → efeito de grão separado
@@ -144,7 +154,9 @@ export function looksFromTools(tools, strength = 100) {
         break;
       }
       // Telecine Net: [?, Density, Exposure Compensation]
-      case 'tele': p.exposure += v[2] || 0; p.fade += clampN((v[1] || 0) * 20, 0, 20); break;
+      // Telecine Net (rede na lente do telecine): difunde os realces e tira um pouco de contraste — NÃO é exposição
+      // (o 3º valor somado como stops clareava a Purple Push +1 stop). [tamanho da trama, Strength %, ?]
+      case 'tele': { const st = clampN((v[1] ?? 50) / 100, 0, 1); p.diffusion += st * 8; p.fade += st * 3; break; }
       // Film Print: [Stock, Temperature, Tint, Exposure, Contrast, Saturation, Skin Tone, Vintage, Grain, Strength]
       case 'filp': {
         const k = (v[9] ?? 100) / 100;
@@ -163,7 +175,18 @@ export function looksFromTools(tools, strength = 100) {
         break;
       }
       // Auto Shoulder só age em valores acima do branco: sem efeito em 8 bits
-      case 'ashl': break;
+      // Shoulder: comprime os realces (rolagem suave até o branco, como filme) — [Amount %]
+      case 'ashl': case 'shol': {
+        // Shoulder: no preview da Purple Push (ORIGINAL/COLOURED) uma curva de ombro só piorava a comparação — fica
+        // neutro até haver uma referência que mostre o efeito dele
+        const a = 0 * clampN((v[0] ?? 50) / 100, 0, 1);
+        if (a > 0) {
+          const f = (x) => { const k = 0.55; if (x <= k) return x; const t = (x - k) / (1 - k); return k + (1 - k) * (t - a * 0.45 * t * t) / (1 - a * 0.45); };
+          const master = Array.from({ length: 17 }, (_, i) => +f(i / 16).toFixed(4)), id = Array.from({ length: 17 }, (_, i) => +(i / 16).toFixed(4));
+          extra.push({ type: 'curves', label: 'Looks · Shoulder', params: { lut: [...master, ...id, ...id, ...id] } });
+        }
+        break;
+      }
       // Shoulder: [Rolloff Start, Brightest Value, Strength] — comprime os realces a partir de Rolloff Start
       case 'shol': { const st = clampN(v[0] ?? 0.8, 0.05, 1), k = (v[2] ?? 100) / 100; if (st < 0.98) for (const c of ['R', 'G', 'B']) p[`gain${c}`] *= 1 - (1 - st) * 0.35 * k; p.contrast -= (1 - st) * 12 * k; break; }
       // Renoiser: [Sharpen, Sharpen Edges Only, Grain Amount, Size, Texture, Log, Mono, …]
@@ -229,7 +252,12 @@ export function looksFromTools(tools, strength = 100) {
       // ajustado aos pares .ffx/.frameify (galego [−1,06, 0, 1] → 6,1; ftb [0,73, 0, −0,5] → 3,9)
       case 'chab': p.chroma += (Math.abs(v[0] || 0) + (Math.abs(v[1] || 0) + Math.abs(v[2] || 0)) * 0.48) * 4; break;
       // Hue/Saturation (Looks): [Hue, Saturation %, pesos de luma] — valor direto, como o Frameify (galego 65 → 65%)
-      case 'husa': { const f = (v[1] ?? 100) / 100; p.hue += v[0] || 0; p.saturation *= f; break; }
+      case 'husa': {
+        const f = (v[1] ?? 100) / 100; p.hue += v[0] || 0; p.saturation *= f;
+        const w = [v[2], v[3], v[4]];
+        if (w.every((x) => typeof x === 'number') && Math.abs(w[0] - 0.2126) + Math.abs(w[1] - 0.7152) + Math.abs(w[2] - 0.0722) > 0.02) p.satWeights = w;
+        break;
+      }
       case 'mjo2':
         // Mojo II (ordem real, tirada do Looks3.aex): [Mojo, Tint, Punch, Bleach, Fade, Blue Squeeze, Skin Squeeze,
         // Exposure, Cool/Warm, Green/Magenta, Skin Yellow/Pink, Strength]
@@ -436,7 +464,7 @@ export function looksToolEffect(t, strength) {
   const str = strength;
   let e = null;
   if (!changed.length) e = null;
-  else if (only(changed, ['saturation'])) e = { type: 'lkSaturation', params: { str, sat: q.saturation, vib: 0 } };
+  else if (only(changed, ['saturation', 'satWeights'])) e = { type: 'lkSaturation', params: { str, sat: q.saturation, vib: 0, ...(q.satWeights ? { weights: q.satWeights } : {}) } };
   else if (only(changed, ['saturation', 'hue'])) e = { type: 'lkHLS', params: { str, hue: q.hue, light: 0, sat: q.saturation / 100 - 1 } };
   else if (only(changed, ['exposure'])) e = { type: 'lkExposure', params: { str, stops: q.exposure, con: 0, pivot: 50, gamma: 1 } };
   else if (only(changed, ['vignette', 'vignetteSize'])) e = { type: 'lkLensVignette', params: { str, amount: q.vignette, size: q.vignetteSize } };

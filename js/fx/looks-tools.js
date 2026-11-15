@@ -23,7 +23,8 @@ void main() {
   } else if (m < 3.5) {                // 3 Exposure (stops, luz linear) + contraste em torno do pivô + gama dos meios-tons
     vec3 l = toLin(c) * exp2(u_a); float pv = max(1e-3, pow(u_c, 2.2)); l = pv * pow(max(l / pv, 0.0), vec3(1.0 + u_b)); o = pow(clamp(toGam(l), 0.0, 4.0), vec3(1.0 / max(u_d, 0.05)));
   } else if (m < 4.5) {                // 4 Saturation + Vibrance (mais nas cores com menos saturação)
-    float L = lu(c), sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+    // pesos de luminância do Hue/Saturation do Looks (a Purple Push usa 0,455/0,131/0,414: dessaturar puxa para o magenta)
+    float L = u_c1 == vec3(1.0) ? lu(c) : dot(c, u_c1), sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
     o = mix(vec3(L), c, u_a * (1.0 + u_b * (1.0 - sat)));
   } else if (m < 5.5) {                // 5 Color Balance (Warm/Cool, Green/Magenta) em luz linear
     vec3 l = toLin(c); l *= exp2(vec3(-u_a - u_b, u_b, u_a) * 0.5); o = toGam(l);
@@ -119,7 +120,7 @@ export default [
   tool('lkHLS', 'Color Balance HLS', 'Subject', 'Matiz, luminosidade e saturação globais.', [ang('hue', 'Hue', 0), num('light', 'Lightness', 0, -1, 1, 0.01), num('sat', 'Saturation', 0, -1, 2, 0.01)], lt(2, (p) => ({ a: p.hue, b: p.light, c: p.sat }))),
   tool('lkExposure', 'Exposure', 'Subject', 'Exposição em stops (luz linear), contraste em torno de um pivô e gama dos meios-tons.',
     [num('stops', 'Exposure (stops)', 0, -5, 5, 0.01), num('con', 'Contrast', 0, -1, 2, 0.01), num('pivot', 'Contrast pivot %', 50, 1, 99), num('gamma', 'Midtone gamma', 1, 0.2, 3, 0.01)], lt(3, (p) => ({ a: p.stops, b: p.con, c: p.pivot / 100, d: p.gamma }))),
-  tool('lkSaturation', 'Saturation', 'Subject', 'Saturação e vibrance (mais nas cores que têm menos).', [num('sat', 'Saturation %', 100, 0, 300), num('vib', 'Vibrance', 0, -1, 1, 0.01)], lt(4, (p) => ({ a: p.sat / 100, b: p.vib }))),
+  tool('lkSaturation', 'Saturation', 'Subject', 'Saturação e vibrance (mais nas cores que têm menos).', [num('sat', 'Saturation %', 100, 0, 300), num('vib', 'Vibrance', 0, -1, 1, 0.01), { key: 'weights', label: 'Pesos de luminância', kind: 'hidden', default: [1, 1, 1] }], lt(4, (p) => ({ a: p.sat / 100, b: p.vib, c1: p.weights || [1, 1, 1] }))),
   tool('lkColorBalance', 'Color Balance', 'Subject', 'Balanço de branco: quente contra frio, verde contra magenta.', [num('warm', 'Warm / Cool (stops)', 0, -2, 2, 0.01), num('tint', 'Green / Magenta', 0, -2, 2, 0.01)], lt(5, (p) => ({ a: p.warm, b: p.tint }))),
   // Shadows/Highlights do Looks, medido no tutorial: curva na luminância y = x + S·k·x(1−x)⁴ + H·1,03·x⁴(1−x) (k=0,6),
   // a cor escala junto com a luz (os escuros perdem um pouco de cor, como no Looks).

@@ -189,6 +189,28 @@ void main() {
   gl_FragColor = vec4(col * src.a, src.a);
 }`);
 
+
+// Dentes de serra (time slice da edit @jtp.wm07, 0:12): faixas triangulares crescem de cima e de baixo, com luz azul
+// nas bordas, enquanto o quadro esfria — no meio a tela fica tomada e o próximo clipe sai pelos dentes recuando.
+const SAWSLICE = frag(`
+uniform float u_p, u_n, u_tint, u_glow, u_off, u_asp; uniform vec3 u_col;
+void main() {
+  vec4 src = texture2D(u_tex, v_uv);
+  vec2 c = contentUV(v_uv);
+  float x = c.x * u_n + u_off;
+  float tri = 1.0 - abs(fract(x) - 0.5) * 2.0;              // 0 nas pontas, 1 no meio do dente
+  float jag = 0.85 + 0.15 * fract(sin(floor(x) * 12.9898) * 43758.5);  // dentes de alturas um pouco diferentes
+  float h = u_p * 0.62 * jag;
+  float topD = h * tri - c.y, botD = c.y - (1.0 - h * tri);
+  float inside = max(step(0.0, topD), step(0.0, botD));
+  float edge = exp(-pow(max(topD, botD) / 0.012, 2.0));
+  vec3 base = mix(src.rgb, src.rgb * u_col * 1.4 + u_col * 0.08, u_tint * smoothstep(0.0, 0.5, u_p));
+  vec3 fillc = mix(u_col, vec3(1.0), 0.55) * (0.75 + 0.25 * (1.0 - abs(c.y - 0.5) * 2.0));
+  vec3 o = mix(base, fillc, inside);
+  o += u_col * edge * u_glow + vec3(1.0) * pow(edge, 3.0) * u_glow * 0.6;
+  gl_FragColor = vec4(clamp(o, 0.0, 1.0) * src.a, src.a);
+}`);
+
 export default [
   {
     type: 'lightRing', label: 'Anel de luz / Portal / Disco branco', category: 'Transições',
@@ -209,6 +231,14 @@ export default [
       return env.gl.pass(GLASSBUBBLE, { u_tex: src, u_mode: p.mode | 0 || 1, u_p: Math.max(0, Math.min(1, (p.progress ?? 50) / 100)), u_c: cen, u_asp: asp, u_maxr: maxr,
         u_ring: p.ring ?? 1, u_chroma: p.chroma ?? 1, u_seed: p.seed ?? 3 });
     },
+  },
+  {
+    type: 'sawSlice', label: 'Dentes de serra (time slice azul)', category: 'Transições',
+    description: 'Faixas triangulares em serra que crescem de cima e de baixo com luz nas bordas e o quadro esfriando (time slice da edit). Anime o Progresso; combine com S_TimeSlice para as fatias no tempo.',
+    params: [num('progress', 'Progresso %', 50, 0, 100, 0.1), num('teeth', 'Nº de dentes', 9, 2, 40, 1), col('color', 'Cor da luz', [0.25, 0.45, 1, 1]),
+      num('tint', 'Esfriar o quadro %', 70, 0, 100), num('glow', 'Brilho das bordas', 1.2, 0, 4, 0.01), num('offset', 'Deslocamento dos dentes', 0, -5, 5, 0.01)],
+    render: (src, p, env) => ((p.progress ?? 0) <= 0 && (p.tint ?? 0) <= 0 ? src : env.gl.pass(SAWSLICE, { u_tex: src, u_p: Math.max(0, Math.min(1, (p.progress ?? 50) / 100)), u_n: p.teeth ?? 9,
+      u_col: rgb(p.color || [0.25, 0.45, 1, 1]), u_tint: (p.tint ?? 70) / 100, u_glow: p.glow ?? 1.2, u_off: p.offset || 0, u_asp: env.w / env.h })),
   },
   {
     type: 'lightBars', label: 'Barras de luz / Degradê de luz', category: 'Luz e brilho',
