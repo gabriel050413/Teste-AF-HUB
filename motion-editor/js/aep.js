@@ -169,6 +169,8 @@ function propTree(r, cs, fps) {
     if (c.listType === 'tdgp') {
       const ccs = kids(c);
       const node = { mn, children: propTree(r, ccs, fps) };
+      const sb = findChunk(ccs, 'tdsb');
+      if (sb && sb.size >= 4) node.flags = r.u32 ? r.u32(sb.offset) : ((r.u8(sb.offset) << 24) | (r.u8(sb.offset + 1) << 16) | (r.u8(sb.offset + 2) << 8) | r.u8(sb.offset + 3)) >>> 0;
       const mkif = findChunk(ccs, 'mkif');
       if (mkif) node.mask = { inverted: r.u8(mkif.offset) === 1, mode: r.u16(mkif.offset + 6) };
       const nm = findChunk(ccs, 'tdsn') || findList(ccs, 'tdsn');
@@ -413,6 +415,9 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       const kidsLayers = buildLayers(parsed, src, proj, ctx, offset + l.startTime, depth + 1);
       layer = LAYER_FACTORIES.group(proj, kidsLayers);
       layer.name = l.name || src.name;
+      // a pré-comp tem o PRÓPRIO tamanho (ex.: 1920×1080 dentro de uma comp 1080×1080): antes virava um grupo do
+      // tamanho do projeto e o conteúdo saía deslocado/cortado
+      layer.props.width = W; layer.props.height = H; layer.props.ownSize = true;
     } else if (src?.kind === 'solid') {
       layer = LAYER_FACTORIES.solid(proj);
       layer.props.width = W; layer.props.height = H; layer.props.fill = hex((src.color || [0.5, 0.5, 0.5]).map((x) => x * 255));
@@ -438,7 +443,7 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
     layer.blend = BLENDS[l.blend] || 'source-over';
     const isGroup = layer.type === 'group';
     const pixelAnchor = layer.type === 'shape' || layer.type === 'text';
-    const cW = isGroup ? proj.width : layer.type === 'shape' ? comp.width : W, cH = isGroup ? proj.height : layer.type === 'shape' ? comp.height : H;
+    const cW = isGroup ? W : layer.type === 'shape' ? comp.width : W, cH = isGroup ? H : layer.type === 'shape' ? comp.height : H;
     applyTransform(layer, l, layer.type === 'shape' ? comp.width : W, layer.type === 'shape' ? comp.height : H, comp, offset + l.startTime, cW, cH, pixelAnchor);
     if (layer.type === 'shape') layer.transform.anchor = toAnim(propOf(l, 'ADBE Anchor Point'), (v) => [v[0] || 0, v[1] || 0], [0, 0], offset + l.startTime);
     if (layer.type === 'text') layer.transform.anchor = toAnim(propOf(l, 'ADBE Anchor Point'), (v) => [v[0] || 0, v[1] || 0], [0, 0], offset + l.startTime);
@@ -487,6 +492,8 @@ function pathAnim(node, t0) {
 function convShapes(nodes, t0) {
   const items = [];
   for (const n of nodes) {
+    // item desligado no AE (o "olho" do Fill/Stroke/grupo fechado): o bit 0 do tdsb vem zerado — não desenha
+    if (n.flags != null && !(n.flags & 1)) continue;
     switch (n.mn) {
       case 'ADBE Vector Group': {
         const tr = child(n, 'ADBE Vector Transform Group');
