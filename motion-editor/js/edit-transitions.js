@@ -222,6 +222,37 @@ const LIST = [
   ['brilho-estrela', 'Brilho de estrela (flash)', 'Edit 15 · 0:07', 0.4, 0.5,
     [['starGlow', { threshold: 40, length: k([0, 60, 'expoIn'], [1, 260]), amount: k([0, 0, 'expoIn'], [1, 6]), rays: 2 }], ['exposure', { exposure: k([0, 0], [1, 1]) }]],
     [['starGlow', { threshold: 40, length: 260, amount: k([0, 6, 'expoOut'], [1, 0]), rays: 2 }], ['lensBlur', { radius: k([0, 15, 'expoOut'], [1, 0]) }]]],
+  // ---- Edits do @koreiiaw (Neymar/Barça/PSG): estouro + zoom, fatias de glitch, ciano→vermelho, flash P&B, gramado
+  // magenta, zoom vermelho, strobe preto/negativo, borrão branco P&B (CC: Koreiia — presets em Meus presets › CC Koreiia)
+  ['koreiia-estouro-zoom', 'Estouro claro + zoom (Koreiia)', 'Koreiia · edit 1 0:04', 0.5, 0.35,
+    [['exposure', { exposure: k([0, 0, 'easeIn'], [1, 2.6]) }], ['blurMoCurves', { zDist: k([0, 1, 'expoIn'], [1, 0.8]), shutter: 2, samples: 20 }]],
+    [['blurMoCurves', { zDist: k([0, 0.55, 'expoOut'], [1, 1]), shutter: 3, samples: 24 }], ['exposure', { exposure: k([0, 1.8, 'expoOut'], [0.6, 0]) }]]],
+  ['koreiia-fatias-glitch', 'Fatias de glitch + clarão (Koreiia)', 'Koreiia · edit 2 0:05', 0.55, 0.45,
+    [['glitch', { amount: k([0, 0, 'easeIn'], [1, 100]), block: 60, shift: 35, rgb: 4, speed: 30 }], ['exposure', { exposure: k([0, 0, 'easeIn'], [1, 1.4]) }], ['lensBlur', { radius: k([0, 0, 'easeIn'], [1, 18]) }]],
+    [['glitch', { amount: k([0, 90, 'easeOut'], [0.7, 0]), block: 60, shift: 30, rgb: 4, speed: 30 }], ['blurMoCurves', { zDist: k([0, 0.7, 'expoOut'], [1, 1]), shutter: 2.5, samples: 20 }], ['exposure', { exposure: k([0, 1.2, 'expoOut'], [0.7, 0]) }]]],
+  ['koreiia-ciano-vermelho', 'Ciano → vermelho (Koreiia)', 'Koreiia · edit 1 0:07', 0.5, 0.4,
+    [['rgbSplit', { amount: k([0, 0, 'easeIn'], [1, 45]), angle: 0 }], ['dirBlur', { angle: 0, length: k([0, 0, 'easeIn'], [1, 120]) }]],
+    // o clipe que entra chega vermelho; nos primeiros quadros ele aparece INVERTIDO (vermelho → ciano), como na edit
+    [['tint', { black: [0.12, 0, 0.01, 1], white: [1, 0.25, 0.25, 1], amount: k([0, 100, 'hold'], [1, 85]) }], ['invert', { blend: k([0, 0, 'hold'], [0.35, 100, 'hold'], [1, 100]) }],
+      ['dirBlur', { angle: 0, length: k([0, 140, 'expoOut'], [0.6, 0]) }], ['glitch', { amount: k([0, 0, 'hold'], [0.5, 30, 'expoOut'], [1, 8]), block: 400, shift: 4, rgb: 0, speed: 10 }]]],
+  ['koreiia-flash-pb', 'Flash branco → P&B (Koreiia)', 'Koreiia · edit 2 0:07', 0.35, 0.15,
+    [['exposure', { exposure: k([0, 0, 'easeIn'], [1, 1.5]) }]],
+    [['exposure', { exposure: k([0, 6, 'hold'], [0.12, 0]) }], ['blackWhite', { amount: k([0, 100, 'hold'], [1, 100]) }], ['brightnessContrast', { contrast: 22 }]]],
+  ['koreiia-gramado-magenta', 'Gramado magenta (Koreiia)', 'Koreiia · edit 4 0:05', 0.45, 0.25,
+    [['exposure', { exposure: k([0, 0, 'easeIn'], [1, 1.2]) }], ['lensBlur', { radius: k([0, 0, 'easeIn'], [1, 15]) }]],
+    // só o VERDE do gramado vira magenta (os uniformes amarelos continuam amarelos)
+    [['changeToColor', { from: [0.25, 0.6, 0.2, 1], to: [0.95, 0.1, 0.85, 1], change: 3, hueTol: k([0, 22, 'hold'], [0.8, 22, 'hold'], [0.85, 0]), lumTol: 70, satTol: 80, softness: 40 }], ['lensBlur', { radius: k([0, 18, 'expoOut'], [0.4, 0]) }], ['exposure', { exposure: k([0, 0, 'hold'], [0.82, 2.5, 'expoOut'], [1, 0]) }]]],
+  ['koreiia-zoom-vermelho', 'Zoom vermelho (Koreiia)', 'Koreiia · edit 4 0:08', 0.5, 0.35,
+    [['tint', { black: [0.15, 0, 0, 1], white: [1, 0.2, 0.15, 1], amount: k([0, 0, 'easeIn'], [1, 100]) }], ['blurMoCurves', { zDist: k([0, 1, 'expoIn'], [1, 0.6]), shutter: 3, samples: 24 }]],
+    [['tint', { black: [0.15, 0, 0, 1], white: [1, 0.2, 0.15, 1], amount: k([0, 100, 'easeOut'], [0.7, 0]) }], ['blurMoCurves', { zDist: k([0, 0.5, 'expoOut'], [1, 1]), shutter: 3, samples: 24 }]]],
+  ['koreiia-strobe', 'Strobe preto / negativo (Koreiia)', 'Koreiia · edit 4 0:10', 0.45, 0.1,
+    [['exposure', { exposure: k([0, 0, 'easeIn'], [1, 1]) }]],
+    [['exposure', { exposure: k([0, -12, 'hold'], [0.08, 0, 'hold'], [0.33, -12, 'hold'], [0.41, 0, 'hold'], [0.66, -12, 'hold'], [0.74, 0, 'hold'], [1, 0]) }],
+      ['invert', { blend: k([0, 100, 'hold'], [0.16, 0, 'hold'], [0.25, 100, 'hold'], [0.49, 0, 'hold'], [0.58, 100, 'hold'], [0.82, 0, 'hold'], [0.9, 100, 'hold'], [1, 100]) }],
+      ['blackWhite', { amount: k([0, 0, 'hold'], [0.16, 100, 'hold'], [0.25, 0, 'hold'], [0.49, 100, 'hold'], [0.58, 0, 'hold'], [0.82, 100, 'hold'], [0.9, 0, 'hold'], [1, 0]) }]]],
+  ['koreiia-borrao-branco-pb', 'Borrão branco P&B (Koreiia)', 'Koreiia · edit 4 0:12', 0.6, 0.5,
+    [['blackWhite', { amount: k([0, 0, 'hold'], [0.3, 100, 'hold'], [1, 100]) }], ['blurMoCurves', { zDist: k([0, 1, 'expoIn'], [1, 0.75]), rotate: k([0, 0, 'expoIn'], [1, -12]), shutter: 3, samples: 24 }], ['exposure', { exposure: k([0, 0, 'easeIn'], [1, 2.8]) }]],
+    [['exposure', { exposure: k([0, 2.4, 'expoOut'], [0.5, 0]) }], ['lensBlur', { radius: k([0, 35, 'expoOut'], [0.6, 0]) }], ['blackWhite', { amount: k([0, 100, 'hold'], [0.5, 0, 'hold'], [0.65, 100, 'hold'], [0.8, 0, 'hold'], [1, 0]) }]]],
 ];
 
 const conv = (keys, d) => keys.map(([u, v, ease]) => ({ t: +(u * d).toFixed(4), v, ease: ease || 'easeInOut' }));
