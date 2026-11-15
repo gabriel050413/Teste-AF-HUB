@@ -213,6 +213,16 @@ const LIST = [
     [['glitch', { amount: k([0, 0], [1, 45]), block: 400, shift: 25, rgb: 0, speed: 30 }], ['tint', { black: [0.3, 0, 0.25, 1], white: [1, 0.75, 1, 1], amount: k([0, 0], [1, 60]) }], ['exposure', { exposure: k([0, 0], [1, 1]) }]],
     [['exposure', { exposure: k([0, 1.5, 'expoOut'], [1, 0]) }], ['tint', { black: [0.3, 0, 0.25, 1], white: [1, 0.75, 1, 1], amount: k([0, 60], [1, 0]) }]]],
   // ---- Edit 15 (bola branca, troca de cores, brilho de estrela)
+  // bolha de vidro (edit @jtp.wm07, 0:03): saída com bolha branca nascendo no rosto + entrada com furo e estouro
+  ['bolha-vidro', 'Bolha de vidro (saída + entrada)', 'Edit bolha · 0:03', 0.7, 0.38,
+    [['glassBubble', { mode: 1, progress: k([0, 0, 'linear'], [1, 100]), center: [0.47, 0.45], ring: 1, chroma: 1 }]],
+    [['glassBubble', { mode: 2, progress: k([0, 0, 'linear'], [1, 100]), center: [0.5, 0.5], ring: 1, chroma: 1 }]]],
+  ['bolha-vidro-saida', 'Bolha de vidro – só a saída (estoura no branco)', 'Edit bolha · 0:03', 0.45, 0.6,
+    [['glassBubble', { mode: 1, progress: k([0, 0, 'linear'], [1, 100]), center: [0.47, 0.45] }]],
+    [['exposure', { exposure: k([0, 4, 'expoOut'], [1, 0]) }]]],
+  ['bolha-vidro-entrada', 'Bolha de vidro – só a entrada (furo no branco)', 'Edit bolha · 0:03', 0.55, 0.2,
+    [['exposure', { exposure: k([0, 0, 'easeIn'], [1, 4]) }]],
+    [['glassBubble', { mode: 2, progress: k([0, 0, 'linear'], [1, 100]) }]]],
   ['bola-branca-blur', 'Bola branca + desfoque', 'Edit 15 · 0:06', 0.65, 0.4,
     [['lightRing', { mode: 3, progress: k([0, 0, 'easeIn'], [1, 100]), center: [0.48, 0.42], intensity: 1 }]],
     [['lightRing', { mode: 4, progress: k([0, 0, 'easeOut'], [1, 100]), intensity: 1 }], ['lensBlur', { radius: k([0, 45, 'easeOut'], [1, 0]) }]]],

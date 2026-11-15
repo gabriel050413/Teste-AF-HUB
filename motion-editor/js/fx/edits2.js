@@ -103,6 +103,92 @@ void main() {
   gl_FragColor = pre(vec4(clamp(col, 0.0, 1.0), max(base.a, (u_mode > 1.5 && u_mode < 2.5) ? 1.0 : 0.0)));
 }`);
 
+
+// Bolha de vidro (edit do @jtp.wm07): Saída = bolha branca que nasce num ponto e cresce com aro de vidro e uma faixa
+// de lente (imagem ampliada com franjas coloridas) até cobrir a tela; Entrada = furo redondo no branco mostrando o
+// próximo clipe, com aro de vidro + faixa refratada, que no fim "estoura" em cacos curvos.
+const GLASSBUBBLE = frag(`
+uniform float u_mode, u_p, u_asp, u_maxr, u_chroma, u_ring, u_seed;
+uniform vec2 u_c;
+vec3 S(vec2 c) { return texture2D(u_tex, fromContent(clamp(c, vec2(0.001), vec2(0.999)))).rgb; }
+vec3 rainbow(float a) { return 0.55 + 0.45 * cos(6.2832 * (a + vec3(0.0, 0.33, 0.67))); }
+void main() {
+  vec4 src = texture2D(u_tex, v_uv);
+  vec2 c = contentUV(v_uv);
+  vec2 q = (c - u_c) * vec2(u_asp, 1.0);
+  float d = length(q);
+  vec2 dir = d > 1e-5 ? q / d : vec2(0.0);
+  float ang = atan(q.y, q.x) / 6.2832 + 0.5;
+  vec2 toC = vec2(1.0 / u_asp, 1.0);                // de volta para coordenadas do conteúdo
+  vec3 col;
+  float W = u_ring;                                  // espessura relativa do aro (1 = como na edit)
+  if (u_mode < 1.5) {
+    // ---------- SAÍDA: bolha branca crescendo
+    // medido na edit: o raio cresce ~25% por quadro (0,13 → 0,44 da altura) e no último quadro salta para cobrir a tela
+    float R = max(1e-4, mix(0.13 * exp(1.39 * u_p), u_maxr * 1.15, smoothstep(0.86, 1.0, u_p)));
+    float rd = d / R;
+    float aIn = 1.0 - 0.30 * W, aLens = 1.0 - 0.16 * W, aRim = 1.0 - 0.03 * W;
+    if (rd < aIn) {
+      col = mix(vec3(1.0), vec3(0.93, 0.97, 1.0), smoothstep(aIn - 0.25, aIn, rd) * 0.5); // miolo branco
+    } else if (rd < aLens) {
+      // faixa de lente: o que está perto do centro aparece ampliado, com separação de cores
+      float k = (rd - aIn) / (aLens - aIn);
+      float z = mix(0.35, 0.75, k);
+      vec2 o = dir * d * toC;
+      float ch = 0.035 * u_chroma;
+      col = vec3(S(u_c + o * (z - ch)).r, S(u_c + o * z).g, S(u_c + o * (z + ch)).b);
+      // manchas de cor (amarelo/ciano/magenta) em blocos ao redor do aro, como na edit
+      float blob = smoothstep(0.35, 0.8, 0.5 + 0.5 * sin(ang * 6.2832 * 4.0 + 1.3)) * (1.0 - abs(k - 0.5) * 2.0);
+      col = mix(col, rainbow(ang * 2.0 + k), (0.2 + 0.4 * blob) * u_chroma);
+      col = mix(col, vec3(1.0), smoothstep(0.8, 1.0, k) * 0.5 + (1.0 - smoothstep(0.0, 0.15, k)) * 0.5);
+    } else if (rd < aRim) {
+      float k = (rd - aLens) / (aRim - aLens);
+      col = mix(vec3(1.0), vec3(0.82, 0.86, 0.9), smoothstep(0.55, 1.0, k));                 // aro de vidro
+      col += rainbow(ang * 3.0 + k * 0.5) * 0.18 * u_chroma * smoothstep(0.3, 0.6, k) * (1.0 - smoothstep(0.6, 0.9, k));
+    } else {
+      // fora: sombra fina no contorno e a imagem levemente puxada para a bolha (refração)
+      float e = (rd - aRim);
+      vec2 pull = dir * toC * 0.025 * R / (e * R + 0.04);
+      col = S(c - pull * smoothstep(1.4, 0.0, e));
+      col *= 1.0 - 0.45 * exp(-pow(e / 0.035, 2.0));
+    }
+  } else {
+    // ---------- ENTRADA: furo no branco mostrando o próximo clipe
+    float R = max(1e-4, (1.0 - pow(1.0 - u_p, 3.0)) * u_maxr * 1.25);   // abre rápido logo de cara e desacelera
+    float rd = d / R;
+    float aImg = 1.0 - 0.3 * W, aRing = aImg + 0.03 * W, aEdge = 1.0;
+    vec3 white = mix(vec3(1.0), vec3(0.86, 0.88, 0.9), smoothstep(0.3, 0.9, length((c - 0.5) * vec2(u_asp, 1.0))));
+    if (rd < aImg) {
+      // imagem com leve lente perto da borda
+      float m = 1.0 - 0.12 * pow(rd / aImg, 3.0);
+      col = S(u_c + q * m * toC);
+    } else if (rd < aRing) {
+      col = vec3(1.0);                                // anel branco interno
+      col = mix(col, rainbow(ang * 2.0) , 0.15 * u_chroma);
+    } else if (rd < aEdge) {
+      // faixa refratada: a imagem de fora "dobrada" para dentro, com borda escurecida
+      float k = (rd - aRing) / (aEdge - aRing);
+      vec2 o = dir * R * mix(aImg, 1.25, k) * toC;
+      float ch = 0.02 * u_chroma;
+      col = vec3(S(u_c + o * (1.0 - ch)).r, S(u_c + o).g, S(u_c + o * (1.0 + ch)).b);
+      col *= 1.0 - 0.55 * smoothstep(0.55, 1.0, k);
+      col = mix(col, vec3(1.0), (1.0 - smoothstep(0.0, 0.18, k)) * 0.6);
+    } else {
+      float e = (rd - aEdge) * R;                     // distância real fora do aro
+      // no fim a bolha estoura: o branco de fora vira cacos BRANCOS curvos (com contorno escuro) que encolhem
+      float seg = step(0.45, fract(sin(floor(ang * 10.0 + u_seed) * 91.7) * 4375.5));
+      float early = 1.0 - smoothstep(0.5, 0.62, u_p);
+      float bandW = 0.16 * W * (1.0 - smoothstep(0.6, 1.0, u_p));
+      float piece = seg * (1.0 - smoothstep(bandW * 0.85, bandW, e));
+      float cover = max(early, piece);
+      col = mix(S(c), white, cover);
+      float outline = exp(-pow(e / 0.008, 2.0)) * max(early, seg) + exp(-pow((e - bandW) / 0.006, 2.0)) * piece * (1.0 - early);
+      col = mix(col, vec3(0.1, 0.12, 0.1), clamp(outline, 0.0, 1.0) * 0.8);
+    }
+  }
+  gl_FragColor = vec4(col * src.a, src.a);
+}`);
+
 export default [
   {
     type: 'lightRing', label: 'Anel de luz / Portal / Disco branco', category: 'Transições',
@@ -111,6 +197,18 @@ export default [
       col('color', 'Cor da luz', [1, 0.97, 0.88, 1]), col('color2', 'Cor da borda interna', [0.45, 0.95, 1, 1]), num('intensity', 'Intensidade', 1, 0, 4, 0.01), num('chroma', 'Separação de cores', 1, 0, 4, 0.01)],
     render: (src, p, env) => env.gl.pass(LIGHTRING, { u_tex: src, u_mode: p.mode | 0 || 1, u_p: (p.progress ?? 50) / 100, u_c: p.center || [0.5, 0.5], u_asp: env.w / Math.max(1, env.h),
       u_col: rgb(p.color || [1, 0.97, 0.88, 1]), u_col2: rgb(p.color2 || [0.45, 0.95, 1, 1]), u_int: p.intensity ?? 1, u_chroma: p.chroma ?? 1 }),
+  },
+  {
+    type: 'glassBubble', label: 'Bolha de vidro (transição)', category: 'Transições',
+    description: 'Saída: bolha branca de vidro que nasce num ponto e cresce (aro + faixa de lente com franjas coloridas) até a tela ficar branca. Entrada: o próximo clipe surge num furo redondo no branco, com aro de vidro e faixa refratada, e a bolha estoura em cacos. Anime o Progresso de 0 a 100%.',
+    params: [sel('mode', 'Modo', ['Saída (bolha branca)', 'Entrada (furo + estouro)'], 1), num('progress', 'Progresso %', 50, 0, 100, 0.1), pos('center', 'Centro'),
+      num('ring', 'Espessura do aro', 1, 0.3, 2.5, 0.01), num('chroma', 'Franjas coloridas', 1, 0, 3, 0.01), num('seed', 'Semente dos cacos', 3, 0, 100, 1)],
+    render: (src, p, env) => {
+      const asp = env.w / Math.max(1, env.h), cen = p.center || [0.5, 0.5];
+      const maxr = Math.max(...[[0, 0], [1, 0], [0, 1], [1, 1]].map(([x, y]) => Math.hypot((x - cen[0]) * asp, y - cen[1])));
+      return env.gl.pass(GLASSBUBBLE, { u_tex: src, u_mode: p.mode | 0 || 1, u_p: Math.max(0, Math.min(1, (p.progress ?? 50) / 100)), u_c: cen, u_asp: asp, u_maxr: maxr,
+        u_ring: p.ring ?? 1, u_chroma: p.chroma ?? 1, u_seed: p.seed ?? 3 });
+    },
   },
   {
     type: 'lightBars', label: 'Barras de luz / Degradê de luz', category: 'Luz e brilho',
