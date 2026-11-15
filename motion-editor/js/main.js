@@ -37,10 +37,10 @@ import { getGL } from './gl.js';
 import { TrackerPanel } from './tracker-panel.js';
 import { calibrateFromImage, CALIB_LABEL } from './calibrate.js';
 import { parseAEP, aepToProject, mainComps } from './aep.js';
-import { isAiFile, aiToPngFile } from './ai-import.js';
+import { isAiFile, aiToPngFile, aiToLayerFiles } from './ai-import.js';
 import { xmlToProject } from './xml-import.js';
 import { TransitionsPanel } from './transitions-panel.js';
-import { checkForUpdate, showUpdateBanner } from './updater.js';
+import { checkForUpdate, autoUpdate } from './updater.js';
 import { loadCustomEffects, ensureRecipesFromProject, importRecipe, customRecipes } from './custom-fx.js';
 applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · efeitos criados pelo usuário (Efeitos › Meus efeitos) antes de abrir qualquer projeto
 import { ico, iconize } from './icons.js';
@@ -759,8 +759,8 @@ window.addEventListener('custom-fx', async (e) => {
   }
 });
 // versão nova publicada: avisa (agora e a cada 30 min)
-setTimeout(() => checkForUpdate({ onNew: showUpdateBanner }), 4000);
-setInterval(() => checkForUpdate({ onNew: showUpdateBanner }), 30 * 60 * 1000);
+setTimeout(() => checkForUpdate({ onNew: autoUpdate }), 4000);
+setInterval(() => checkForUpdate({ onNew: autoUpdate }), 30 * 60 * 1000);
 window.addEventListener('app-updated', () => toast('Versão nova do MotionFrame instalada. Volte para a tela inicial (⌂) para usar.', 'ok', 8000));
 if (dock.open.includes('composer')) setTimeout(() => composer.startPreview(), 300);
 
@@ -1037,8 +1037,20 @@ async function maybeProxy(f) {
   } finally { wrap.remove(); keepScreenOn(false); }
 }
 
+/** .ai (Illustrator) → uma imagem por camada, de baixo para cima; outros arquivos passam direto. */
+async function expandAi(files) {
+  const out = [];
+  for (const f of files) {
+    if (!(await isAiFile(f))) { out.push(f); continue; }
+    try { const ls = await aiToLayerFiles(f); out.push(...ls); toast(`“${f.name}”: ${ls.length} camada(s) do Illustrator importada(s).`, 'info', 3500); }
+    catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); }
+  }
+  return out;
+}
+
 async function importMedia(files) {
   ensurePersistentStorage();
+  files = await expandAi(files);
   let seqT = null; // vários clipes de uma vez: um depois do outro (como no CapCut)
   for (let f of files) {
     const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
@@ -2436,8 +2448,17 @@ async function relinkAEMedia({ substitute = false, files = null } = {}) {
   if (!files) files = await pickFiles('video/*,image/*,audio/*,.ai');
   if (!files.length) return;
   // .ai (PDF do Illustrator) entra como PNG da página 1; o nome continua igual (Clock.ai → Clock.png)
-  files = await Promise.all(files.map(async (f) => { try { return (await isAiFile(f)) ? await aiToPngFile(f) : f; } catch (e) { toast(`Não deu para abrir “${f.name}”: ${e?.message || e}`, 'error', 6000); return null; } }));
-  files = files.filter(Boolean);
+  // cada camada do .ai vira uma imagem; a camada do projeto com o mesmo nome (Tehran, New York, bar, oval…) recebe a sua
+  const aiLayers = new Map();
+  const nk = (x) => String(x || '').toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+  const conv = await Promise.all(files.map(async (f) => {
+    try {
+      if (!(await isAiFile(f))) return f;
+      try { for (const lf of await aiToLayerFiles(f)) if (lf.aiLayer) aiLayers.set(`${nk(f.name)}|${nk(lf.aiLayer)}`, lf); } catch { /* sem camadas: usa a página inteira */ }
+      return await aiToPngFile(f); // página inteira (reserva para camadas sem par)
+    } catch (e) { toast(`Não deu para abrir “${f.name}”: ${e?.message || e}`, 'error', 6000); return null; }
+  }));
+  files = conv.filter(Boolean);
   if (!files.length) return;
   const used = new Set();
   const saved = new Map();
@@ -2448,7 +2469,9 @@ async function relinkAEMedia({ substitute = false, files = null } = {}) {
   const holders = flatLayers(store.project.layers).filter((l) => l.props?.aeMedia);
   for (const l of holders) {
     const ae = l.props.aeMedia;
-    let f = byName.get(ae.file.toLowerCase()) || byName.get(norm(ae.file)) || (holders.length === 1 && files.length === 1 ? files[0] : null);
+    const cleanName = l.name.replace(/^⚠ /, '');
+    let f = /\.ai$/i.test(ae.file) ? (aiLayers.get(`${nk(ae.file)}|${nk(cleanName)}`) || aiLayers.get(`${nk(ae.file)}|${nk(cleanName.replace(/\s+\d+$/, ''))}`) || null) : null;
+    f = f || byName.get(ae.file.toLowerCase()) || byName.get(norm(ae.file)) || (holders.length === 1 && files.length === 1 ? files[0] : null);
     // substituir: os que não casaram pelo nome recebem os outros arquivos escolhidos, em ordem (sem repetir enquanto der)
     let swapped = false;
     if (!f && substitute && ae.kind !== 'audio' && !AUD_RE.test(ae.file)) {
