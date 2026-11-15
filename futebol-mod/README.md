@@ -12,6 +12,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.8 — chutes que sempre entram (sem trave e sem teleporte)
+Causa achada: o chute fazia uma parábola alta demais (7 blocos de altura), batia na trave/travessão e depois o roteiro teleportava a bola para dentro. Agora o chute tem trajetória
+controlada (arco baixo até o ponto do gol/defesa/fora, sem erro aleatório): 0 gols forçados nos 10 jogos. O aviso de abertura mostra a versão carregada ("SIMULANDO JOGOS v3.8.0").
+**Se a versão que aparece for outra, o Minecraft está carregando um jar antigo: apague os jars antigos da pasta mods e reinicie o jogo inteiro.**
+
 ## Novidades da v3.7 — os 6 gols + lance importante de Argentina x França, plano a plano
 Roteiros de câmera/replay medidos no vídeo para cada lance (`LIVE`/`POST` em Historic.java) e jogadas refeitas: Messi perde a bola para Coman no 81', Lautaro chuta, Lloris defende e Messi completa no 108',
 mão do Montiel (com replay) no 118', Kolo Muani x Dibu no 123' (defesa). Lautaro entra aos 102'. Pênalti com "paradinha". Replays de cada gol na ordem do vídeo (alto, rasteiro, atrás do gol, bola, goleiro).

@@ -1157,6 +1157,19 @@ public final class Match {
         spin = curl / t;
     }
 
+    /** Chute exato (modo histórico): mesma física do shootAt, mas sem erro aleatório — a bola vai onde o roteiro manda. */
+    void shootExact(FPlayer k, double u, double v, double height, double power) {
+        lastShotTick = tickCount; stat[k.team][1]++;
+        Vec3 tgt = W(k.team, u, v);
+        double d = hd(k.pos().x, k.pos().z, tgt.x, tgt.z);
+        double speed = 1.12 * power;
+        double t = Math.max(3, d / (speed * 0.93));
+        double vy = (height + 0.04 * t * t) / t;
+        double yaw = Math.atan2(tgt.z - bp().z, tgt.x - bp().x);
+        kick(k, Math.cos(yaw) * speed, vy, Math.sin(yaw) * speed);
+        spin = 0;
+    }
+
     void shoot(FPlayer k, double errMul) {
         FPlayer g = gk(1 - k.team);
         double gv = V(k.team, g.pos().z);

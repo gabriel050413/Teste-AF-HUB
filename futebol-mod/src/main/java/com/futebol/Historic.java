@@ -229,6 +229,7 @@ public final class Historic {
     public void tick() {
         if (finished) return;
         t++;
+        tickArc();
         if (ph == Ph.EV && m.st == Match.St.GOAL && m.stTicks == 4) falar(idx + "b");
         switch (ph) {
             case INTRO -> intro();
@@ -262,7 +263,7 @@ public final class Historic {
             m.pinBall(new Vec3(m.pitch.cx(), m.pitch.surf(), m.pitch.cz()));
             m.title("§6§l" + g.titulo, "§7" + g.sub);
             falar("in");
-            m.say("§6★ SIMULANDO JOGOS §7— §f" + g.titulo + " §8| §7" + g.sub);
+            m.say("§6★ SIMULANDO JOGOS v" + net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("futebol").map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?") + " §7— §f" + g.titulo + " §8| §7" + g.sub);
             m.say("§7Os lances decisivos serão reencenados com os mesmos jogadores. §8(/futebol jogo parar | /futebol jogo pular)");
             camera();
             if (m.crowd != null) m.crowd.event("goal", 0);
@@ -360,12 +361,14 @@ public final class Historic {
         }
         if (pst.equals("pass")) {
             passT++; Vec3 b = m.bp(); recv.tx = b.x; recv.tz = b.z; recv.spd = 1.0;
+            if (passT > 55 && hd(recv.pos(), b) >= 1.9) { Vec3 rp = recv.pos(); m.ball.snapTo(rp.x + recv.fx, m.pitch.surf(), rp.z + recv.fz); m.ball.setDeltaMovement(Vec3.ZERO); b = m.bp(); }
             if (hd(recv.pos(), b) < 1.9 || passT > 55) { holder = recv; pst = ""; holder.touchCd = 0; recv = null; glue(); }
             return;
         }
         if (pst.equals("save")) {
             passT++;
-            if (passT == 13) {                                              // goleiro defende e a bola sobra para o rebote
+            if (passT == 13) {                                              // goleiro defende
+                arcOn = false;    // goleiro defende e a bola sobra para o rebote
                 Vec3 k = keeper.pos(); m.ball.snapTo(k.x - m.attackDir[attT] * 0.5, k.y + 1.0, k.z + side * 0.4); m.ball.setDeltaMovement(Vec3.ZERO);
                 m.gkSave(keeper, 1.0);
             }
@@ -385,7 +388,7 @@ public final class Historic {
                 if (c0 == 'w') { playWait = Integer.parseInt(s.substring(1)); return; }
                 if (c0 == 'K') { FPlayer p = pl(s.substring(1), true); holder = p; shooter = p; m.unpin(); noSave[conceding] = false; allow = false; keeper.touchCd = 0;
                     p.touchCd = 0; double mo = (Pitch.GOAL_HALF - 1.1) / Pitch.SW; m.lastToucher = p; m.lastTouchTeam = attT;
-                    m.shootAt(p, 64, side * mo * 0.35, 0.5, 1.0, 0.2); pst = "save"; passT = 0; return; }
+                    shotTo(p, 62.6, m.V(attT, keeper.pos().z), 1.0, 0); pst = "save"; passT = 0; return; }
                 java.util.regex.Matcher mt = java.util.regex.Pattern.compile("^(\\d+)([>RplFHsx])(.*)$").matcher(s);
                 if (!mt.matches()) continue;
                 FPlayer p = mt.group(1).isEmpty() ? null : pl(mt.group(1), !(opp || mt.group(2).equals("H") || mt.group(2).equals("x")));
@@ -393,8 +396,8 @@ public final class Historic {
                 switch (mt.group(2)) {
                     case "R" -> { String[] f = a.split(","); Vec3 w = m.W(attT, Double.parseDouble(f[0]), Double.parseDouble(f[1])); p.tx = w.x; p.tz = w.z; p.spd = 0.85; p.mode = FPlayer.Mode.RUN; free.add(p); p.touchCd = 99; }
                     case ">" -> { String[] f = a.split(","); holder = p; free.add(p); cu = Double.parseDouble(f[0]); cv = Double.parseDouble(f[1]); pst = "carry"; p.touchCd = 99; return; }
-                    case "p", "l" -> { FPlayer r = pl(a, true); holder = p; recv = r; free.add(p); free.add(r); r.touchCd = 99; Vec3 tg = r.pos();
-                        if (holder != null) { m.unpin(); p.touchCd = 0; m.lastToucher = p; m.lastTouchTeam = attT; Vec3 lead = new Vec3(tg.x + r.vx * 8, tg.y, tg.z + r.vz * 8);
+                    case "p", "l" -> { FPlayer r = pl(a, true); holder = p; recv = r; free.add(p); free.add(r); r.touchCd = 99; Vec3 tg = r.mode == FPlayer.Mode.RUN ? new Vec3(r.tx, 0, r.tz) : r.pos();
+                        if (holder != null) { m.unpin(); p.touchCd = 0; m.lastToucher = p; m.lastTouchTeam = attT; Vec3 lead = r.mode == FPlayer.Mode.RUN ? tg : new Vec3(tg.x + r.vx * 8, tg.y, tg.z + r.vz * 8);
                             if (mt.group(2).equals("l")) m.kickLob(p, lead.x, lead.z, 22, 0.5); else m.kickGround(p, lead.x, lead.z, 0.95); }
                         pst = "pass"; passT = 0; return; }
                     case "F" -> { holderLast = p; p.animPose = net.minecraft.world.entity.Pose.SWIMMING; p.animTicks = 55; m.unpin(); m.whistle(1f); if (m.referee != null) m.referee.whistleGesture(); m.title("§e§lFALTA!", "§7pênalti"); noRec = true;
@@ -410,6 +413,35 @@ public final class Historic {
     }
     boolean endPlayLater;
 
+    // ------------------------- chute com trajetória controlada (nunca bate na trave sem querer) -------------------------
+    Vec3 arcFrom, arcTo; int arcT, arcN; boolean arcOn; double arcApex;
+
+    /** Chuta de verdade (animação, som, tremor) e conduz a bola em um arco baixo até o ponto (u,v,h) do gol. */
+    void shotTo(FPlayer k, double u, double v, double h, double apexAdd) {
+        Vec3 b = m.bp(), tg = m.W(k.team, u, v);
+        double dx = tg.x - b.x, dz = tg.z - b.z, d = Math.max(1, Math.hypot(dx, dz));
+        m.lastShotTick = m.tickCount; m.stat[k.team][1]++;
+        m.kick(k, dx / d * 0.95, 0.12, dz / d * 0.95);
+        arcFrom = m.bp(); arcTo = new Vec3(tg.x, m.pitch.surf() + h, tg.z);
+        arcN = (int) Math.max(9, Math.min(40, d / 1.35)); arcT = 0; arcOn = true;
+        arcApex = Math.min(1.6, 0.25 + 0.035 * d) + apexAdd;
+        m.cameras.shake(0.6);
+    }
+
+    void tickArc() {
+        if (!arcOn) return;
+        arcT++;
+        double q = Math.min(1.0, arcT / (double) arcN);
+        double x = arcFrom.x + (arcTo.x - arcFrom.x) * q, z = arcFrom.z + (arcTo.z - arcFrom.z) * q;
+        double y = arcFrom.y + (arcTo.y - arcFrom.y) * q + 4 * arcApex * q * (1 - q);
+        m.pinBall(new Vec3(x, Math.max(m.pitch.surf(), y), z));
+        if (arcT >= arcN) {
+            arcOn = false; m.unpin();
+            double dx = arcTo.x - arcFrom.x, dz = arcTo.z - arcFrom.z, d = Math.max(1, Math.hypot(dx, dz));
+            m.ball.setDeltaMovement(dx / d * 0.5, 0, dz / d * 0.5);
+        }
+    }
+
     /** O batedor chuta (gol ou defesa garantida do goleiro). */
     void fire(Ev e, boolean gol) {
         shot = true; shooter.touchCd = 0; m.unpin();
@@ -418,7 +450,8 @@ public final class Historic {
         if (hd(sp, b) > 3.2) shooter.e.snapTo(b.x - m.attackDir[a] * 1.2, m.pitch.surf(), b.z, Match.yawTo(m.attackDir[a], 0), 0);
         m.lastToucher = shooter; m.lastTouchTeam = a;
         double h = gol ? 0.3 + ((t + e.num()) % 7) * 0.12 : 0.4;
-        m.shootAt(shooter, ogEvent ? 0.4 : 64, side * maxOff * (gol ? 0.78 : 0.9), h, ogEvent ? 0.8 : 1.0, 0.25);
+        if (gol) shotTo(shooter, ogEvent ? 0.6 : 64.9, side * maxOff * 0.6, 0.35 + 0.5 * ((t + e.num()) % 3), 0);
+        else { Vec3 kp = keeper.pos(); double kv = m.V(shooter.team, kp.z); shotTo(shooter, 62.6, kv + side * 0.4, 1.0, 0); }
         m.lastToucher = shooter; m.lastTouchTeam = a;
         if (m.cameras != null) m.cameras.shake(0.6);
         stageShot = t;
@@ -477,13 +510,15 @@ public final class Historic {
             if (t >= stageShot) fire(e, gol);
         } else {
             int dt = t - stageShot;
+            if (gol && dt >= 0 && dt < 60 && dt % 3 == 0) { Vec3 bb = m.bp(); FutebolMod.LOG.info("TRACE {} min {} dt={} u={} v={} h={} st={}", g.id, e.min(), dt, (int) m.U(shooter.team, bb.x), (int) m.V(shooter.team, bb.z), String.format("%.1f", bb.y - m.pitch.surf()), m.st); }
             if (!gol && !saved && dt > 13 && m.st == Match.St.PLAYING) {                   // defesa garantida do goleiro
-                saved = true; keeper.touchCd = 0;
+                saved = true; arcOn = false; keeper.touchCd = 0;
                 Vec3 k = keeper.pos(); m.ball.snapTo(k.x + m.attackDir[shooter.team] * -0.6, k.y + 1.1, k.z + side * 0.4); m.ball.setDeltaMovement(Vec3.ZERO);
                 m.gkSave(keeper, 1.0);
             }
-            if (gol && m.st == Match.St.PLAYING && dt > 150) {                           // garantia: a bola entra
+            if (gol && m.st == Match.St.PLAYING && dt > 90) {                           // garantia: a bola entra
                 Vec3 w = m.W(shooter.team, ogEvent ? -0.6 : 64.6, side * 2.6);
+                { Vec3 bb = m.bp(); Vec3 vv = m.ball.getDeltaMovement(); FutebolMod.LOG.warn("GARANTIDOR {} min {}: bola u={} v={} h={} vel=({},{},{}) st={} carrier={} shooter={} u={} v={}", g.id, e.min(), (int) m.U(shooter.team, bb.x), (int) m.V(shooter.team, bb.z), (int) (bb.y - m.pitch.surf()), (int) (vv.x * 100), (int) (vv.y * 100), (int) (vv.z * 100), m.st, m.carrier == null ? "-" : m.carrier.def.num(), shooter.def.num(), (int) m.U(shooter.team, shooter.pos().x), (int) m.V(shooter.team, shooter.pos().z)); }
                 m.lastToucher = shooter; m.lastTouchTeam = shooter.team;
                 m.ball.snapTo(w.x, m.pitch.surf() + 0.6, w.z); m.ball.setDeltaMovement(Vec3.ZERO);
                 m.goal(scoringTeam);
@@ -612,13 +647,13 @@ public final class Historic {
                 double maxOff = (Pitch.GOAL_HALF - 1.1) / Pitch.SW;
                 double aimV = pkOutcome == 'f' ? side * (Pitch.GOAL_HALF + 3.2) / Pitch.SW : side * maxOff * 0.85;
                 double h = pkOutcome == 'f' ? 3.2 : 0.35;
-                m.shootAt(shooter, 64, aimV, h, 0.95, 0.2);
+                if (pkOutcome == 'g') shotTo(shooter, 64.9, side * maxOff * 0.8, 0.5, 0); else if (pkOutcome == 'f') shotTo(shooter, 64.9, aimV, 3.4, 0.3); else { Vec3 kp = keeper.pos(); shotTo(shooter, 62.6, m.V(shooter.team, kp.z) + side * 0.5, 0.9, 0); }
                 m.lastToucher = shooter; m.lastTouchTeam = shooter.team;
             }
         } else {
             int dt = t - 90;
             if (pkOutcome == 'd' && !saved && dt > 12) {
-                saved = true; resolved = true; keeper.touchCd = 0;
+                saved = true; resolved = true; arcOn = false; keeper.touchCd = 0;
                 Vec3 kp = keeper.pos(); m.ball.snapTo(kp.x - m.attackDir[shooter.team] * 0.6, kp.y + 1.0, kp.z + side * 0.5); m.ball.setDeltaMovement(Vec3.ZERO);
                 m.gkSave(keeper, 1.0); pkFeedback(false);
             }
