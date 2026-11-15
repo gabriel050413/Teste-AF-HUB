@@ -23,6 +23,14 @@ final class AutoTest {
             ServerTickEvents.END_SERVER_TICK.register(s2 -> {
                 t[0]++;
                 CommandSourceStack src = pl.createCommandSourceStack();
+                if (System.getenv("FUTEBOL_HISTORIC") != null) {
+                    if (t[0] == 60) srv.getCommands().performPrefixedCommand(src, "futebol jogo " + System.getenv("FUTEBOL_HISTORIC"));
+                    int n0 = Integer.parseInt(System.getenv().getOrDefault("FUTEBOL_HIST_SHOTS", "60")), gap = Integer.parseInt(System.getenv().getOrDefault("FUTEBOL_HIST_GAP", "12"));
+                    int kk = t[0] - 150;
+                    if (kk >= 0 && kk % gap == 0 && kk / gap < n0) pl.sendSystemMessage(net.minecraft.network.chat.Component.literal("SHOT:h" + String.format("%03d", kk / gap)));
+                    if (kk / gap >= n0 + 3) { FutebolMod.LOG.info("SHOTS FIM"); srv.halt(false); }
+                    return;
+                }
                 if (t[0] == 60) srv.getCommands().performPrefixedCommand(src, "futebol ativar " + (System.getenv("FUTEBOL_CLUBS") != null ? System.getenv("FUTEBOL_CLUBS") : "barcelona realmadrid"));
                 if (t[0] == 100 && System.getenv("FUTEBOL_ANIMTEST") != null) {
                     Match mm = FutebolMod.match; FPlayer sj = mm.teams[0][9]; mm.lastToucher = sj;

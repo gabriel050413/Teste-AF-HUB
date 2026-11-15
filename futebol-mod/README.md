@@ -12,6 +12,9 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.6 — tela limpa e câmera principal mais próxima (modo histórico)
+Corrigido depois de capturar o jogo real no cliente: mensagens de chat não cobrem mais a tela no modo histórico e a câmera principal (TV) acompanha a bola pela lateral, mais perto, com jogadores maiores.
+
 ## Novidades da v3.5 — edição de TV copiada do vídeo da final
 O modo "Simulando jogos" agora segue a ordem e a duração dos planos da transmissão (medidos no vídeo): gol de jogada = plano aberto até a bola entrar, close do artilheiro (5 s), torcida, close do goleiro,
 3 replays longos (alto, rasteiro, atrás do gol/bola) e close da comemoração (coração do Di María) · pênalti = replays da falta (rasteiro/close) antes da cobrança, plano aberto, festa rasteira na pilha,

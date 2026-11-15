@@ -228,6 +228,8 @@ public final class Historic {
             camera();
             if (m.crowd != null) m.crowd.event("goal", 0);
         }
+        String st0 = System.getenv("FUTEBOL_HIST_START");
+        if (st0 != null && t == 30) { ph = Ph.EV; t = 0; idx = Integer.parseInt(st0); return; }
         if (t == 100) { ph = Ph.EV; t = 0; idx = 0; }
     }
 

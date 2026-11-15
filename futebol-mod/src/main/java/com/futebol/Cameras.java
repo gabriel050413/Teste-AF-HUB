@@ -228,7 +228,11 @@ public final class Cameras {
         Vec3 b = m.bp();
         Vec3 pf = playFocus();
         switch (mode) {
-            case TV: return new Shot("principal", new Vec3(cx, gy + 13, cz + HW + 8), pf, 1, 0.8, 3.5, 0);
+            case TV: {
+                // "câmera 1" com zoom simulado: acompanha a bola pela lateral e fica mais perto (jogadores maiores na tela)
+                double x = cx + clamp((lagBall().x - cx) * 0.75, -34, 34);
+                return new Shot(m.script != null ? "principal_h" : "principal", m.script != null ? new Vec3(x, gy + 10.5, cz + HW + 4.5) : new Vec3(cx, gy + 13, cz + HW + 8), pf, m.script != null ? 0.04 : 1, 0.8, 3.5, 0);
+            }
             case ALTA: {
                 int side = s.mode == Mode.AUTO || s.forced ? dSide : (b.x >= cx ? 1 : -1);
                 return new Shot("alta" + side, new Vec3(cx + side * (HL - 22), gy + 12, cz + HW + 7), pf, 1, 0.9, 3.0, 0);

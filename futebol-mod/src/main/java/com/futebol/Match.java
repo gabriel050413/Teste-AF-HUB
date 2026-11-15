@@ -2194,6 +2194,7 @@ public final class Match {
     void sayV(String s) { if (verbose) say(s); }
 
     void say(String s) {
+        if (script != null && !s.startsWith("§6★") && !s.startsWith("§7Os lances")) return;     // modo histórico: tela limpa, como na TV
         for (ServerPlayer pl : level.players()) pl.sendSystemMessage(Component.literal(s));
     }
 
