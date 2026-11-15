@@ -49,7 +49,7 @@ OVER = {
  ("argfra22", 1): ("Messi toca, Alvarez, Mac Allister, a Argentina trama um contra-ataque de cinema!", "Que golaço! Di María! Dois a zero para a Argentina no primeiro tempo!"),
  ("argfra22", 6): ("Atenção, é pênalti para a França! Mbappé pega a bola!", "Mbappé! Mais um, a França está viva! Dois a um!"),
  ("argfra22", 7): ("Ele não se contenta! A França ataca de novo!", "Mbappé de novo! Em um minuto, a França empatou! Dois a dois!"),
- ("argfra22", 8): ("Prorrogação! Messi não desiste, olha a bola na área!", "Messi! Messi de novo! A Argentina volta a ficar na frente!"),
+ ("argfra22", 9): ("Prorrogação! Messi não desiste, olha a bola na área!", "Messi! Messi de novo! A Argentina volta a ficar na frente!"),
 }
 
 def gera_texto(g, c):

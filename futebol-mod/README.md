@@ -12,6 +12,10 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.7 — os 6 gols + lance importante de Argentina x França, plano a plano
+Roteiros de câmera/replay medidos no vídeo para cada lance (`LIVE`/`POST` em Historic.java) e jogadas refeitas: Messi perde a bola para Coman no 81', Lautaro chuta, Lloris defende e Messi completa no 108',
+mão do Montiel (com replay) no 118', Kolo Muani x Dibu no 123' (defesa). Lautaro entra aos 102'. Pênalti com "paradinha". Replays de cada gol na ordem do vídeo (alto, rasteiro, atrás do gol, bola, goleiro).
+
 ## Novidades da v3.6 — tela limpa e câmera principal mais próxima (modo histórico)
 Corrigido depois de capturar o jogo real no cliente: mensagens de chat não cobrem mais a tela no modo histórico e a câmera principal (TV) acompanha a bola pela lateral, mais perto, com jogadores maiores.
 

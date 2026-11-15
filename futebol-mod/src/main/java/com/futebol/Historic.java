@@ -110,6 +110,8 @@ public final class Historic {
             case "s" -> sc;
             case "k" -> keeper != null ? keeper : sc;
             case "v" -> holderLast != null ? holderLast : sc;
+            case "h" -> holder != null ? holder : (holderLast != null ? holderLast : sc);
+            case "o" -> { FPlayer r = sc; for (FPlayer p : m.teams[1 - sc.team]) if (!p.isGK()) { r = p; break; } yield r; }
             case "t" -> { if (tmate == null || tmate == sc) for (FPlayer p : m.teams[sc.team]) if (p != sc && !p.isGK()) { tmate = p; break; } yield tmate != null ? tmate : sc; }
             default -> sc;
         };
@@ -141,6 +143,42 @@ public final class Historic {
         if (m.startReplayCore(-1, false, s.secs(), s.speed())) { inRep = true; m.title("§e§l▶ REPLAY", "§7" + g.titulo); } else { si++; sT = 0; }
     }
 
+
+    // ------------------------- roteiros de câmera/replay por lance (medidos no vídeo dos melhores momentos) -------------------------
+    // spec: "c:modo[@sujeito]:segundos" (câmera) ou "r:segundos:velocidade:modo/modo" (replay); sujeitos: s artilheiro, k goleiro, t companheiro, o adversário, h quem conduz, v vítima da falta
+    static List<Step> spec(String sp) {
+        List<Step> out = new ArrayList<>();
+        for (String tk : sp.split(";")) {
+            String[] f = tk.strip().split(":"); if (f.length < 2) continue;
+            if (f[0].equals("c")) out.add(cam(f[1], (int) Math.round(Double.parseDouble(f[2]) * 20)));
+            else out.add(rep((int) Math.round(Double.parseDouble(f[1])), Double.parseDouble(f[2]), f[3]));
+        }
+        return out;
+    }
+    static final Map<String, String> LIVE = Map.of(
+        "argfra22:0", "c:tv:2.5;c:rosto@h:2;c:rasteira@h:3;c:alta:3",
+        "argfra22:1", "c:tv:10",
+        "argfra22:7", "c:tv:3;c:rosto@h:1.5;c:tv:6",
+        "argfra22:9", "c:tv:12",
+        "argfra22:12", "c:tv:3;c:alta:2",
+        "argfra22:13", "c:tv:6;c:gol:6");
+    static final Map<String, String> POST = Map.of(
+        "argfra22:0", "c:rasteira@s:4;c:rosto@o:3;c:escanteio:4;c:alta:3;c:rosto@s:3;r:4:0.55:alta/gol;r:3:0.5:gol;r:5:0.5:rasteira;r:4:0.4:bola;r:3:0.4:gol;c:rosto@s:2",
+        "argfra22:1", "c:rosto@s:5;c:torcida:2;c:rosto@k:1.5;r:12:0.9:alta/tv;r:10:0.9:rasteira/escanteio;r:9:0.8:gol/rosto@k;c:rosto@s:3",
+        "argfra22:6", "c:rosto@s:4;c:arquibancada:4;c:rosto@s:3;r:5:0.5:gol;r:3:0.4:bola;r:4:0.45:rosto@k",
+        "argfra22:7", "c:rosto@s:4;c:rasteira@s:3;r:4:1.0:alta;r:4:0.8:gol;r:8:0.9:rasteira;r:6:0.7:gol/rasteira;c:rosto@s:3",
+        "argfra22:9", "c:tv:5;c:rosto@t:3;c:torcida:3;r:5:1.0:alta;r:4:0.9:alta;r:3:0.5:rasteira;r:6:0.6:gol;r:6:0.8:rasteira;c:rosto@s:9",
+        "argfra22:12", "c:rosto@s:4;c:rasteira@s:3;c:rosto@s:3;r:3:0.5:alta;r:4:0.5:gol;r:3:0.4:bola;r:4:0.4:rosto@k;c:rosto@o:3");
+
+    String key() { return g.id + ":" + idx; }
+
+    Cam liveCam() {
+        String sp = LIVE.get(key()); if (sp == null || shot) return null;
+        double tt = 0;
+        for (Step s : spec(sp)) { tt += s.ticks(); if (t <= tt) return camOf(s.modes()[0], 0); }
+        List<Step> l = spec(sp); return camOf(l.get(l.size() - 1).modes()[0], 0);
+    }
+
     /** Pós-gol (substitui o fluxo padrão): festa + replays na ordem da transmissão e volta ao jogo. */
     public void tickGoal() {
         gt++;
@@ -157,6 +195,7 @@ public final class Historic {
                 s.add(cam("rosto@s", 100)); s.add(cam("torcida", 40)); s.add(cam("rosto@k", 25));
                 s.add(rep(10, 0.95, "tv/alta")); s.add(rep(9, 0.95, "rasteira/escanteio")); s.add(rep(6, 0.6, "gol/bola")); s.add(cam("rosto@s", 70));
             }
+            String ps = POST.get(key()); if (ps != null) s = new ArrayList<>(spec(ps));
             startSeq(s, this::afterGoal);
         }
         if (gt == 30) noRec = true;
@@ -340,15 +379,16 @@ public final class Historic {
             String s = toks.get(ti++);
             FutebolMod.LOG.info("PLAY ev{} t={} '{}'", idx, t, s);
             try {
+                boolean opp = s.startsWith("~"); if (opp) s = s.substring(1);
                 char c0 = s.charAt(0);
                 if (c0 == '@' || c0 == '!') { String[] f = s.substring(1).split(","); FPlayer p = pl(f[0], c0 == '@'); if (p != null) place(p, c0 == '@' ? attT : attT, Double.parseDouble(f[1]), Double.parseDouble(f[2])); continue; }
                 if (c0 == 'w') { playWait = Integer.parseInt(s.substring(1)); return; }
                 if (c0 == 'K') { FPlayer p = pl(s.substring(1), true); holder = p; shooter = p; m.unpin(); noSave[conceding] = false; allow = false; keeper.touchCd = 0;
                     p.touchCd = 0; double mo = (Pitch.GOAL_HALF - 1.1) / Pitch.SW; m.lastToucher = p; m.lastTouchTeam = attT;
                     m.shootAt(p, 64, side * mo * 0.35, 0.5, 1.0, 0.2); pst = "save"; passT = 0; return; }
-                java.util.regex.Matcher mt = java.util.regex.Pattern.compile("^(\\d+)([>RplFHs])(.*)$").matcher(s);
+                java.util.regex.Matcher mt = java.util.regex.Pattern.compile("^(\\d+)([>RplFHsx])(.*)$").matcher(s);
                 if (!mt.matches()) continue;
-                FPlayer p = mt.group(1).isEmpty() ? null : pl(mt.group(1), !mt.group(2).equals("H"));
+                FPlayer p = mt.group(1).isEmpty() ? null : pl(mt.group(1), !(opp || mt.group(2).equals("H") || mt.group(2).equals("x")));
                 String a = mt.group(3);
                 switch (mt.group(2)) {
                     case "R" -> { String[] f = a.split(","); Vec3 w = m.W(attT, Double.parseDouble(f[0]), Double.parseDouble(f[1])); p.tx = w.x; p.tz = w.z; p.spd = 0.85; p.mode = FPlayer.Mode.RUN; free.add(p); p.touchCd = 99; }
@@ -359,8 +399,9 @@ public final class Historic {
                         pst = "pass"; passT = 0; return; }
                     case "F" -> { holderLast = p; p.animPose = net.minecraft.world.entity.Pose.SWIMMING; p.animTicks = 55; m.unpin(); m.whistle(1f); if (m.referee != null) m.referee.whistleGesture(); m.title("§e§lFALTA!", "§7pênalti"); noRec = true;
                         startSeq(List.of(cam("tv", 50), rep(5, 0.55, "rasteira/rosto@v"), rep(4, 0.5, "alta")), () -> { noRec = false; endPlay(true); }); return; }
-                    case "H" -> { Anim.play(m.level, p.e, Anim.BRACOS, 30); m.whistle(1f); m.title("§e§lMÃO NA BOLA!", "§7pênalti"); playWait = 30; ti = toks.size(); endPlayLater = true; return; }
-                    case "s" -> { shooter = p; holder = null; endPlay(false); fire(e, true); return; }
+                    case "H" -> { Anim.play(m.level, p.e, Anim.BRACOS, 30); m.whistle(1f); m.title("§e§lMÃO NA BOLA!", "§7pênalti"); noRec = true; holderLast = p; startSeq(List.of(cam("tv", 40), rep(5, 0.5, "gol/rasteira")), () -> { noRec = false; endPlay(true); }); return; }
+                    case "s" -> { shooter = p; holder = null; endPlay(false); fire(e, e.tipo().equals("GOL")); return; }
+                    case "x" -> { FPlayer v = pl(a, false); FPlayer th = pl(mt.group(1), true); if (th != null && v != null) { th.touchCd = 0; v.animPose = net.minecraft.world.entity.Pose.SWIMMING; v.animTicks = 25; Vec3 vp = v.pos(); holder = th; free.add(th); th.e.snapTo(vp.x + th.fx, vp.y, vp.z, th.e.getYRot(), 0); th.tx = vp.x + m.attackDir[th.team] * 2; th.tz = vp.z; free.remove(v); } return; }
                     default -> {}
                 }
             } catch (RuntimeException ex) { FutebolMod.LOG.warn("PLAY inválido '{}': {}", s, ex.toString()); }
@@ -432,6 +473,7 @@ public final class Historic {
         }
         if (!shot) {
             Vec3 b = m.bp(); shooter.tx = b.x - m.attackDir[shooter.team] * (ogEvent ? -0.8 : 0.9); shooter.tz = b.z; shooter.spd = 0.85; shooter.mode = FPlayer.Mode.SETPIECE;
+            if (e.extra().equals("pen") && t >= stageShot - 16 && t < stageShot - 5) shooter.spd = 0;        // paradinha antes de bater
             if (t >= stageShot) fire(e, gol);
         } else {
             int dt = t - stageShot;
@@ -479,6 +521,7 @@ public final class Historic {
         if (ph == Ph.EV && staging && shooter != null) {
             int ss = shooter.team, sd = m.attackDir[ss];
             boolean pen = idx < g.evs.size() && g.evs.get(idx).extra().equals("pen");
+            Cam lv = liveCam(); if (lv != null) return lv;
             if (!shot) {
                 if (pen) return new Cam(Cameras.Mode.TV, shooter, sd, ss);
                 return new Cam(Cameras.Mode.TV, shooter, sd, ss);

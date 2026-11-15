@@ -17,6 +17,7 @@ CLUBE|arg2022|Argentina 2022|ARG|75AADB|FFFFFF|1B2A6B|433|Copa do Mundo 2022
 RES|5|Leandro Paredes|CM|80|cobrador
 RES|21|Paulo Dybala|ST|85|cobrador
 RES|4|Gonzalo Montiel|FB|78|cobrador
+RES|22|Lautaro Martínez|ST|84|artilheiro
 CLUBE|fra2022|França 2022|FRA|1B2A6B|FFFFFF|FFFFFF|433|Copa do Mundo 2022
 1|Hugo Lloris|GK|86|reflexo
 5|Jules Koundé|RB|83|rapido

@@ -642,172 +642,175 @@ torcida_2|1499|Que festa nas arquibancadas!
 vermelho_1|1753|Cartão vermelho! Expulso
 vermelho_2|967|Está fora do jogo!
 vitoria_1|547|Vitória do
-h_argfra22_0a|7999|Dá o traço, Di María! Invade a área, vai para o chão... é pênalti para a Argentina! Autorizado, parte para a bola, vem Lionel Messi!
-h_argfra22_0b|5050|Bateu no cantinho! Messi abre o placar na final! Argentina um, França zero!
-h_argfra22_10a|3227|Mudança na Argentina: sai Molina, entra Montiel.
+h_argfra22_0a|8068|Dá o traço, Di María! Invade a área, vai para o chão... é pênalti para a Argentina! Autorizado, parte para a bola, vem Lionel Messi!
+h_argfra22_0b|5120|Bateu no cantinho! Messi abre o placar na final! Argentina um, França zero!
+h_argfra22_10a|3204|Mudança na Argentina: sai Martínez, entra Dybala.
 h_argfra22_10b|7337|Bateu e é gol! Mbappé converte o pênalti! Aos cento e dezoito minutos. Argentina três, França três!
-h_argfra22_11a|4899|É pênalti para França! Mbappé pega a bola, o árbitro autoriza, vai bater!
-h_argfra22_1a|4841|Messi toca, Alvarez, Mac Allister, a Argentina trama um contra-ataque de cinema!
-h_argfra22_1b|4643|Que golaço! Di María! Dois a zero para a Argentina no primeiro tempo!
-h_argfra22_2a|3343|Fim do primeiro tempo! Argentina dois, França zero.
-h_argfra22_3a|2972|Mudança na Argentina: sai Paul, entra Paredes.
-h_argfra22_4a|2739|Mudança na França: sai Giroud, entra Muani.
-h_argfra22_5a|2879|Mudança na França: sai Dembélé, entra Coman.
-h_argfra22_6a|3900|Atenção, é pênalti para a França! Mbappé pega a bola!
-h_argfra22_6b|4133|Mbappé! Mais um, a França está viva! Dois a um!
-h_argfra22_7a|3204|Ele não se contenta! A França ataca de novo!
-h_argfra22_7b|4655|Mbappé de novo! Em um minuto, a França empatou! Dois a dois!
-h_argfra22_8a|3587|Prorrogação! Messi não desiste, olha a bola na área!
+h_argfra22_11a|3146|Mudança na Argentina: sai Molina, entra Montiel.
+h_argfra22_1a|4934|Messi toca, Alvarez, Mac Allister, a Argentina trama um contra-ataque de cinema!
+h_argfra22_1b|4667|Que golaço! Di María! Dois a zero para a Argentina no primeiro tempo!
+h_argfra22_2a|3413|Fim do primeiro tempo! Argentina dois, França zero.
+h_argfra22_3a|2960|Mudança na Argentina: sai Paul, entra Paredes.
+h_argfra22_4a|2658|Mudança na França: sai Giroud, entra Muani.
+h_argfra22_5a|2948|Mudança na França: sai Dembélé, entra Coman.
+h_argfra22_6a|3866|Atenção, é pênalti para a França! Mbappé pega a bola!
+h_argfra22_6b|4249|Mbappé! Mais um, a França está viva! Dois a um!
+h_argfra22_7a|3076|Ele não se contenta! A França ataca de novo!
+h_argfra22_7b|4713|Mbappé de novo! Em um minuto, a França empatou! Dois a dois!
+h_argfra22_8a|3459|Mudança na Argentina: sai Álvarez, entra Martínez.
 h_argfra22_8b|4388|Messi! Messi de novo! A Argentina volta a ficar na frente!
-h_argfra22_9a|3169|Mudança na Argentina: sai Álvarez, entra Dybala.
-h_argfra22_cer|6815|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
-h_argfra22_fim|4725|Fim de jogo! Argentina três, França três! Vai para os pênaltis!
-h_argfra22_in|6687|Bola rolando! Argentina 3 (4) x (2) 3 França. Final da Copa do Mundo 2022!
-h_argfra22_k0|3924|Mbappé na bola... bateu, gol! Argentina zero, França um!
-h_argfra22_k1|3738|Messi na bola... bateu, gol! Argentina um, França um!
-h_argfra22_k2|3471|Coman na bola... Emi Martínez defende! Que defesa!
-h_argfra22_k3|3854|Dybala na bola... bateu, gol! Argentina dois, França um!
-h_argfra22_k4|3308|Tchouaméni na bola... chutou para fora! Desperdiçou!
-h_argfra22_k5|3912|Paredes na bola... bateu, gol! Argentina três, França um!
-h_argfra22_k6|4040|Muani na bola... bateu, gol! Argentina três, França dois!
-h_argfra22_k7|4226|Montiel na bola... bateu, gol! Argentina quatro, França dois!
+h_argfra22_9a|3517|Prorrogação! Messi não desiste, olha a bola na área!
+h_argfra22_cer|6826|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
+h_argfra22_fim|4887|Fim de jogo! Argentina três, França três! Vai para os pênaltis!
+h_argfra22_in|6617|Bola rolando! Argentina 3 (4) x (2) 3 França. Final da Copa do Mundo 2022!
+h_argfra22_k0|3877|Mbappé na bola... bateu, gol! Argentina zero, França um!
+h_argfra22_k1|3831|Messi na bola... bateu, gol! Argentina um, França um!
+h_argfra22_k2|3599|Coman na bola... Emi Martínez defende! Que defesa!
+h_argfra22_k3|3773|Dybala na bola... bateu, gol! Argentina dois, França um!
+h_argfra22_k4|3332|Tchouaméni na bola... chutou para fora! Desperdiçou!
+h_argfra22_k5|3924|Paredes na bola... bateu, gol! Argentina três, França um!
+h_argfra22_k6|4202|Muani na bola... bateu, gol! Argentina três, França dois!
+h_argfra22_k7|4435|Montiel na bola... bateu, gol! Argentina quatro, França dois!
 h_argfra22_pkfim|3320|Argentina vence nos pênaltis! quatro a dois!
-h_arging86_0a|3703|Fim do primeiro tempo! Argentina zero, Inglaterra zero.
-h_arging86_1a|3750|Bola alta na área! Maradona salta junto com o goleiro!
-h_arging86_1b|8359|Gol! Será que foi de mão? O árbitro validou! Maradona! Aos cinquenta e um minutos. Argentina um, Inglaterra zero!
-h_arging86_2a|4446|Argentina chega com perigo! A bola sobra para Maradona, ele vai chutar!
-h_arging86_2b|5979|Gooool! Maradona! Aos cinquenta e cinco minutos. Argentina dois, Inglaterra zero!
-h_arging86_3a|4342|Inglaterra chega com perigo! A bola sobra para Lineker, ele vai chutar!
-h_arging86_3b|5677|Gooool! Lineker! Aos oitenta e um minutos. Argentina dois, Inglaterra um!
-h_arging86_fim|3157|Fim de jogo! Argentina dois, Inglaterra um!
-h_arging86_in|6327|Bola rolando! Argentina 2 x 1 Inglaterra. Quartas da Copa do Mundo 1986!
-h_barpsg17_0a|4249|Barcelona chega com perigo! A bola sobra para Suárez, ele vai chutar!
-h_barpsg17_0b|5317|Gooool! Suárez! Aos três minutos. Barcelona um, PSG zero!
-h_barpsg17_1a|3239|Perigo na área de PSG! Kurzawa tenta cortar!
-h_barpsg17_1b|6838|Gol contra! Kurzawa desvia para o próprio gol! Aos quarenta minutos. Barcelona dois, PSG zero!
-h_barpsg17_2a|3366|Fim do primeiro tempo! Barcelona dois, PSG zero.
-h_barpsg17_3a|4911|É pênalti para Barcelona! Messi pega a bola, o árbitro autoriza, vai bater!
-h_barpsg17_3b|6849|Bateu e é gol! Messi converte o pênalti! Aos cinquenta minutos. Barcelona três, PSG zero!
-h_barpsg17_4a|4214|PSG chega com perigo! A bola sobra para Cavani, ele vai chutar!
-h_barpsg17_4b|5700|Gooool! Cavani! Aos sessenta e dois minutos. Barcelona três, PSG um!
-h_barpsg17_5a|3401|Mudança na Barcelona: sai Rakitić, entra Roberto.
-h_barpsg17_6a|4353|Barcelona chega com perigo! A bola sobra para Neymar, ele vai chutar!
-h_barpsg17_6b|5758|Gooool! Neymar! Aos oitenta e oito minutos. Barcelona quatro, PSG um!
-h_barpsg17_7a|4841|É pênalti para Barcelona! Neymar pega a bola, o árbitro autoriza, vai bater!
-h_barpsg17_7b|6965|Bateu e é gol! Neymar converte o pênalti! Aos noventa mais um minutos. Barcelona cinco, PSG um!
-h_barpsg17_8a|4376|Barcelona chega com perigo! A bola sobra para Roberto, ele vai chutar!
-h_barpsg17_8b|6095|Gooool! Roberto! Aos noventa mais cinco minutos. Barcelona seis, PSG um!
-h_barpsg17_fim|3111|Fim de jogo! Barcelona seis, PSG um!
-h_barpsg17_in|6536|Bola rolando! Barcelona 6 x 1 PSG. Oitavas da Champions League 2016/17!
-h_brale14_0a|4075|Alemanha chega com perigo! A bola sobra para Müller, ele vai chutar!
-h_brale14_0b|5154|Gooool! Müller! Aos onze minutos. Brasil zero, Alemanha um!
-h_brale14_1a|4109|Alemanha chega com perigo! A bola sobra para Klose, ele vai chutar!
-h_brale14_1b|5596|Gooool! Klose! Aos vinte e três minutos. Brasil zero, Alemanha dois!
-h_brale14_2a|4202|Alemanha chega com perigo! A bola sobra para Kroos, ele vai chutar!
-h_brale14_2b|5839|Gooool! Kroos! Aos vinte e quatro minutos. Brasil zero, Alemanha três!
-h_brale14_3a|4144|Alemanha chega com perigo! A bola sobra para Kroos, ele vai chutar!
-h_brale14_3b|5700|Gooool! Kroos! Aos vinte e seis minutos. Brasil zero, Alemanha quatro!
-h_brale14_4a|4133|Alemanha chega com perigo! A bola sobra para Khedira, ele vai chutar!
-h_brale14_4b|5770|Gooool! Khedira! Aos vinte e nove minutos. Brasil zero, Alemanha cinco!
-h_brale14_5a|3587|Fim do primeiro tempo! Brasil zero, Alemanha cinco.
+h_arging86_0a|3668|Fim do primeiro tempo! Argentina zero, Inglaterra zero.
+h_arging86_1a|3680|Bola alta na área! Maradona salta junto com o goleiro!
+h_arging86_1b|8254|Gol! Será que foi de mão? O árbitro validou! Maradona! Aos cinquenta e um minutos. Argentina um, Inglaterra zero!
+h_arging86_2a|4365|Argentina chega com perigo! A bola sobra para Maradona, ele vai chutar!
+h_arging86_2b|6083|Gooool! Maradona! Aos cinquenta e cinco minutos. Argentina dois, Inglaterra zero!
+h_arging86_3a|4318|Inglaterra chega com perigo! A bola sobra para Lineker, ele vai chutar!
+h_arging86_3b|5572|Gooool! Lineker! Aos oitenta e um minutos. Argentina dois, Inglaterra um!
+h_arging86_fim|3204|Fim de jogo! Argentina dois, Inglaterra um!
+h_arging86_in|6362|Bola rolando! Argentina 2 x 1 Inglaterra. Quartas da Copa do Mundo 1986!
+h_barpsg17_0a|4342|Barcelona chega com perigo! A bola sobra para Suárez, ele vai chutar!
+h_barpsg17_0b|5282|Gooool! Suárez! Aos três minutos. Barcelona um, PSG zero!
+h_barpsg17_1a|3332|Perigo na área de PSG! Kurzawa tenta cortar!
+h_barpsg17_1b|6745|Gol contra! Kurzawa desvia para o próprio gol! Aos quarenta minutos. Barcelona dois, PSG zero!
+h_barpsg17_2a|3448|Fim do primeiro tempo! Barcelona dois, PSG zero.
+h_barpsg17_3a|4806|É pênalti para Barcelona! Messi pega a bola, o árbitro autoriza, vai bater!
+h_barpsg17_3b|6954|Bateu e é gol! Messi converte o pênalti! Aos cinquenta minutos. Barcelona três, PSG zero!
+h_barpsg17_4a|4342|PSG chega com perigo! A bola sobra para Cavani, ele vai chutar!
+h_barpsg17_4b|5735|Gooool! Cavani! Aos sessenta e dois minutos. Barcelona três, PSG um!
+h_barpsg17_5a|3262|Mudança na Barcelona: sai Rakitić, entra Roberto.
+h_barpsg17_6a|4342|Barcelona chega com perigo! A bola sobra para Neymar, ele vai chutar!
+h_barpsg17_6b|5700|Gooool! Neymar! Aos oitenta e oito minutos. Barcelona quatro, PSG um!
+h_barpsg17_7a|4922|É pênalti para Barcelona! Neymar pega a bola, o árbitro autoriza, vai bater!
+h_barpsg17_7b|7000|Bateu e é gol! Neymar converte o pênalti! Aos noventa mais um minutos. Barcelona cinco, PSG um!
+h_barpsg17_8a|4307|Barcelona chega com perigo! A bola sobra para Roberto, ele vai chutar!
+h_barpsg17_8b|5990|Gooool! Roberto! Aos noventa mais cinco minutos. Barcelona seis, PSG um!
+h_barpsg17_fim|3250|Fim de jogo! Barcelona seis, PSG um!
+h_barpsg17_in|6629|Bola rolando! Barcelona 6 x 1 PSG. Oitavas da Champions League 2016/17!
+h_brale14_0a|4121|Alemanha chega com perigo! A bola sobra para Müller, ele vai chutar!
+h_brale14_0b|4887|Gooool! Müller! Aos onze minutos. Brasil zero, Alemanha um!
+h_brale14_1a|4226|Alemanha chega com perigo! A bola sobra para Klose, ele vai chutar!
+h_brale14_1b|5619|Gooool! Klose! Aos vinte e três minutos. Brasil zero, Alemanha dois!
+h_brale14_2a|4284|Alemanha chega com perigo! A bola sobra para Kroos, ele vai chutar!
+h_brale14_2b|5781|Gooool! Kroos! Aos vinte e quatro minutos. Brasil zero, Alemanha três!
+h_brale14_3a|4167|Alemanha chega com perigo! A bola sobra para Kroos, ele vai chutar!
+h_brale14_3b|5654|Gooool! Kroos! Aos vinte e seis minutos. Brasil zero, Alemanha quatro!
+h_brale14_4a|4249|Alemanha chega com perigo! A bola sobra para Khedira, ele vai chutar!
+h_brale14_4b|5677|Gooool! Khedira! Aos vinte e nove minutos. Brasil zero, Alemanha cinco!
+h_brale14_5a|3413|Fim do primeiro tempo! Brasil zero, Alemanha cinco.
 h_brale14_6a|2948|Mudança na Alemanha: sai Klose, entra Schürrle.
-h_brale14_7a|4075|Alemanha chega com perigo! A bola sobra para Schürrle, ele vai chutar!
-h_brale14_7b|5851|Gooool! Schürrle! Aos sessenta e nove minutos. Brasil zero, Alemanha seis!
-h_brale14_8a|4133|Alemanha chega com perigo! A bola sobra para Schürrle, ele vai chutar!
-h_brale14_8b|5723|Gooool! Schürrle! Aos setenta e nove minutos. Brasil zero, Alemanha sete!
+h_brale14_7a|4167|Alemanha chega com perigo! A bola sobra para Schürrle, ele vai chutar!
+h_brale14_7b|5863|Gooool! Schürrle! Aos sessenta e nove minutos. Brasil zero, Alemanha seis!
+h_brale14_8a|4214|Alemanha chega com perigo! A bola sobra para Schürrle, ele vai chutar!
+h_brale14_8b|5700|Gooool! Schürrle! Aos setenta e nove minutos. Brasil zero, Alemanha sete!
 h_brale14_9a|4121|Brasil chega com perigo! A bola sobra para Oscar, ele vai chutar!
-h_brale14_9b|5363|Gooool! Oscar! Aos noventa minutos. Brasil um, Alemanha sete!
-h_brale14_fim|3204|Fim de jogo! Brasil um, Alemanha sete!
-h_brale14_in|5607|Bola rolando! Brasil 1 x 7 Alemanha. Semifinal da Copa do Mundo 2014!
-h_espned10_0a|1787|Cartão amarelo para Jong!
-h_espned10_1a|3320|Fim do primeiro tempo! Espanha zero, Holanda zero.
-h_espned10_2a|3587|Chance clara! Robben chuta... grande defesa de Casillas!
-h_espned10_3a|3599|Chance clara! Robben chuta... grande defesa de Casillas!
-h_espned10_4a|4214|Espanha chega com perigo! A bola sobra para Iniesta, ele vai chutar!
-h_espned10_4b|5979|Gooool! Iniesta! Aos cento e dezesseis minutos. Espanha um, Holanda zero!
-h_espned10_cer|6919|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
+h_brale14_9b|5317|Gooool! Oscar! Aos noventa minutos. Brasil um, Alemanha sete!
+h_brale14_fim|3192|Fim de jogo! Brasil um, Alemanha sete!
+h_brale14_in|5630|Bola rolando! Brasil 1 x 7 Alemanha. Semifinal da Copa do Mundo 2014!
+h_espned10_0a|1799|Cartão amarelo para Jong!
+h_espned10_1a|3308|Fim do primeiro tempo! Espanha zero, Holanda zero.
+h_espned10_2a|3668|Chance clara! Robben chuta... grande defesa de Casillas!
+h_espned10_3a|3541|Chance clara! Robben chuta... grande defesa de Casillas!
+h_espned10_4a|4307|Espanha chega com perigo! A bola sobra para Iniesta, ele vai chutar!
+h_espned10_4b|5921|Gooool! Iniesta! Aos cento e dezesseis minutos. Espanha um, Holanda zero!
+h_espned10_cer|6757|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
 h_espned10_fim|2995|Fim de jogo! Espanha um, Holanda zero!
 h_espned10_in|5282|Bola rolando! Espanha 1 x 0 Holanda. Final da Copa do Mundo 2010!
-h_itaale06_0a|3413|Fim do primeiro tempo! Itália zero, Alemanha zero.
-h_itaale06_1a|3018|Mudança na Itália: sai Perrotta, entra Piero.
-h_itaale06_2a|1927|Cartão amarelo para Frings!
-h_itaale06_3a|4051|Itália chega com perigo! A bola sobra para Grosso, ele vai chutar!
-h_itaale06_3b|5491|Gooool! Grosso! Aos cento e dezenove minutos. Itália um, Alemanha zero!
-h_itaale06_4a|4075|Itália chega com perigo! A bola sobra para Piero, ele vai chutar!
-h_itaale06_4b|5955|Gooool! Piero! Aos cento e vinte mais um minutos. Itália dois, Alemanha zero!
-h_itaale06_fim|3250|Fim de jogo! Itália dois, Alemanha zero!
-h_itaale06_in|5619|Bola rolando! Itália 2 x 0 Alemanha. Semifinal da Copa do Mundo 2006!
-h_livbar19_0a|4202|Liverpool chega com perigo! A bola sobra para Origi, ele vai chutar!
-h_livbar19_0b|5305|Gooool! Origi! Aos sete minutos. Liverpool um, Barcelona zero!
-h_livbar19_1a|3366|Fim do primeiro tempo! Liverpool um, Barcelona zero.
-h_livbar19_2a|3146|Mudança na Liverpool: sai Henderson, entra Wijnaldum.
-h_livbar19_3a|4318|Liverpool chega com perigo! A bola sobra para Wijnaldum, ele vai chutar!
-h_livbar19_3b|5921|Gooool! Wijnaldum! Aos cinquenta e quatro minutos. Liverpool dois, Barcelona zero!
-h_livbar19_4a|4307|Liverpool chega com perigo! A bola sobra para Wijnaldum, ele vai chutar!
-h_livbar19_4b|6002|Gooool! Wijnaldum! Aos cinquenta e seis minutos. Liverpool três, Barcelona zero!
-h_livbar19_5a|4342|Liverpool chega com perigo! A bola sobra para Origi, ele vai chutar!
-h_livbar19_5b|5921|Gooool! Origi! Aos setenta e nove minutos. Liverpool quatro, Barcelona zero!
-h_livbar19_fim|3506|Fim de jogo! Liverpool quatro, Barcelona zero!
-h_livbar19_in|6652|Bola rolando! Liverpool 4 x 0 Barcelona. Semifinal da Champions League 2018/19!
-h_livmil05_0a|4167|Milan chega com perigo! A bola sobra para Maldini, ele vai chutar!
-h_livmil05_0b|4934|Gooool! Maldini! Aos um minutos. Liverpool zero, Milan um!
-h_livmil05_10a|3494|Chance clara! Shevchenko chuta... grande defesa de Dudek!
-h_livmil05_11a|3053|Mudança na Milan: sai Seedorf, entra Tomasson.
-h_livmil05_12a|2821|Mudança na Milan: sai Cafu, entra Serginho.
-h_livmil05_1a|2937|Mudança na Liverpool: sai Kewell, entra Šmicer.
-h_livmil05_2a|4156|Milan chega com perigo! A bola sobra para Crespo, ele vai chutar!
-h_livmil05_2b|5619|Gooool! Crespo! Aos trinta e nove minutos. Liverpool zero, Milan dois!
-h_livmil05_3a|4086|Milan chega com perigo! A bola sobra para Crespo, ele vai chutar!
-h_livmil05_3b|5909|Gooool! Crespo! Aos quarenta e quatro minutos. Liverpool zero, Milan três!
-h_livmil05_4a|3471|Fim do primeiro tempo! Liverpool zero, Milan três.
-h_livmil05_5a|2902|Mudança na Liverpool: sai Finnan, entra Hamann.
-h_livmil05_6a|4167|Liverpool chega com perigo! A bola sobra para Gerrard, ele vai chutar!
-h_livmil05_6b|5746|Gooool! Gerrard! Aos cinquenta e quatro minutos. Liverpool um, Milan três!
-h_livmil05_7a|4272|Liverpool chega com perigo! A bola sobra para Šmicer, ele vai chutar!
-h_livmil05_7b|5874|Gooool! Šmicer! Aos cinquenta e seis minutos. Liverpool dois, Milan três!
-h_livmil05_8a|4760|É pênalti para Liverpool! Alonso pega a bola, o árbitro autoriza, vai bater!
-h_livmil05_8b|6907|Bateu e é gol! Alonso converte o pênalti! Aos sessenta minutos. Liverpool três, Milan três!
+h_itaale06_0a|3366|Fim do primeiro tempo! Itália zero, Alemanha zero.
+h_itaale06_1a|3006|Mudança na Itália: sai Perrotta, entra Piero.
+h_itaale06_2a|1996|Cartão amarelo para Frings!
+h_itaale06_3a|4202|Itália chega com perigo! A bola sobra para Grosso, ele vai chutar!
+h_itaale06_3b|5561|Gooool! Grosso! Aos cento e dezenove minutos. Itália um, Alemanha zero!
+h_itaale06_4a|4098|Itália chega com perigo! A bola sobra para Piero, ele vai chutar!
+h_itaale06_4b|5990|Gooool! Piero! Aos cento e vinte mais um minutos. Itália dois, Alemanha zero!
+h_itaale06_fim|3099|Fim de jogo! Itália dois, Alemanha zero!
+h_itaale06_in|5677|Bola rolando! Itália 2 x 0 Alemanha. Semifinal da Copa do Mundo 2006!
+h_livbar19_0a|4109|Liverpool chega com perigo! A bola sobra para Origi, ele vai chutar!
+h_livbar19_0b|5178|Gooool! Origi! Aos sete minutos. Liverpool um, Barcelona zero!
+h_livbar19_1a|3390|Fim do primeiro tempo! Liverpool um, Barcelona zero.
+h_livbar19_2a|3192|Mudança na Liverpool: sai Henderson, entra Wijnaldum.
+h_livbar19_3a|4388|Liverpool chega com perigo! A bola sobra para Wijnaldum, ele vai chutar!
+h_livbar19_3b|6072|Gooool! Wijnaldum! Aos cinquenta e quatro minutos. Liverpool dois, Barcelona zero!
+h_livbar19_4a|4365|Liverpool chega com perigo! A bola sobra para Wijnaldum, ele vai chutar!
+h_livbar19_4b|6199|Gooool! Wijnaldum! Aos cinquenta e seis minutos. Liverpool três, Barcelona zero!
+h_livbar19_5a|4144|Liverpool chega com perigo! A bola sobra para Origi, ele vai chutar!
+h_livbar19_5b|5967|Gooool! Origi! Aos setenta e nove minutos. Liverpool quatro, Barcelona zero!
+h_livbar19_fim|3610|Fim de jogo! Liverpool quatro, Barcelona zero!
+h_livbar19_in|6768|Bola rolando! Liverpool 4 x 0 Barcelona. Semifinal da Champions League 2018/19!
+h_livmil05_0a|4179|Milan chega com perigo! A bola sobra para Maldini, ele vai chutar!
+h_livmil05_0b|5015|Gooool! Maldini! Aos um minutos. Liverpool zero, Milan um!
+h_livmil05_10a|3448|Chance clara! Shevchenko chuta... grande defesa de Dudek!
+h_livmil05_11a|3030|Mudança na Milan: sai Seedorf, entra Tomasson.
+h_livmil05_12a|2832|Mudança na Milan: sai Cafu, entra Serginho.
+h_livmil05_1a|3006|Mudança na Liverpool: sai Kewell, entra Šmicer.
+h_livmil05_2a|4121|Milan chega com perigo! A bola sobra para Crespo, ele vai chutar!
+h_livmil05_2b|5712|Gooool! Crespo! Aos trinta e nove minutos. Liverpool zero, Milan dois!
+h_livmil05_3a|4028|Milan chega com perigo! A bola sobra para Crespo, ele vai chutar!
+h_livmil05_3b|5735|Gooool! Crespo! Aos quarenta e quatro minutos. Liverpool zero, Milan três!
+h_livmil05_4a|3541|Fim do primeiro tempo! Liverpool zero, Milan três.
+h_livmil05_5a|2774|Mudança na Liverpool: sai Finnan, entra Hamann.
+h_livmil05_6a|4318|Liverpool chega com perigo! A bola sobra para Gerrard, ele vai chutar!
+h_livmil05_6b|5758|Gooool! Gerrard! Aos cinquenta e quatro minutos. Liverpool um, Milan três!
+h_livmil05_7a|4249|Liverpool chega com perigo! A bola sobra para Šmicer, ele vai chutar!
+h_livmil05_7b|5804|Gooool! Šmicer! Aos cinquenta e seis minutos. Liverpool dois, Milan três!
+h_livmil05_8a|4783|É pênalti para Liverpool! Alonso pega a bola, o árbitro autoriza, vai bater!
+h_livmil05_8b|6896|Bateu e é gol! Alonso converte o pênalti! Aos sessenta minutos. Liverpool três, Milan três!
 h_livmil05_9a|2879|Mudança na Liverpool: sai Baroš, entra Cissé.
-h_livmil05_cer|6745|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
-h_livmil05_fim|4841|Fim de jogo! Liverpool três, Milan três! Vai para os pênaltis!
-h_livmil05_in|6687|Bola rolando! Liverpool 3 (3) x (2) 3 Milan. Final da Champions League 2004/05!
-h_livmil05_k0|3343|Serginho na bola... chutou para fora! Desperdiçou!
-h_livmil05_k1|3657|Hamann na bola... bateu, gol! Liverpool um, Milan zero!
-h_livmil05_k2|3146|Pirlo na bola... Dudek defende! Que defesa!
-h_livmil05_k3|3970|Cissé na bola... bateu, gol! Liverpool dois, Milan zero!
-h_livmil05_k4|3796|Tomasson na bola... bateu, gol! Liverpool dois, Milan um!
-h_livmil05_k5|2890|Riise na bola... Dida defende! Que defesa!
-h_livmil05_k6|3982|Kaká na bola... bateu, gol! Liverpool dois, Milan dois!
-h_livmil05_k7|4005|Šmicer na bola... bateu, gol! Liverpool três, Milan dois!
-h_livmil05_k8|3274|Shevchenko na bola... Dudek defende! Que defesa!
-h_livmil05_pkfim|3111|Liverpool vence nos pênaltis! três a dois!
-h_munbay99_0a|4109|Bayern chega com perigo! A bola sobra para Basler, ele vai chutar!
-h_munbay99_0b|5642|Gooool! Basler! Aos seis minutos. Manchester United zero, Bayern um!
-h_munbay99_1a|3900|Fim do primeiro tempo! Manchester United zero, Bayern um.
-h_munbay99_2a|3587|Mudança na Manchester United: sai Blomqvist, entra Sheringham.
-h_munbay99_3a|3332|Mudança na Manchester United: sai Cole, entra Solskjær.
-h_munbay99_4a|4620|Manchester United chega com perigo! A bola sobra para Sheringham, ele vai chutar!
-h_munbay99_4b|5955|Gooool! Sheringham! Aos noventa mais um minutos. Manchester United um, Bayern um!
-h_munbay99_5a|4992|Manchester United chega com perigo! A bola sobra para Solskjær, ele vai chutar!
-h_munbay99_5b|6385|Gooool! Solskjær! Aos noventa mais três minutos. Manchester United dois, Bayern um!
-h_munbay99_cer|6826|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
-h_munbay99_fim|3541|Fim de jogo! Manchester United dois, Bayern um!
-h_munbay99_in|7383|Bola rolando! Manchester United 2 x 1 Bayern. Final da Champions League 1998/99!
+h_livmil05_cer|6803|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
+h_livmil05_fim|4806|Fim de jogo! Liverpool três, Milan três! Vai para os pênaltis!
+h_livmil05_in|6478|Bola rolando! Liverpool 3 (3) x (2) 3 Milan. Final da Champions League 2004/05!
+h_livmil05_k0|3181|Serginho na bola... chutou para fora! Desperdiçou!
+h_livmil05_k1|3668|Hamann na bola... bateu, gol! Liverpool um, Milan zero!
+h_livmil05_k2|3076|Pirlo na bola... Dudek defende! Que defesa!
+h_livmil05_k3|3889|Cissé na bola... bateu, gol! Liverpool dois, Milan zero!
+h_livmil05_k4|3831|Tomasson na bola... bateu, gol! Liverpool dois, Milan um!
+h_livmil05_k5|2972|Riise na bola... Dida defende! Que defesa!
+h_livmil05_k6|3959|Kaká na bola... bateu, gol! Liverpool dois, Milan dois!
+h_livmil05_k7|4133|Šmicer na bola... bateu, gol! Liverpool três, Milan dois!
+h_livmil05_k8|3169|Shevchenko na bola... Dudek defende! Que defesa!
+h_livmil05_pkfim|3053|Liverpool vence nos pênaltis! três a dois!
+h_munbay99_0a|3993|Bayern chega com perigo! A bola sobra para Basler, ele vai chutar!
+h_munbay99_0b|5607|Gooool! Basler! Aos seis minutos. Manchester United zero, Bayern um!
+h_munbay99_1a|3761|Fim do primeiro tempo! Manchester United zero, Bayern um.
+h_munbay99_2a|3668|Mudança na Manchester United: sai Blomqvist, entra Sheringham.
+h_munbay99_3a|3506|Mudança na Manchester United: sai Cole, entra Solskjær.
+h_munbay99_4a|4887|Manchester United chega com perigo! A bola sobra para Sheringham, ele vai chutar!
+h_munbay99_4b|6130|Gooool! Sheringham! Aos noventa mais um minutos. Manchester United um, Bayern um!
+h_munbay99_5a|4934|Manchester United chega com perigo! A bola sobra para Solskjær, ele vai chutar!
+h_munbay99_5b|6594|Gooool! Solskjær! Aos noventa mais três minutos. Manchester United dois, Bayern um!
+h_munbay99_cer|6931|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
+h_munbay99_fim|3575|Fim de jogo! Manchester United dois, Bayern um!
+h_munbay99_in|7558|Bola rolando! Manchester United 2 x 1 Bayern. Final da Champions League 1998/99!
 h_rmaatm14_0a|4818|Atlético de Madrid chega com perigo! A bola sobra para Godín, ele vai chutar!
-h_rmaatm14_0b|6118|Gooool! Godín! Aos trinta e seis minutos. Real Madrid zero, Atlético de Madrid um!
-h_rmaatm14_1a|4179|Fim do primeiro tempo! Real Madrid zero, Atlético de Madrid um.
-h_rmaatm14_2a|3285|Mudança na Real Madrid: sai Coentrão, entra Marcelo.
-h_rmaatm14_3a|3099|Mudança na Real Madrid: sai María, entra Isco.
-h_rmaatm14_4a|4260|Real Madrid chega com perigo! A bola sobra para Ramos, ele vai chutar!
-h_rmaatm14_4b|6420|Gooool! Ramos! Aos noventa mais três minutos. Real Madrid um, Atlético de Madrid um!
-h_rmaatm14_5a|4191|Real Madrid chega com perigo! A bola sobra para Bale, ele vai chutar!
-h_rmaatm14_5b|6083|Gooool! Bale! Aos cento e dez minutos. Real Madrid dois, Atlético de Madrid um!
-h_rmaatm14_6a|4423|Real Madrid chega com perigo! A bola sobra para Marcelo, ele vai chutar!
-h_rmaatm14_6b|6431|Gooool! Marcelo! Aos cento e dezoito minutos. Real Madrid três, Atlético de Madrid um!
-h_rmaatm14_7a|4992|É pênalti para Real Madrid! Ronaldo pega a bola, o árbitro autoriza, vai bater!
-h_rmaatm14_7b|7755|Bateu e é gol! Ronaldo converte o pênalti! Aos cento e vinte minutos. Real Madrid quatro, Atlético de Madrid um!
-h_rmaatm14_cer|6745|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
-h_rmaatm14_fim|3831|Fim de jogo! Real Madrid quatro, Atlético de Madrid um!
-h_rmaatm14_in|6675|Bola rolando! Real Madrid 4 x 1 Atlético de Madrid. Final da Champions League 2013/14!
+h_rmaatm14_0b|6211|Gooool! Godín! Aos trinta e seis minutos. Real Madrid zero, Atlético de Madrid um!
+h_rmaatm14_1a|4144|Fim do primeiro tempo! Real Madrid zero, Atlético de Madrid um.
+h_rmaatm14_2a|3378|Mudança na Real Madrid: sai Coentrão, entra Marcelo.
+h_rmaatm14_3a|3111|Mudança na Real Madrid: sai María, entra Isco.
+h_rmaatm14_4a|4167|Real Madrid chega com perigo! A bola sobra para Ramos, ele vai chutar!
+h_rmaatm14_4b|6455|Gooool! Ramos! Aos noventa mais três minutos. Real Madrid um, Atlético de Madrid um!
+h_rmaatm14_5a|4237|Real Madrid chega com perigo! A bola sobra para Bale, ele vai chutar!
+h_rmaatm14_5b|6130|Gooool! Bale! Aos cento e dez minutos. Real Madrid dois, Atlético de Madrid um!
+h_rmaatm14_6a|4388|Real Madrid chega com perigo! A bola sobra para Marcelo, ele vai chutar!
+h_rmaatm14_6b|6304|Gooool! Marcelo! Aos cento e dezoito minutos. Real Madrid três, Atlético de Madrid um!
+h_rmaatm14_7a|5015|É pênalti para Real Madrid! Ronaldo pega a bola, o árbitro autoriza, vai bater!
+h_rmaatm14_7b|7778|Bateu e é gol! Ronaldo converte o pênalti! Aos cento e vinte minutos. Real Madrid quatro, Atlético de Madrid um!
+h_rmaatm14_cer|6815|É campeã! Começa a cerimônia de premiação. Os campeões recebem as medalhas, e o capitão levanta a taça!
+h_rmaatm14_fim|3877|Fim de jogo! Real Madrid quatro, Atlético de Madrid um!
+h_rmaatm14_in|6780|Bola rolando! Real Madrid 4 x 1 Atlético de Madrid. Final da Champions League 2013/14!
 h_argfra22_11b|7093|Bateu e é gol! Mbappé converte o pênalti! Aos cento e dezoito minutos. Argentina três, França três!
-h_argfra22_12a|4017|Chance clara! Muani chuta... grande defesa de Emi Martínez!
+h_argfra22_12a|4829|É pênalti para França! Mbappé pega a bola, o árbitro autoriza, vai bater!
+h_argfra22_12b|7302|Bateu e é gol! Mbappé converte o pênalti! Aos cento e dezoito minutos. Argentina três, França três!
+h_argfra22_13a|4051|Chance clara! Muani chuta... grande defesa de Emi Martínez!
+h_argfra22_9b|4342|Messi! Messi de novo! A Argentina volta a ficar na frente!
