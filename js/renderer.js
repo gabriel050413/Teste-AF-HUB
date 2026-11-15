@@ -8,7 +8,7 @@ import { getGL } from './gl.js';
 import { getImage, videoFrames } from './media.js';
 import { computeFlow, interpWithFlow, interpBidirectional, flowMotionBlur } from './flow.js';
 import { layerTime, vectorBlur, sourceRate, groupContentTime, groupHasTimeFx, speedEffect, remapEffect } from './timing.js';
-import { localMatrix, cameraFor, apply as apply3, mul as mul4, invert as inv4, dofBlur } from './three-d.js';
+import { localMatrix, cameraFor, apply as apply3, mul as mul4, invert as inv4, dofBlur, solidTileFactor } from './three-d.js';
 
 const contentCanvases = new Map();
 let accumCanvas = null;
@@ -385,11 +385,13 @@ function applyParents(c, layer, t, scale) {
   const chain = [];
   let p = layer.parent ? layerIndex.get(layer.parent) : null;
   while (p && chain.length < 12) { chain.unshift(p); p = p.parent ? layerIndex.get(p.parent) : null; }
-  for (const P of chain) {
+  chain.forEach((P, i) => {
     const m = layerTransform(P, t), { w, h } = contentSize(P);
+    const child = chain[i + 1] || layer, o = child.parentOrigin === 'anchor' && P.type === 'text'; // filho de texto do AE: origem no texto
     c.translate(m.x * scale, m.y * scale); c.rotate((m.rot * Math.PI) / 180); c.scale(m.sx, m.sy);
-    c.translate(-(w / 2 + m.anchor[0]) * scale, -(h / 2 + m.anchor[1]) * scale);
-  }
+    const d = o ? aeTextAnchor(P, [0, 0]) : [0, 0]; // origem do texto do AE (linha de base) dentro do conteúdo
+    c.translate(-((o ? -d[0] : w / 2) + m.anchor[0]) * scale, -((o ? -d[1] : h / 2) + m.anchor[1]) * scale);
+  });
 }
 
 /** Renderiza conteúdo + efeitos. O resultado deve ser desenhado imediatamente (canvas WebGL é reutilizado). */
@@ -844,8 +846,10 @@ let cam3d = null; // câmera da composição que está sendo desenhada (null = n
 function worldMatrix(layer, t) {
   let M = localMatrix(layer, layerTransform(layer, t), contentSize(layer), layerTime(layer, t));
   let p = layer.parent ? layerIndex.get(layer.parent) : null;
-  for (let i = 0; p && i < 12; i++) {
+  for (let i = 0, child = layer; p && i < 12; i++) {
+    if (child.parentOrigin === 'anchor' && p.type === 'text') { const cs = contentSize(p), d = aeTextAnchor(p, [0, 0]); M = mul4([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, cs.w / 2 + d[0], cs.h / 2 + d[1], 0, 1], M); }
     M = mul4(localMatrix(p, layerTransform(p, t), contentSize(p), layerTime(p, t)), M);
+    child = p;
     p = p.parent ? layerIndex.get(p.parent) : null;
   }
   return M;
@@ -863,9 +867,15 @@ function setupCamera(layers, t, W, H) {
 /** Distância da camada à câmera (para desenhar de trás para frente). */
 function depthOf(l, t) {
   const { w, h } = contentSize(l), m = layerTransform(l, t);
-  const c = apply3(cam3d.view, apply3(worldMatrix(l, t), [w / 2 + m.anchor[0], h / 2 + m.anchor[1], 0]));
-  return c[2];
+  const W = worldMatrix(l, t), c = apply3(cam3d.view, apply3(W, [w / 2 + m.anchor[0], h / 2 + m.anchor[1], 0]));
+  // plano da camada no espaço da câmera (normal + distância): camadas no mesmo plano empatam e vale a ordem (como no AE)
+  const V = cam3d.view, o = apply3(V, apply3(W, [0, 0, 0])), ex = apply3(V, apply3(W, [1, 0, 0])), ey = apply3(V, apply3(W, [0, 1, 0]));
+  const a = [ex[0] - o[0], ex[1] - o[1], ex[2] - o[2]], b = [ey[0] - o[0], ey[1] - o[1], ey[2] - o[2]];
+  let n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const nl = Math.hypot(...n) || 1; n = n.map((x) => x / nl);
+  return { z: c[2], n, pd: Math.abs(n[0] * o[0] + n[1] * o[1] + n[2] * o[2]) };
 }
+const coplanar = (A, B) => Math.abs(A.pd - B.pd) < 1.5 && Math.abs(Math.abs(A.n[0] * B.n[0] + A.n[1] * B.n[1] + A.n[2] * B.n[2]) - 1) < 1e-3;
 
 let src3d = null;
 /** Desenha uma camada 3D em perspectiva pela câmera ativa (WebGL; sem WebGL, desenha em 2D). */
@@ -876,7 +886,12 @@ function render3D(ctx, layer, t, scale, extra) {
   const gl = getGL();
   if (!gl) { drawLayerImage(ctx, img, m, scale); return; }
   const k = img.k || 1, s = scale * k;
-  const x0 = -img.pad / s, y0 = -img.pad / s, x1 = (img.sw - img.pad) / s, y1 = (img.sh - img.pad) / s;
+  let x0 = -img.pad / s, y0 = -img.pad / s, x1 = (img.sw - img.pad) / s, y1 = (img.sh - img.pad) / s;
+  const tileF = solidTileFactor(layer, layerTime(layer, t));
+  if (tileF) { // fundo de cor uniforme com Motion Tile: estica o plano (como a saída de 500% do AE)
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, hw = ((x1 - x0) / 2) * tileF[0], hh = ((y1 - y0) / 2) * tileF[1];
+    x0 = cx - hw; x1 = cx + hw; y0 = cy - hh; y1 = cy + hh;
+  }
   const Mw = worldMatrix(layer, t);
   const cs = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map((p) => apply3(cam3d.view, apply3(Mw, p)));
   const near = 1;
@@ -919,7 +934,7 @@ function drawLayerList(ctx, layers, t, scale, fps, onAdjust, compW = project?.wi
       if (!layers[order[a]].threeD) { a++; continue; }
       let b = a;
       while (b < order.length && layers[order[b]].threeD) b++;
-      const run = order.slice(a, b).map((i) => [i, isActive(layers[i], t) ? depthOf(layers[i], t) : 0]).sort((x, y) => y[1] - x[1]).map((x) => x[0]);
+      const run = order.slice(a, b).map((i) => [i, isActive(layers[i], t) ? depthOf(layers[i], t) : null]).sort((x, y) => (!x[1] || !y[1] || coplanar(x[1], y[1]) ? 0 : y[1].z - x[1].z)).map((x) => x[0]); // mesmo plano: vale a ordem das camadas, como no AE
       order.splice(a, b - a, ...run);
       a = b;
     }
@@ -1034,6 +1049,7 @@ export function reparent(layer, newParent, proj, t) {
   const oldP = layer.parent ? layerIndex.get(layer.parent) : null;
   const conv = (tt, p) => {
     let w = [p[0], p[1], 0];
+    if (oldP && layer.parentOrigin === 'anchor' && oldP.type === 'text') { const cs = contentSize(oldP), d = aeTextAnchor(oldP, [0, 0]); w = [w[0] + cs.w / 2 + d[0], w[1] + cs.h / 2 + d[1], 0]; }
     if (oldP) w = apply3(worldMatrix(oldP, tt), w);
     if (newParent) w = apply3(inv4(worldMatrix(newParent, tt)), w);
     return [Math.round(w[0] * 100) / 100, Math.round(w[1] * 100) / 100];
@@ -1047,6 +1063,7 @@ export function reparent(layer, newParent, proj, t) {
   if (Math.abs(dr) > 1e-6) { if (tr.rotation.keys?.length) for (const k of tr.rotation.keys) k.v += dr; tr.rotation.value += dr; }
   if (Math.abs(ks - 1) > 1e-6) { const f = (v) => v.map((x) => Math.round(x * ks * 100) / 100); if (tr.scale.keys?.length) for (const k of tr.scale.keys) k.v = f(k.v); tr.scale.value = f(tr.scale.value); }
   layer.parent = newParent ? newParent.id : null;
+  delete layer.parentOrigin;
 }
 /** Diagnóstico: memória dos canvases da renderização (MB). */
 export function __canvasStats() {

@@ -314,7 +314,7 @@ function convTextAnimators(list, t0) {
         selectors.push({ type: 'wiggly', mode: fixed('ADBE Text Selector Mode', 3), max: num('ADBE Text Wiggly Max Amount', 100) || num('ADBE Text Selector Max Amount', 100), min: num('ADBE Text Wiggly Min Amount', -100),
           freq: num('ADBE Text Temporal Freq', 2), correlation: num('ADBE Text Character Correlation', 50), tphase: num('ADBE Text Temporal Phase', 0), sphase: num('ADBE Text Spatial Phase', 0), based: fixed('ADBE Text Range Type2', 1) });
       } else if (sNode.mn === 'ADBE Text Expressible Selector') {
-        selectors.push({ type: 'expr', based: fixed('ADBE Text Range Type2', 1) });
+        selectors.push({ type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) }); // padrão do AE: Interseção
       } else {
         selectors.push({ type: 'range', start: num('ADBE Text Percent Start', 0), end: num('ADBE Text Percent End', 100), offset: num('ADBE Text Percent Offset', 0),
           amount: num('ADBE Text Selector Max Amount', 100), shape: fixed('ADBE Text Range Shape', 1), smooth: num('ADBE Text Selector Smoothness', 100),
@@ -475,7 +475,7 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
   const byAe = new Map(out.map((x) => [x._aeId, x]));
   for (const x of out) {
     const p = x._aeParent && byAe.get(x._aeParent);
-    if (p && p !== x) x.parent = p.id;
+    if (p && p !== x) { x.parent = p.id; if (p.type === 'text') x.parentOrigin = 'anchor'; } // no AE, o espaço da camada de texto começa na origem do texto (centro do conteúdo aqui)
     delete x._aeId; delete x._aeParent;
   }
   return out;
