@@ -1951,6 +1951,7 @@ async function transferFlow() {
       const parts = await exportAll((t) => toast(t, 'info', 1200));
       for (const pt of parts) await saveFile(pt.name, pt.blob);
       toast(parts.length > 1 ? `Transferência pronta em ${parts.length} partes ✓ — importe todas no outro programa.` : 'Transferência pronta ✓ — importe esse arquivo no outro programa.', 'ok', 7000);
+      if (parts.skipped?.length) modal('Algumas mídias ficaram de fora', `<p>Estes arquivos estavam salvos no programa mas não puderam ser lidos (o arquivo interno se perdeu — acontece quando o Windows/antivírus limpa a pasta do app ou o disco encheu):</p><ul class="small">${parts.skipped.slice(0, 30).map((n) => `<li>${escapeHtml(String(n))}</li>`).join('')}${parts.skipped.length > 30 ? '<li>…</li>' : ''}</ul><p class="muted small">Todo o resto foi transferido. No outro programa esses clipes aparecem como mídia offline: use Substituir mídia com o arquivo original.</p>`, [{ label: 'Ok', value: null }]);
     } catch (e) { toast(`Não deu para exportar: ${e.message}`, 'error', 7000); }
     return;
   }

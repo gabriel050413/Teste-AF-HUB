@@ -195,7 +195,7 @@ void main() {
   }
   // Mojo II: sombras/meios-tons para teal, pele para laranja
   float l = luma(r);
-  float skin = smoothstep(22.0, 6.0, abs(mod(hv.x * 360.0 - 28.0 + 180.0, 360.0) - 180.0)) * smoothstep(0.1, 0.35, hv.y);
+  float skin = smoothstep(20.0, 6.0, abs(mod(hv.x * 360.0 - 26.0 + 180.0, 360.0) - 180.0)) * smoothstep(0.1, 0.35, hv.y) * (1.0 - smoothstep(0.75, 0.95, hv.y));
   // Mojo II (manual do Looks): esquenta os realces e esfria as sombras, destacando a pele — sem mudar o contraste geral
   float hiW = smoothstep(0.2, 0.85, l);
   // teal & orange de verdade: as matizes "frias" (verde, ciano, azul, roxo) são puxadas para verde-água (~185°)
@@ -203,14 +203,19 @@ void main() {
   if (u_mojo > 0.001) {
     vec3 mh = rgb2hsv(clamp(r, 0.0, 1.0));
     float hd = mh.x * 360.0;
-    float warmSide = 1.0 - smoothstep(70.0, 95.0, hd) + smoothstep(310.0, 335.0, hd);
+    // lado quente × frio com transição contínua: antes havia um corte seco em ~82° (o verde da grama) — metade do campo
+    // ia para o laranja e metade para o verde-água, e com Topaz o gramado ficava com duas cores e uma linha no meio
+    float warmSide = 1.0 - smoothstep(55.0, 110.0, hd) + smoothstep(300.0, 345.0, hd);
+    float bd = min(abs(hd - 82.0), abs(hd - 322.0));
+    float far = smoothstep(0.0, 45.0, bd);                     // perto da fronteira o puxão some aos poucos
     // Mojo Tint (manual): positivo = frios mais azuis (azul royal/verde-água), negativo = mais quentes
-    float target = warmSide > 0.5 ? 28.0 : 185.0 + 30.0 * u_mtint;
-    float dh = mod(target - hd + 540.0, 360.0) - 180.0;
-    float k = u_mojo * (warmSide > 0.5 ? 0.45 * u_skin : 0.6 * u_cool) * smoothstep(0.04, 0.2, mh.y);
-    mh.x = fract((hd + dh * clamp(k, 0.0, 0.9)) / 360.0);
+    float dhW = mod(28.0 - hd + 540.0, 360.0) - 180.0;
+    float dhC = mod(185.0 + 30.0 * u_mtint - hd + 540.0, 360.0) - 180.0;
+    float sat0 = smoothstep(0.04, 0.2, mh.y);
+    float kW = clamp(u_mojo * 0.45 * u_skin * sat0, 0.0, 0.9), kC = clamp(u_mojo * 0.6 * u_cool * sat0, 0.0, 0.9);
+    mh.x = fract((hd + (warmSide * dhW * kW + (1.0 - warmSide) * dhC * kC) * far) / 360.0);
     // pele mais rica; o fundo frio vira teal mantendo a cor (antes perdia até 36% e ficava cinza)
-    mh.y = clamp(mh.y * (warmSide > 0.5 ? 1.0 + 0.12 * u_mojo * min(u_skin, 1.6) : 1.0 + 0.2 * u_mojo), 0.0, 1.0);
+    mh.y = clamp(mh.y * mix(1.0 + 0.2 * u_mojo, 1.0 + 0.12 * u_mojo * min(u_skin, 1.6), warmSide), 0.0, 1.0);
     r = hsv2rgb(mh);
   }
   vec3 cool = r + vec3(-0.055, 0.008, 0.06) * (1.0 - hiW) * (1.0 - skin * 0.8);

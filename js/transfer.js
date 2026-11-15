@@ -50,20 +50,30 @@ export async function exportAll(onProg) {
     files = []; size = 0; meta = {};
   };
   let i = 0;
+  const skipped = [];
   for (const k of keys) {
     i++;
     if (i % 10 === 0) onProg?.(`Empacotando ${i}/${keys.length}…`);
-    const v = await getMedia(k);
+    let v = null;
+    try { v = await getMedia(k); } catch { v = null; }
     if (v == null) continue;
     let data, m;
-    if (typeof v === 'string') { data = v; m = { t: 's' }; }
-    else if (v instanceof Blob) { data = new Uint8Array(await v.arrayBuffer()); m = { t: 'b', type: v.type || '', name: v.name || '' }; }
-    else { data = JSON.stringify(v); m = { t: 'j' }; }
+    try {
+      if (typeof v === 'string') { data = v; m = { t: 's' }; }
+      else if (v instanceof Blob) { data = new Uint8Array(await v.arrayBuffer()); m = { t: 'b', type: v.type || '', name: v.name || '' }; }
+      else { data = JSON.stringify(v); m = { t: 'j' }; }
+    } catch (e) {
+      // mídia que o programa não consegue mais ler do disco ("The requested file could not be read"): não derruba a
+      // transferência inteira — fica de fora e é avisada (no outro programa ela aparece como mídia offline)
+      skipped.push(v?.name || k);
+      continue;
+    }
     const len = typeof data === 'string' ? data.length * 2 : data.byteLength;
     if (size && size + len > PART_MAX) flush(false);
     files.push({ name: `idb/${enc(k)}`, data }); meta[k] = m; size += len;
   }
   flush(true);
+  parts.skipped = skipped;
   return parts;
 }
 
@@ -81,7 +91,8 @@ export async function importAll(fileList, onProg) {
     for (const n of names) {
       const k = dec(n.slice(4)), m = man.idb?.[k] || { t: 'b' };
       i++; if (i % 10 === 0) onProg?.(`Restaurando ${i}/${names.length}…`);
-      const b = await z.get(n, m.type || '');
+      let b;
+      try { b = await z.get(n, m.type || ''); } catch { continue; } // arquivo corrompido no .zip: pula só ele
       const v = m.t === 's' ? await b.text() : m.t === 'j' ? JSON.parse(await b.text()) : (m.name ? new File([b], m.name, { type: m.type || b.type }) : b);
       await putMedia(k, v);
       if (!k.startsWith('__')) nMedia++;
