@@ -94,6 +94,7 @@ public final class Narrator {
     /** Fala (se o gancho não estiver em recarga). */
     public void say(String key, int cdTicks, int prio, String... parts) {
         if (!on) return;
+        if (m.script != null && !(parts.length > 0 && parts[0].startsWith("h_"))) return;     // modo histórico: só as falas do roteiro
         if (cdTicks > 0) {
             int until = cooldown.getOrDefault(key, 0);
             if (now < until) return;

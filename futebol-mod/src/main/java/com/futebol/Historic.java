@@ -110,9 +110,12 @@ public final class Historic {
 
     String nome(FPlayer p) { return Roster.COR_CHAT[p.team] + p.def.nome(); }
 
+    void falar(String suf) { if (m.nar != null) m.nar.say(Narrator.GOAL, "h_" + g.id + "_" + suf); }
+
     public void tick() {
         if (finished) return;
         t++;
+        if (ph == Ph.EV && m.st == Match.St.GOAL && m.stTicks == 4) falar(idx + "b");
         switch (ph) {
             case INTRO -> intro();
             case EV -> ev();
@@ -143,6 +146,7 @@ public final class Historic {
             for (FPlayer p : m.all) place(p, p.team, Math.min(p.def.u(), 30), p.def.v());
             m.pinBall(new Vec3(m.pitch.cx(), m.pitch.surf(), m.pitch.cz()));
             m.title("§6§l" + g.titulo, "§7" + g.sub);
+            falar("in");
             m.say("§6★ SIMULANDO JOGOS §7— §f" + g.titulo + " §8| §7" + g.sub);
             m.say("§7Os lances decisivos serão reencenados com os mesmos jogadores. §8(/futebol jogo parar | /futebol jogo pular)");
             camera();
@@ -167,12 +171,14 @@ public final class Historic {
             case "CARTAO" -> {
                 if (t == 1) {
                     FPlayer p = find(e.team(), e.num());
+                    falar(idx + "a");
                     if (p != null) { boolean red = e.extra().equals("r"); m.title(red ? "§c§l🟥 CARTÃO VERMELHO" : "§e§l🟨 CARTÃO AMARELO", "§7" + e.min() + "' · " + nome(p)); m.whistle(1f); m.giveCard(p, red); }
                 }
                 if (t > 80) { idx++; t = 0; }
             }
             case "SUB" -> {
                 if (t == 1) {
+                    falar(idx + "a");
                     FPlayer out = find(e.team(), e.num());
                     int in = Integer.parseInt(e.extra());
                     List<Roster.Def> rs = Clubs.RESERVAS.get(Roster.ATUAL[e.team()].id());
@@ -186,6 +192,7 @@ public final class Historic {
             }
             case "HT" -> {
                 if (t == 1) {
+                    falar(idx + "a");
                     m.minOverride = "INTERVALO"; m.whistle(1.3f);
                     m.title("§e§lINTERVALO", Roster.COR_CHAT[0] + Roster.SIGLA[0] + " §f§l" + m.score[0] + " §8-§f§l " + m.score[1] + " " + Roster.COR_CHAT[1] + Roster.SIGLA[1]);
                     for (FPlayer p : m.all) place(p, p.team, Math.min(p.def.u(), 30), p.def.v());
@@ -229,13 +236,14 @@ public final class Historic {
                 keeper.tx = kw.x; keeper.tz = kw.z;
                 spot = m.W(a, su, sv);
             }
-            stageShot = pen ? 110 : 80;
+            stageShot = pen ? 150 : 100;
             m.pinBall(spot);
             if (pen) { m.whistle(0.9f); if (m.nar != null) m.nar.penalty(shooter); }
             String tipo = gol ? (pen ? "PÊNALTI" : og ? "GOL CONTRA" : mao ? "A MÃO DE DEUS?" : "GOL") : "DEFESA";
             m.title("§e§l" + e.min() + "'  §f§l" + tipo, nome(shooter) + " §7(" + Roster.SIGLA[shooter.team] + ")");
         }
         if (shooter == null) return;
+        if (t == 8) falar(idx + "a");
         if (!shot) {
             Vec3 b = m.bp(); shooter.tx = b.x - m.attackDir[shooter.team] * (ogEvent ? -0.8 : 0.9); shooter.tz = b.z; shooter.spd = 0.85; shooter.mode = FPlayer.Mode.SETPIECE;
             if (t >= stageShot) {
@@ -325,7 +333,7 @@ public final class Historic {
         m.minOverride = "FIM DE JOGO"; m.whistle(1.3f);
         m.title("§6§lFIM DE JOGO", Roster.COR_CHAT[0] + Roster.SIGLA[0] + " §f§l" + m.score[0] + " §8-§f§l " + m.score[1] + " " + Roster.COR_CHAT[1] + Roster.SIGLA[1]);
         if (m.crowd != null) m.crowd.event("end", 0);
-        if (m.nar != null) m.nar.fulltime();
+        falar("fim");
         if (!g.pks.isEmpty()) { ph = Ph.PK; t = 0; pkIdx = 0; m.stTicks = 0; return; }
         champion = m.score[0] >= m.score[1] ? 0 : 1;
         if (g.fin) { ph = Ph.CERIMONIA; cerT = 0; t = 0; } else { ph = Ph.FIM; terminou(); }
@@ -343,7 +351,7 @@ public final class Historic {
 
     void pk() {
         if (pkIdx >= g.pks.size()) {
-            if (t == 2) festaPenaltis();
+            if (t == 2) { festaPenaltis(); falar("pkfim"); }
             if (t < 170) return;
             champion = pens[0] > pens[1] ? 0 : 1;
             m.title("§6§l" + Roster.TIME_NOME[champion].toUpperCase() + " VENCE NOS PÊNALTIS", "§f" + pens[0] + " §8-§f " + pens[1]);
@@ -375,6 +383,7 @@ public final class Historic {
             shooterTeam = k.team;
         }
         if (shooter == null) return;
+        if (t == 62) falar("k" + pkIdx);
         if (!shot) {
             Vec3 b = m.bp(); shooter.tx = b.x - m.attackDir[shooter.team] * 0.9; shooter.tz = b.z; shooter.spd = 0.8; shooter.mode = FPlayer.Mode.SETPIECE;
             if (t >= 90) {
@@ -427,6 +436,7 @@ public final class Historic {
 
     void cerimonia() {
         cerT++;
+        if (cerT == 40) falar("cer");
         double cx = m.pitch.cx(), cz = m.pitch.cz(), sy = m.pitch.surf();
         int by = (int) Math.round(sy) - 1;
         if (cerT == 1) {

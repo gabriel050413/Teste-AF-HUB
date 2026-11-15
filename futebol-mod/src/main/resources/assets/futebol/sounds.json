@@ -4506,5 +4506,1174 @@
 "name": "futebol:narrador/vitoria_1"
 }
 ]
+},
+"narrador.h_argfra22_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_0a"
+}
+]
+},
+"narrador.h_argfra22_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_0b"
+}
+]
+},
+"narrador.h_argfra22_10a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_10a"
+}
+]
+},
+"narrador.h_argfra22_10b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_10b"
+}
+]
+},
+"narrador.h_argfra22_11a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_11a"
+}
+]
+},
+"narrador.h_argfra22_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_1a"
+}
+]
+},
+"narrador.h_argfra22_1b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_1b"
+}
+]
+},
+"narrador.h_argfra22_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_2a"
+}
+]
+},
+"narrador.h_argfra22_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_3a"
+}
+]
+},
+"narrador.h_argfra22_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_4a"
+}
+]
+},
+"narrador.h_argfra22_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_5a"
+}
+]
+},
+"narrador.h_argfra22_6a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_6a"
+}
+]
+},
+"narrador.h_argfra22_6b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_6b"
+}
+]
+},
+"narrador.h_argfra22_7a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_7a"
+}
+]
+},
+"narrador.h_argfra22_7b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_7b"
+}
+]
+},
+"narrador.h_argfra22_8a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_8a"
+}
+]
+},
+"narrador.h_argfra22_8b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_8b"
+}
+]
+},
+"narrador.h_argfra22_9a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_9a"
+}
+]
+},
+"narrador.h_argfra22_cer": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_cer"
+}
+]
+},
+"narrador.h_argfra22_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_fim"
+}
+]
+},
+"narrador.h_argfra22_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_in"
+}
+]
+},
+"narrador.h_argfra22_k0": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k0"
+}
+]
+},
+"narrador.h_argfra22_k1": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k1"
+}
+]
+},
+"narrador.h_argfra22_k2": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k2"
+}
+]
+},
+"narrador.h_argfra22_k3": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k3"
+}
+]
+},
+"narrador.h_argfra22_k4": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k4"
+}
+]
+},
+"narrador.h_argfra22_k5": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k5"
+}
+]
+},
+"narrador.h_argfra22_k6": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k6"
+}
+]
+},
+"narrador.h_argfra22_k7": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_k7"
+}
+]
+},
+"narrador.h_argfra22_pkfim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_pkfim"
+}
+]
+},
+"narrador.h_arging86_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_0a"
+}
+]
+},
+"narrador.h_arging86_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_1a"
+}
+]
+},
+"narrador.h_arging86_1b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_1b"
+}
+]
+},
+"narrador.h_arging86_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_2a"
+}
+]
+},
+"narrador.h_arging86_2b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_2b"
+}
+]
+},
+"narrador.h_arging86_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_3a"
+}
+]
+},
+"narrador.h_arging86_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_3b"
+}
+]
+},
+"narrador.h_arging86_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_fim"
+}
+]
+},
+"narrador.h_arging86_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_arging86_in"
+}
+]
+},
+"narrador.h_barpsg17_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_0a"
+}
+]
+},
+"narrador.h_barpsg17_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_0b"
+}
+]
+},
+"narrador.h_barpsg17_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_1a"
+}
+]
+},
+"narrador.h_barpsg17_1b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_1b"
+}
+]
+},
+"narrador.h_barpsg17_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_2a"
+}
+]
+},
+"narrador.h_barpsg17_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_3a"
+}
+]
+},
+"narrador.h_barpsg17_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_3b"
+}
+]
+},
+"narrador.h_barpsg17_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_4a"
+}
+]
+},
+"narrador.h_barpsg17_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_4b"
+}
+]
+},
+"narrador.h_barpsg17_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_5a"
+}
+]
+},
+"narrador.h_barpsg17_6a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_6a"
+}
+]
+},
+"narrador.h_barpsg17_6b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_6b"
+}
+]
+},
+"narrador.h_barpsg17_7a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_7a"
+}
+]
+},
+"narrador.h_barpsg17_7b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_7b"
+}
+]
+},
+"narrador.h_barpsg17_8a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_8a"
+}
+]
+},
+"narrador.h_barpsg17_8b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_8b"
+}
+]
+},
+"narrador.h_barpsg17_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_fim"
+}
+]
+},
+"narrador.h_barpsg17_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_barpsg17_in"
+}
+]
+},
+"narrador.h_brale14_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_0a"
+}
+]
+},
+"narrador.h_brale14_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_0b"
+}
+]
+},
+"narrador.h_brale14_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_1a"
+}
+]
+},
+"narrador.h_brale14_1b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_1b"
+}
+]
+},
+"narrador.h_brale14_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_2a"
+}
+]
+},
+"narrador.h_brale14_2b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_2b"
+}
+]
+},
+"narrador.h_brale14_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_3a"
+}
+]
+},
+"narrador.h_brale14_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_3b"
+}
+]
+},
+"narrador.h_brale14_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_4a"
+}
+]
+},
+"narrador.h_brale14_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_4b"
+}
+]
+},
+"narrador.h_brale14_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_5a"
+}
+]
+},
+"narrador.h_brale14_6a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_6a"
+}
+]
+},
+"narrador.h_brale14_7a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_7a"
+}
+]
+},
+"narrador.h_brale14_7b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_7b"
+}
+]
+},
+"narrador.h_brale14_8a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_8a"
+}
+]
+},
+"narrador.h_brale14_8b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_8b"
+}
+]
+},
+"narrador.h_brale14_9a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_9a"
+}
+]
+},
+"narrador.h_brale14_9b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_9b"
+}
+]
+},
+"narrador.h_brale14_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_fim"
+}
+]
+},
+"narrador.h_brale14_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_brale14_in"
+}
+]
+},
+"narrador.h_espned10_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_0a"
+}
+]
+},
+"narrador.h_espned10_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_1a"
+}
+]
+},
+"narrador.h_espned10_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_2a"
+}
+]
+},
+"narrador.h_espned10_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_3a"
+}
+]
+},
+"narrador.h_espned10_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_4a"
+}
+]
+},
+"narrador.h_espned10_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_4b"
+}
+]
+},
+"narrador.h_espned10_cer": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_cer"
+}
+]
+},
+"narrador.h_espned10_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_fim"
+}
+]
+},
+"narrador.h_espned10_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_espned10_in"
+}
+]
+},
+"narrador.h_itaale06_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_0a"
+}
+]
+},
+"narrador.h_itaale06_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_1a"
+}
+]
+},
+"narrador.h_itaale06_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_2a"
+}
+]
+},
+"narrador.h_itaale06_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_3a"
+}
+]
+},
+"narrador.h_itaale06_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_3b"
+}
+]
+},
+"narrador.h_itaale06_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_4a"
+}
+]
+},
+"narrador.h_itaale06_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_4b"
+}
+]
+},
+"narrador.h_itaale06_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_fim"
+}
+]
+},
+"narrador.h_itaale06_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_itaale06_in"
+}
+]
+},
+"narrador.h_livbar19_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_0a"
+}
+]
+},
+"narrador.h_livbar19_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_0b"
+}
+]
+},
+"narrador.h_livbar19_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_1a"
+}
+]
+},
+"narrador.h_livbar19_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_2a"
+}
+]
+},
+"narrador.h_livbar19_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_3a"
+}
+]
+},
+"narrador.h_livbar19_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_3b"
+}
+]
+},
+"narrador.h_livbar19_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_4a"
+}
+]
+},
+"narrador.h_livbar19_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_4b"
+}
+]
+},
+"narrador.h_livbar19_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_5a"
+}
+]
+},
+"narrador.h_livbar19_5b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_5b"
+}
+]
+},
+"narrador.h_livbar19_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_fim"
+}
+]
+},
+"narrador.h_livbar19_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livbar19_in"
+}
+]
+},
+"narrador.h_livmil05_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_0a"
+}
+]
+},
+"narrador.h_livmil05_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_0b"
+}
+]
+},
+"narrador.h_livmil05_10a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_10a"
+}
+]
+},
+"narrador.h_livmil05_11a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_11a"
+}
+]
+},
+"narrador.h_livmil05_12a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_12a"
+}
+]
+},
+"narrador.h_livmil05_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_1a"
+}
+]
+},
+"narrador.h_livmil05_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_2a"
+}
+]
+},
+"narrador.h_livmil05_2b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_2b"
+}
+]
+},
+"narrador.h_livmil05_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_3a"
+}
+]
+},
+"narrador.h_livmil05_3b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_3b"
+}
+]
+},
+"narrador.h_livmil05_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_4a"
+}
+]
+},
+"narrador.h_livmil05_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_5a"
+}
+]
+},
+"narrador.h_livmil05_6a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_6a"
+}
+]
+},
+"narrador.h_livmil05_6b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_6b"
+}
+]
+},
+"narrador.h_livmil05_7a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_7a"
+}
+]
+},
+"narrador.h_livmil05_7b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_7b"
+}
+]
+},
+"narrador.h_livmil05_8a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_8a"
+}
+]
+},
+"narrador.h_livmil05_8b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_8b"
+}
+]
+},
+"narrador.h_livmil05_9a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_9a"
+}
+]
+},
+"narrador.h_livmil05_cer": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_cer"
+}
+]
+},
+"narrador.h_livmil05_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_fim"
+}
+]
+},
+"narrador.h_livmil05_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_in"
+}
+]
+},
+"narrador.h_livmil05_k0": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k0"
+}
+]
+},
+"narrador.h_livmil05_k1": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k1"
+}
+]
+},
+"narrador.h_livmil05_k2": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k2"
+}
+]
+},
+"narrador.h_livmil05_k3": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k3"
+}
+]
+},
+"narrador.h_livmil05_k4": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k4"
+}
+]
+},
+"narrador.h_livmil05_k5": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k5"
+}
+]
+},
+"narrador.h_livmil05_k6": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k6"
+}
+]
+},
+"narrador.h_livmil05_k7": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k7"
+}
+]
+},
+"narrador.h_livmil05_k8": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_k8"
+}
+]
+},
+"narrador.h_livmil05_pkfim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_livmil05_pkfim"
+}
+]
+},
+"narrador.h_munbay99_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_0a"
+}
+]
+},
+"narrador.h_munbay99_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_0b"
+}
+]
+},
+"narrador.h_munbay99_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_1a"
+}
+]
+},
+"narrador.h_munbay99_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_2a"
+}
+]
+},
+"narrador.h_munbay99_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_3a"
+}
+]
+},
+"narrador.h_munbay99_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_4a"
+}
+]
+},
+"narrador.h_munbay99_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_4b"
+}
+]
+},
+"narrador.h_munbay99_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_5a"
+}
+]
+},
+"narrador.h_munbay99_5b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_5b"
+}
+]
+},
+"narrador.h_munbay99_cer": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_cer"
+}
+]
+},
+"narrador.h_munbay99_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_fim"
+}
+]
+},
+"narrador.h_munbay99_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_munbay99_in"
+}
+]
+},
+"narrador.h_rmaatm14_0a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_0a"
+}
+]
+},
+"narrador.h_rmaatm14_0b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_0b"
+}
+]
+},
+"narrador.h_rmaatm14_1a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_1a"
+}
+]
+},
+"narrador.h_rmaatm14_2a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_2a"
+}
+]
+},
+"narrador.h_rmaatm14_3a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_3a"
+}
+]
+},
+"narrador.h_rmaatm14_4a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_4a"
+}
+]
+},
+"narrador.h_rmaatm14_4b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_4b"
+}
+]
+},
+"narrador.h_rmaatm14_5a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_5a"
+}
+]
+},
+"narrador.h_rmaatm14_5b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_5b"
+}
+]
+},
+"narrador.h_rmaatm14_6a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_6a"
+}
+]
+},
+"narrador.h_rmaatm14_6b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_6b"
+}
+]
+},
+"narrador.h_rmaatm14_7a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_7a"
+}
+]
+},
+"narrador.h_rmaatm14_7b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_7b"
+}
+]
+},
+"narrador.h_rmaatm14_cer": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_cer"
+}
+]
+},
+"narrador.h_rmaatm14_fim": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_fim"
+}
+]
+},
+"narrador.h_rmaatm14_in": {
+"sounds": [
+{
+"name": "futebol:narrador/h_rmaatm14_in"
+}
+]
 }
 }

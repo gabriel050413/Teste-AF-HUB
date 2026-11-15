@@ -12,6 +12,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.3 — narração do modo Simulando jogos
+167 falas novas (uma por lance: pênalti, gol com placar e minuto, defesa, cartão, substituição, intervalo, cada cobrança da disputa, campeão e cerimônia), na voz do locutor,
+com o ritmo/ordem emocional dos melhores momentos (texto próprio, sem copiar a transmissão). Geradas por `python3 tools/gerar_historicas.py --vozes-dir ./piper`
+a partir de jogos.txt/historicos.txt — edite os textos em `OVER`/templates do script e rode de novo. No modo histórico só essas falas tocam.
+
 ## Novidades da v3.2 — direção de TV baseada na final de 2022
 Diretor de câmera do modo "Simulando jogos" refeito a partir da estrutura dos melhores momentos de Argentina x França: lance ao vivo em plano aberto, close do batedor no pênalti,
 atrás do gol no chute, close do artilheiro no gol, festa rasteira, torcida, replays (atrás do gol, bola de perto, rasteira, goleiro, alto) e, nos pênaltis, close do batedor/goleiro e
