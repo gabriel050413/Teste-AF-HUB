@@ -706,7 +706,11 @@ export const IMPORT_RULES = [
       if (lt[1] != null) p.connWidth = Math.max(0.25, lt[1] * 2);
       p.track = 3; if (p.fill === undefined) p.fill = 1;
     } },
-  { vendor: 'Cinema Spice', plugin: 'Glitchify', to: 'glitchify', test: /glitchify/i, map: { amount: { n: ['amount', 'glitch amount'] }, speed: { n: ['speed', 'frequency'] } } },
+  // Glitchify: índices do CSpice Glitchify (nomes repetem: Offset/Channel/Speed aparecem em vários módulos)
+  { vendor: 'Cinema Spice', plugin: 'Glitchify', to: 'glitchify', test: /glitchify/i, set: { probability: 100, blockSize: 0 },
+    map: { amount: { i: 1, n: ['glitchify amount', 'amount', 'glitch amount'] }, speed: { i: 2, n: ['glitchify speed'] }, seed: { i: 3, n: ['random seed'] }, softness: { i: 6 },
+      blocks: { i: 23 }, dispH: { i: 26 }, dispV: { i: 27 }, chScale: { i: 31 }, rgb: { i: 40 }, rgbOffset: { i: 41 }, pixelSort: { i: 47 }, streak: { i: 48 },
+      blockW: { i: 59 }, blockH: { i: 60 }, jpeg: { i: 66 }, jpegAmount: { i: 69 } } },
   { vendor: 'aescripts', plugin: 'Datamosh 2', to: 'datamosh', test: /datamosh|pixel ?encoder/i },
   { vendor: 'Video Copilot', plugin: 'VC Reflect', to: 'reflect', test: /vc ?reflect|^reflect$/i, map: { opacity: { n: ['opacity', 'reflection opacity'] } } },
   { vendor: 'aescripts', plugin: 'Quick Chromatic Aberration 2', to: 'qca', test: /quick ?chromatic|qca/i, map: { amount: { n: ['aberration amount', 'amount'], conv: (v) => Math.min(60, v) } } },

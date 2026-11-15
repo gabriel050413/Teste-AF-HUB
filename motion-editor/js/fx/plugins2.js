@@ -62,32 +62,48 @@ function findBlobs(src, p) {
 
 // ---------------------------------------------------------------- Glitchify
 const GLITCHIFY = frag(`
-uniform float u_amt, u_ev, u_blocks, u_rgb, u_chs, u_sort, u_jump, u_bsize;
-float h1(float n) { return fract(sin(n * 91.345 + u_ev * 17.13) * 47453.5453); }
-vec4 S(vec2 uv) { return texture2D(u_tex, clamp(uv, vec2(0.0), vec2(1.0))); }
+// Glitchify (Cinema Spice): um ruído em blocos, animado em degraus, escolhe as regiões que glitcham (quanto maior o
+// Amount, mais regiões); cada região leva deslocamento, RGB split, escala de canal, pixel streak e "JPEG". As bordas
+// repetem o último pixel (Repeat Edge Pixels) — nada de buraco preto.
+uniform float u_amt, u_t, u_seed, u_dh, u_dv, u_rgb, u_chs, u_streak, u_jpeg, u_jump, u_soft;
+uniform vec2 u_blk;
+float hs(vec2 p) { return fract(sin(dot(p + u_seed * 1.37, vec2(127.1, 311.7))) * 43758.5453); }
+vec4 S(vec2 uv) { return texture2D(u_tex, fromContent(clamp(uv, vec2(0.0005), vec2(0.9995)))); }
 void main() {
-  vec2 uv = v_uv;
-  // transform glitch: o quadro todo pula
-  uv.x += (h1(1.0) - 0.5) * 0.08 * u_jump * u_amt;
-  // block shift: faixas e blocos deslocados
-  vec2 cell = floor(uv * vec2(u_bsize * 0.6, u_bsize));
-  float hb = h1(cell.y * 7.0 + cell.x * 0.13);
-  if (hb < 0.35 * u_amt * u_blocks) uv.x += (h1(cell.y + 3.0) - 0.5) * 0.25 * u_amt;
-  float hr = h1(floor(uv.y * u_bsize * 3.0) + 11.0);
-  if (hr < 0.12 * u_amt * u_blocks) uv.x += (h1(floor(uv.y * 40.0)) - 0.5) * 0.1;
-  // channel scale + RGB split
-  vec2 cc = uv - 0.5;
-  float sc = u_chs * u_amt * 0.04;
-  vec2 off = vec2(u_rgb * u_amt * 0.02 * (h1(5.0) > 0.5 ? 1.0 : -1.0), 0.0);
+  vec2 c = contentUV(v_uv);
+  float st = floor(u_t), th = sqrt(max(0.0, 1.0 - u_amt)); // 2 camadas de blocos: área com glitch ≈ Amount
+  vec2 bl = max(u_blk / u_size, vec2(0.002));
+  // duas escalas de blocos (faixas largas + blocos pequenos), sorteadas de novo a cada degrau de tempo
+  vec2 cA = floor(c / vec2(bl.x * 4.0, bl.y)), cB = floor(c / (bl * vec2(1.0, 0.5)));
+  float nA = hs(cA + st * vec2(13.1, 7.7)), nB = hs(cB * 1.7 + st * vec2(5.3, 11.9) + 40.0);
+  float n = max(nA, nB * 0.92);
+  float s = u_amt <= 0.0 ? 0.0 : smoothstep(th, th + max(0.02, u_soft * (1.0 - th)), n);
+  vec2 uv = c;
+  // pulo do quadro inteiro em alguns degraus (transform glitch)
+  float jh = hs(vec2(st, 3.3));
+  if (jh > 0.78) uv.x += (hs(vec2(st, 9.1)) - 0.5) * 0.12 * u_jump * u_amt;
+  // deslocamento horizontal/vertical da região
+  float row = cA.y;
+  uv.x += (hs(vec2(row, st + 1.0)) - 0.5) * 2.0 * u_dh * s;
+  uv.y += (hs(vec2(cB.x, st + 2.0)) - 0.5) * 2.0 * u_dv * s;
+  // escala de canal + RGB split (só nas regiões com glitch)
+  float sg = hs(vec2(row, st + 5.0)) > 0.5 ? 1.0 : -1.0;
+  vec2 off = vec2(u_rgb * s * sg, 0.0);
+  vec2 cc = uv - 0.5; float sc = u_chs * s;
   vec4 r = S(0.5 + cc * (1.0 + sc) + off), g = S(uv), b = S(0.5 + cc * (1.0 - sc) - off);
   vec4 o = vec4(r.r, g.g, b.b, max(g.a, max(r.a, b.a)));
-  // pixel sort vertical em colunas sorteadas
-  float colH = h1(floor(uv.x * 60.0) + 21.0);
-  if (colH < 0.3 * u_amt * u_sort) {
-    for (int i = 1; i <= 12; i++) {
-      vec4 s = S(uv - vec2(0.0, float(i) * 0.012 * u_amt));
-      if (luma(s.rgb) > luma(o.rgb)) o = mix(o, s, 0.75);
+  // pixel streak: o pixel mais claro "escorre" na horizontal dentro da região
+  if (u_streak > 0.0 && s > 0.0 && hs(vec2(row, st + 7.0)) > 0.45) {
+    for (int i = 1; i <= 14; i++) {
+      vec4 q = S(uv - vec2(float(i) * u_streak * s / 14.0, 0.0));
+      if (luma(q.rgb) > luma(o.rgb)) o = mix(o, q, 0.8);
     }
+  }
+  // compressão (JPEG): blocos de 8 px e cores quantizadas
+  if (u_jpeg > 0.0 && s > 0.0) {
+    vec2 q8 = (floor(uv * u_size / 8.0) + 0.5) * 8.0 / u_size;
+    vec4 j = S(q8); j.rgb = floor(j.rgb * 6.0 + 0.5) / 6.0;
+    o = mix(o, j, u_jpeg * s);
   }
   gl_FragColor = o;
 }`);
@@ -294,17 +310,30 @@ export default [
   },
   {
     type: 'glitchify', label: 'Glitchify', category: 'Estilizar', plugin: 'Glitchify (Cinema Spice)',
-    description: 'Glitch digital com eventos aleatórios: block shift, RGB split, channel scale, pixel sort e transform glitch — cada um pode ser ligado/desligado.',
+    description: 'Como o Glitchify: um ruído em blocos animado escolhe as regiões que glitcham (Amount = quantas); cada região leva deslocamento, RGB split, escala de canal, pixel streak e compressão JPEG. Anime o Amount para transições. Bordas repetem o pixel (sem buraco preto).',
     params: [
-      num('amount', 'Intensidade %', 70, 0, 100), num('speed', 'Eventos por segundo', 8, 0.5, 30, 0.5), num('probability', 'Chance de glitch %', 60, 0, 100), num('seed', 'Semente', 1, 0, 999),
-      bool('blocks', 'Block shift', true), num('blockSize', 'Tamanho dos blocos', 18, 2, 80, 1), bool('rgb', 'RGB split', true), bool('channelScale', 'Channel scale', true),
-      bool('pixelSort', 'Pixel sort', true), bool('jump', 'Transform glitch (pulo)', true),
+      num('amount', 'Glitchify Amount %', 70, 0, 100), num('speed', 'Glitchify Speed', 50, 0, 100), num('seed', 'Random Seed', 1, 0, 999),
+      num('blockW', 'Blocos – tamanho horizontal (px)', 150, 4, 1000), num('blockH', 'Blocos – tamanho vertical (px)', 50, 2, 600), num('softness', 'Softness %', 10, 0, 100),
+      bool('blocks', 'Displacement', true), num('dispH', 'Displacement – horizontal %', 50, 0, 200), num('dispV', 'Displacement – vertical %', 0, 0, 200),
+      bool('rgb', 'RGB split', true), num('rgbOffset', 'RGB split – offset (px)', 20, 0, 300), bool('channelScale', 'Channel scale', true), num('chScale', 'Channel scale – quantidade %', 30, 0, 100),
+      bool('pixelSort', 'Pixel streak', true), num('streak', 'Pixel streak (px)', 25, 0, 400), bool('jpeg', 'Compressão (JPEG)', false), num('jpegAmount', 'Compressão – quantidade %', 50, 0, 100),
+      bool('jump', 'Transform glitch (pulo)', true),
+      // compatibilidade com projetos antigos (eventos por segundo / chance / tamanho único)
+      num('probability', 'Chance de glitch %', 100, 0, 100, 1, { advanced: true }), num('blockSize', 'Tamanho dos blocos (antigo)', 0, 0, 80, 1, { advanced: true }),
     ],
     render: (src, p, env) => {
-      const ev = Math.floor(env.t * p.speed);
-      if (hash1(ev * 7.13 + p.seed) > p.probability / 100) return src;
-      const amt = (p.amount / 100) * (0.5 + 0.5 * hash1(ev * 3.1 + p.seed * 0.7));
-      return env.gl.pass(GLITCHIFY, { u_tex: src, u_amt: amt, u_ev: ev + p.seed * 13, u_blocks: p.blocks, u_rgb: p.rgb, u_chs: p.channelScale, u_sort: p.pixelSort, u_jump: p.jump, u_bsize: p.blockSize });
+      if (p.amount <= 0) return src;
+      // projetos antigos: speed era "eventos por segundo" (0,5–30) e blockSize um número de blocos
+      const sp = (p.speed ?? 50);
+      const steps = sp <= 30 && p.blockSize ? sp : 2 + sp * 0.28; // Speed 50 ≈ 16 trocas/s
+      const bw = p.blockSize ? env.w / Math.max(2, p.blockSize * 0.6) : p.blockW ?? 150, bh = p.blockSize ? env.h / Math.max(2, p.blockSize) : p.blockH ?? 50;
+      const amt = (p.amount / 100) * ((p.probability ?? 100) / 100);
+      return env.gl.pass(GLITCHIFY, {
+        u_tex: src, u_amt: Math.min(1, amt), u_t: env.t * steps, u_seed: p.seed || 0, u_blk: [bw * env.scale, bh * env.scale], u_soft: (p.softness ?? 10) / 100,
+        u_dh: p.blocks === false ? 0 : (p.dispH ?? 50) / 100 * 0.25, u_dv: p.blocks === false ? 0 : (p.dispV ?? 0) / 100 * 0.25,
+        u_rgb: p.rgb === false ? 0 : ((p.rgbOffset ?? 20) * env.scale) / env.W, u_chs: p.channelScale === false ? 0 : (p.chScale ?? 30) / 100 * 0.12,
+        u_streak: p.pixelSort === false ? 0 : ((p.streak ?? 25) * env.scale) / env.W, u_jpeg: p.jpeg ? (p.jpegAmount ?? 50) / 100 : 0, u_jump: p.jump === false ? 0 : 1,
+      });
     },
   },
   {
