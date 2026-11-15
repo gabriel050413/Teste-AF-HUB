@@ -69,7 +69,7 @@ function selectorAmounts(an, chars, t) {
       });
     }
     if (acc == null) acc = s.type === 'wiggly' && (s.mode || 3) === 3 ? vals.map(() => 1) : vals.map(() => 0);
-    const mode = s.mode || (s.type === 'wiggly' ? 3 : 1);
+    const mode = s.mode || (s.type === 'wiggly' || s.type === 'expr' ? 3 : 1); // expressão não executada: em Interseção zera o animador (texto em repouso), como o resultado final no AE
     acc = acc.map((x, i) => {
       const y = vals[i];
       switch (mode) {

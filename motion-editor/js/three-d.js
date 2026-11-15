@@ -134,3 +134,17 @@ export function cameraMove(cam, kind, t0, dur, W, H, makeKey) {
     default: break;
   }
 }
+
+/**
+ * Sólido 3D de cor uniforme com Motion Tile (fundo infinito clássico do AE): devolve o fator [x, y] da saída do
+ * tile (ex.: 5 = 500%) para esticar o plano na geometria — sem aumentar a imagem. null se não se aplica.
+ */
+const UNIFORM_FX = new Set(['fill', 'motionTile', 'tint', 'hueSat', 'curves', 'levels', 'brightnessContrast', 'exposure']);
+export function solidTileFactor(layer, t) {
+  if (!layer?.threeD || layer.type !== 'solid' || !layer.effects?.length) return null;
+  const on = layer.effects.filter((e) => e.enabled !== false);
+  if (!on.every((e) => UNIFORM_FX.has(e.type))) return null;
+  const mt = on.find((e) => e.type === 'motionTile');
+  if (!mt) return null;
+  return [Math.max(1, V(mt.params?.outW, t, 100) / 100), Math.max(1, V(mt.params?.outH, t, 100) / 100)];
+}

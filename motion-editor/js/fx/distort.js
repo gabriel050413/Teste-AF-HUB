@@ -1,6 +1,7 @@
 // Distorção: Wave Warp, Turbulent Displace, Bulge/CC Lens, Twirl, Optics Compensation, Mirror,
 // CC Kaleida, Motion Tile.
 import { frag, num, ang, bool, sel, pos, rad, cuv } from './common.js';
+import { solidTileFactor } from '../three-d.js';
 
 const WAVE = frag(`
 uniform vec2 u_d; uniform float u_h; uniform float u_w; uniform float u_phase; uniform float u_type;
@@ -149,7 +150,7 @@ export default [
     description: 'Repete as bordas da camada — essencial com shakes e zooms para não aparecer fundo.',
     params: [num('outW', 'Largura de saída %', 200, 100, 600), num('outH', 'Altura de saída %', 200, 100, 600), bool('mirror', 'Bordas espelhadas', true), num('phaseX', 'Deslocamento X %', 0, -100, 100), num('phaseY', 'Deslocamento Y %', 0, -100, 100)],
     // a margem só precisa cobrir o deslocamento de shakes/zooms: limita a 20% para não multiplicar o custo dos efeitos seguintes
-    pad: (p, env) => Math.min(Math.max(((p.outW - 100) / 200) * env.w, ((p.outH - 100) / 200) * env.h), 0.2 * Math.max(env.w, env.h)),
+    pad: (p, env) => solidTileFactor(env.layer, 0) ? 0 : Math.min(Math.max(((p.outW - 100) / 200) * env.w, ((p.outH - 100) / 200) * env.h), (env.layer?.threeD ? 1 : 0.2) * Math.max(env.w, env.h)), // sólido 3D uniforme: plano esticado no renderer (margem 0); outro 3D: margem maior
     render: (src, p, env) => env.gl.pass(TILE, { u_tex: src, u_out: [p.outW / 100, p.outH / 100], u_mirror: p.mirror, u_phase: [p.phaseX / 100, p.phaseY / 100] }),
   },
 ];
