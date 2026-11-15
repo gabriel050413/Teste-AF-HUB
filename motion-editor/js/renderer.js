@@ -1,5 +1,6 @@
 // Composição dos quadros: conteúdo das camadas (Canvas 2D) → efeitos (WebGL) → transformações,
 // motion blur, echo e camadas de ajuste.
+import { releaseCanvas, flushReleased } from './canvas-free.js';
 import { valueAt, exprContext } from './anim.js';
 import { drawAnimatedText, animatorPad } from './textanim.js';
 import { EFFECT_MAP, makeCanvas } from './effects.js';
@@ -16,7 +17,7 @@ let project = null; // projeto em renderização (para tamanho de camadas de aju
 const groupCache = new Map(); // conteúdo de pré-comps já desenhado (só na exportação)
 const GROUP_CACHE_MAX = 8, GROUP_CACHE_BYTES = (typeof navigator !== 'undefined' && /iP(hone|ad|od)/.test(navigator.userAgent)) ? 36e6 : 160e6;
 /** Limpa caches da exportação (chamar no início e no fim de cada exportação). */
-export function resetRenderCaches() { for (const c of groupCache.values()) { c.width = 0; c.height = 0; } groupCache.clear(); }
+export function resetRenderCaches() { for (const c of groupCache.values()) releaseCanvas(c); groupCache.clear(); }
 let renderOpts = { final: false }; // final=true na exportação (quadros em resolução total)
 
 // Memória: as telas de cada camada ficam guardadas para o próximo quadro, mas só até um limite. As que não
@@ -30,7 +31,7 @@ function trimCanvases() {
   // telas de camadas que não aparecem há ~10 s de quadros (prévias do painel de transições, camadas apagadas, outro
   // trecho da timeline) são liberadas mesmo abaixo do limite — no iPhone cada MB conta
   if (frameNo % 60 === 0) {
-    for (const [id, c] of contentCanvases) if ((c._used || 0) < frameNo - 300) { c.width = 0; c.height = 0; contentCanvases.delete(id); }
+    for (const [id, c] of contentCanvases) if ((c._used || 0) < frameNo - 300) { releaseCanvas(c); contentCanvases.delete(id); }
   }
   for (const c of contentCanvases.values()) total += c.width * c.height * 4;
   if (total <= CANVAS_BUDGET) return;
@@ -38,7 +39,7 @@ function trimCanvases() {
   for (const [id, c] of old) {
     if (total <= CANVAS_BUDGET * 0.7) break;
     total -= c.width * c.height * 4;
-    c.width = 0; c.height = 0; // devolve a memória na hora
+    releaseCanvas(c); // devolve a memória alguns quadros depois (pode ainda estar em uso neste quadro)
     contentCanvases.delete(id);
   }
 }
@@ -472,7 +473,7 @@ function renderLayerImage(layer, t, scale0, extra) {
         const bytesOf = () => [...groupCache.values()].reduce((n, c) => n + c.width * c.height * 4, 0);
         while (groupCache.size && (groupCache.size >= GROUP_CACHE_MAX || bytesOf() + W * H * 4 > GROUP_CACHE_BYTES)) {
           const [k0, old] = groupCache.entries().next().value; groupCache.delete(k0);
-          if (!keep) keep = old; else { old.width = 0; old.height = 0; }
+          if (!keep) keep = old; else releaseCanvas(old);
         }
         if (!keep) keep = makeCanvas(W, H);
         if (keep.width !== W || keep.height !== H) { keep.width = W; keep.height = H; }
@@ -946,6 +947,7 @@ function simpleAdjust(l) {
 }
 
 export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
+  flushReleased();
   project = proj;
   exprContext.fps = proj.fps || 30; exprContext.W = proj.width; exprContext.H = proj.height;
   frameNo++;
