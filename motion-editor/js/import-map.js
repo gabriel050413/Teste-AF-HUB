@@ -472,6 +472,10 @@ function looksExpand(fx, raw) {
 
 export const IMPORT_RULES = [
   // Continuum (BCC) com os controles reais (doc da Boris FX + índices dos .ffx): vêm antes das regras genéricas
+  // áudio (OmarFX End Muffled Audio / Reverb)
+  { vendor: ADOBE, plugin: 'Bass & Treble', to: 'audBassTreble', match: ['ADBE Aud BT'], map: { bass: { i: 1, n: ['bass'] }, treble: { i: 2, n: ['treble'] } } },
+  { vendor: ADOBE, plugin: 'Reverb', to: 'audReverb', match: ['ADBE Aud Reverb'],
+    map: { time: { i: 1, n: ['reverb time (ms)'] }, diffusion: { i: 2, n: ['diffusion'] }, decay: { i: 3, n: ['decay'] }, brightness: { i: 4, n: ['brightness'] }, dry: { i: 5, n: ['dry out'] }, wet: { i: 6, n: ['wet out'] } } },
   // achados nos presets do Drive (OmarFX, hsn, 10mov)
   { vendor: 'BCC', plugin: 'BCC Drop Shadow', to: 'dropShadow', match: ['BCC3Drop Shadow', 'BCC Drop Shadow', 'BCC_DROPSHADOW'], test: /bcc.*drop ?shadow/i,
     map: { distance: { n: ['shadow distance'], conv: (v) => v * 4 }, opacity: { n: ['shadow intensity'] }, angle: { n: ['shadow angle'] }, color: { n: ['shadow color'] }, softness: { n: ['shadow softness'] } } },
@@ -971,7 +975,7 @@ const normalize = (s) => (s || '').toLowerCase().trim();
  */
 // controles de expressão, pseudo-efeitos, áudio e pintura não são efeitos visuais: viram controles genéricos
 // (antes um Slider chamado "Blur" casava pelo nome e virava desfoque)
-const NON_VISUAL = /^(ADBE (Slider|Point3D|Point|Angle|Checkbox|Color|Layer|Dropdown) Control|ADBE Aud BT|ADBE AudSpect|ADBE Paint|Pseudo\/)/i;
+const NON_VISUAL = /^(ADBE (Slider|Point3D|Point|Angle|Checkbox|Color|Layer|Dropdown) Control|ADBE AudSpect|ADBE Paint|Pseudo\/)/i;
 
 export function matchEffect(matchName, displayName = '') {
   if (NON_VISUAL.test(matchName || '')) return null;

@@ -1246,8 +1246,11 @@ async function restoreFonts(project) {
 }
 
 async function openProject() {
-  const [f] = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,application/json', false);
-  if (!f) return;
+  const picked = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,.aep,.aepx,.ffx,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*,application/json', true);
+  if (!picked?.length) return;
+  // vários arquivos (projeto + mídias + fontes + presets) ou .aep: abre tudo junto
+  if (picked.length > 1 || /\.aepx?$/i.test(picked[0].name)) return routeFiles(picked);
+  const f = picked[0];
   if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, false); }
   if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
   try {
@@ -1839,20 +1842,70 @@ window.addEventListener('drop', (e) => {
   dropOverlay.classList.remove('show');
   routeFiles([...(e.dataTransfer?.files || [])]);
 });
-/** Abre qualquer arquivo no lugar certo (preset, projeto do AE, XML, fonte ou mídia). */
-function routeFiles(files) {
+const MEDIA_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', '3gp': 'video/3gpp', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac' };
+/** Abre os .zip "de pacote" (projeto do AE/XML + Footage + Fonts + presets): devolve os arquivos de dentro. */
+async function expandZips(files) {
+  const out = [];
+  for (const f of files) {
+    if (!/\.zip$/i.test(f.name)) { out.push(f); continue; }
+    const pk = await unpackProject(f).catch(() => null);
+    if (pk) { out.push({ mfPack: pk, file: f }); continue; } // projeto do MotionFrame salvo com mídias
+    try {
+      const { readZip } = await import('./zip.js');
+      const z = await readZip(f);
+      for (const n of z.names) {
+        const short = n.split('/').pop();
+        if (!short || /^(\.|__MACOSX)/.test(short) || n.includes('__MACOSX/') || /^screenshot_|nodevideo/i.test(short)) continue;
+        const ext = short.split('.').pop().toLowerCase();
+        out.push(new File([await z.get(n, MEDIA_TYPES[ext] || '')], short, { type: MEDIA_TYPES[ext] || '' }));
+      }
+    } catch (e) { toast(`${f.name}: ${e.message}`, 'error', 5000); }
+  }
+  return out;
+}
+/** Textos do projeto com nome de fonte do AE (PostScript: "DancingScript-Regular") → família instalada ("Dancing Script"). */
+function matchFontsToInstalled() {
+  const key = (n) => String(n || '').toLowerCase().replace(/[-_ ](regular|bold|italic|medium|light|black|semibold|thin|heavy|book|roman)\b.*$/g, '').replace(/[^a-z0-9]/g, '');
+  const fams = userFonts().map((f) => f.family);
+  let n = 0;
+  for (const l of flatLayers(store.project.layers)) {
+    if (l.type !== 'text') continue;
+    const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
+    const hit = fams.find((f) => key(f) === key(first)) || fams.find((f) => key(first).startsWith(key(f)) && key(f).length > 3);
+    if (hit && hit !== first) { l.props.fontFamily = `"${hit}", ${l.props.fontFamily}`; n++; }
+  }
+  if (n) { store.commit('structure'); toast(`${n} texto(s) usando as fontes do pacote ✓`, 'ok', 3500); }
+}
+
+/**
+ * Abre qualquer coisa no lugar certo — inclusive TUDO JUNTO: escolha (ou arraste) o .aep / .xml / .zip do projeto com as
+ * pastas de mídias, fontes e presets. Ordem: instala as fontes, adiciona os presets (.ffx) e efeitos (.aex), abre o projeto
+ * e já conecta as mídias pelo nome (sem perguntar). Sem projeto, as mídias entram como camadas.
+ */
+async function routeFiles(files) {
+  files = await expandZips(files);
+  const pack = files.find((f) => f.mfPack);
+  files = files.filter((f) => !f.mfPack);
   const fonts = files.filter((f) => isFontFile(f.name));
   const xml = files.filter((f) => /\.(xml|fcpxml|amproj)$/i.test(f.name));
-  const aep = files.filter((f) => /\.aep$/i.test(f.name));
+  const aep = files.filter((f) => /\.aepx?$/i.test(f.name));
   const aex = files.filter((f) => /\.aex$/i.test(f.name));
-  const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name));
-  const media = files.filter((f) => !/\.(ffx|frameify|rgx|cube|json|aex|xml|fcpxml|amproj|aep|ttf|otf|woff2?)$/i.test(f.name));
-  if (fonts.length) importFontsFlow(fonts);
-  if (xml.length) openXMLFlow(xml[0]);
-  if (aep.length) openAEPFlow(aep[0]);
-  if (aex.length) { openSheet('browser'); fxBrowser.importAex(aex); }
-  if (presets.length) { openSheet('presets'); library.importFiles(presets); }
-  if (media.length) importMedia(media);
+  const mfjson = files.filter((f) => /\.motionframe\.json$/i.test(f.name));
+  const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name) && !mfjson.includes(f));
+  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()]);
+  const project = pack || mfjson[0] || aep[0] || xml[0];
+  const done = [];
+  if (fonts.length) { const r = await importFonts(fonts).catch(() => ({ ok: [] })); if (r.ok?.length) done.push(`${r.ok.length} fonte(s)`); }
+  if (presets.length) { library.importFiles(presets); done.push(`${presets.length} preset(s)`); }
+  if (aex.length) { fxBrowser.importAex(aex); done.push(`${aex.length} plugin(s) .aex`); }
+  if (pack) await openUnpacked(pack.mfPack, pack.file, true);
+  else if (mfjson[0]) { const d = await unpackProject(mfjson[0]).catch(() => null); if (d) await openUnpacked(d, mfjson[0], true); }
+  else if (aep[0]) await openAEPFlow(aep[0], { media });
+  else if (xml[0]) await openXMLFlow(xml[0], { media });
+  else if (media.length) importMedia(media);
+  if (project) matchFontsToInstalled();
+  if (project && done.length) toast(`Junto com o projeto: ${done.join(', ')} ✓`, 'ok', 5000);
+  else if (!project && !media.length && done.length) { openSheet('presets'); toast(`Importado: ${done.join(', ')} ✓`, 'ok', 4000); }
 }
 
 // ------------------------------------------------------------------ autosave
@@ -1973,8 +2026,11 @@ async function openUnpacked(data, f, asNew) {
 }
 
 async function importProjectFile() {
-  const [f] = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,application/json', false);
-  if (!f) return;
+  const picked = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,.aep,.aepx,.ffx,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*,application/json', true);
+  if (!picked?.length) return;
+  // vários arquivos (projeto + mídias + fontes + presets) ou .aep: abre tudo junto
+  if (picked.length > 1 || /\.aepx?$/i.test(picked[0].name)) return routeFiles(picked);
+  const f = picked[0];
   if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, true); }
   if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
   try {
@@ -2000,7 +2056,7 @@ async function importAEFiles() {
 }
 
 /** Abre um .aep como projeto novo: escolhe a composição, converte camadas/keyframes/efeitos e pede as mídias. */
-async function openAEPFlow(file) {
+async function openAEPFlow(file, { media: given = null } = {}) {
   if (!file) { [file] = await pickFiles('.aep,application/octet-stream', false); if (!file) return; }
   const base = file.name.replace(/\.aepx?$/i, '');
   let parsed;
@@ -2020,6 +2076,7 @@ async function openAEPFlow(file) {
   saveProjectData(p, null);
   await openProjectById(p.id);
   const extra = [...res.notes, ...(res.unsupported.length ? [`Efeitos sem equivalente: ${res.unsupported.slice(0, 8).join(', ')}.`] : [])];
+  if (res.media.length && given?.length) { await relinkAEMedia({ files: given }); return; } // veio tudo junto: conecta direto
   if (res.media.length) {
     const go = await modal('Conectar vídeos e fotos', `<p>O projeto usa <b>${res.media.length}</b> arquivo(s) que ficam no computador e não vêm dentro do .aep:</p>
       <ul class="small">${res.media.slice(0, 20).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}${res.media.length > 20 ? '<li>…</li>' : ''}</ul>
@@ -2032,7 +2089,7 @@ async function openAEPFlow(file) {
   } else toast(`Projeto “${base}” aberto ✓${extra.length ? ' — ' + extra[0] : ''}`, 'ok', 5000);
 }
 
-async function openXMLFlow(file) {
+async function openXMLFlow(file, { media: given = null } = {}) {
   if (!file) { [file] = await pickFiles('.xml,.fcpxml,.fcpxmld,.amproj,.zip,text/xml,application/xml', false); if (!file) return; }
   const base = file.name.replace(/\.(fcp)?xml$|\.amproj$|\.zip$/i, '');
   let res, zipMedia = null;
@@ -2054,11 +2111,12 @@ async function openXMLFlow(file) {
       }
     } else res = xmlToProject(await file.text(), base);
   } catch (e) { toast(`${file.name}: ${e.message}`, 'error', 5000); return; }
+  if (!zipMedia && given?.length && res.amEffects) zipMedia = []; // XML do Alight com as mídias escolhidas junto
   if (zipMedia) {
     const p = res.project; p.id = uid('prj');
     saveProjectData(p, null);
     await openProjectById(p.id);
-    if (zipMedia.length) await relinkAEMedia({ files: zipMedia });
+    if (zipMedia.length || given?.length) await relinkAEMedia({ files: [...zipMedia, ...(given || [])] });
     toast(`Projeto do Alight Motion “${p.name || base}” aberto: ${flatLayers(p.layers).length} camada(s)${res.notes.length ? ' — ' + res.notes[res.notes.length - 1] : ''}`, 'ok', 6000);
     return;
   }
@@ -2067,6 +2125,7 @@ async function openXMLFlow(file) {
   p.id = uid('prj');
   saveProjectData(p, null);
   await openProjectById(p.id);
+  if (given?.length) { await relinkAEMedia({ files: given }); return; }
   const go = await modal('Conectar os clipes do XML', `<p>A sequência “${escapeHtml(p.name || base)}” foi montada: <b>${p.layers.length}</b> clipe(s), ${p.width}×${p.height}, ${p.fps}fps, ${p.duration.toFixed(1)}s.</p>
     <p>Ela usa <b>${res.media.length}</b> arquivo(s):</p><ul class="small">${res.media.slice(0, 20).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}${res.media.length > 20 ? '<li>…</li>' : ''}</ul>
     <p class="muted small">Escolha esses arquivos (pode marcar vários): cada um entra no clipe certo pelo nome, com o mesmo corte, tempo e velocidade.${res.notes.length ? '<br>' + res.notes.map(escapeHtml).join('<br>') : ''}</p>`,
