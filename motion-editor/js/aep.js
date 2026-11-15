@@ -586,19 +586,23 @@ function convMask(mk, W, H, t0) {
 }
 
 /** Converte a composição `compId` (ou a principal) num projeto do MotionFrame. */
-// Escala de tempo do render do After: o vídeo de referência do projeto tem 13,33 s e a comp 14,1 s, e o instante
-// t da comp aparece no vídeo em t × 13,33 / 14,1. Todos os tempos do .aep importado são multiplicados por isso
-// (duração, entradas/saídas, keyframes). Ajuste aqui se outro render mostrar outra proporção.
-export const AE_TIME_SCALE = 13.333333 / 14.1;
+// Tempo do render do After: ajustado por 52 quadros do vídeo de referência (comp = ref × 1,0026 + 0,205 s). A inclinação é 1:
+// não há compressão de tempo; o vídeo começa 0,205 s depois do início da composição (área de trabalho). Todos os tempos do
+// .aep importado (entradas/saídas, keyframes, início das camadas) andam esse deslocamento. Ajuste aqui se outro render mudar.
+export const AE_TIME_SCALE = 1;
+export const AE_TIME_OFFSET = -0.205;
 
-/** Multiplica, em todo o projeto, os tempos de keyframes (objetos com t e v) e de entradas/saídas/duração. */
-function scaleTimes(o, s, seen = new Set()) {
+/** Aplica t' = t × s + off a keyframes (objetos com t e v) e a entradas/saídas/início das camadas; a duração só escala. */
+function scaleTimes(o, s, off = 0, seen = new Set()) {
   if (!o || typeof o !== 'object' || seen.has(o)) return;
   seen.add(o);
-  if (Array.isArray(o)) { for (const x of o) scaleTimes(x, s, seen); return; }
-  if (typeof o.t === 'number' && 'v' in o) o.t = +(o.t * s).toFixed(4);
-  for (const k of ['inPoint', 'outPoint', 'startTime', 'duration']) if (typeof o[k] === 'number') o[k] = +(o[k] * s).toFixed(4);
-  for (const v of Object.values(o)) if (v && typeof v === 'object') scaleTimes(v, s, seen);
+  if (Array.isArray(o)) { for (const x of o) scaleTimes(x, s, off, seen); return; }
+  if (typeof o.t === 'number' && 'v' in o) o.t = +(o.t * s + off).toFixed(4);
+  // a entrada cortada pelo deslocamento (início do vídeo) avança a mídia: o áudio/vídeo continua no mesmo ponto da composição
+  if (typeof o.inPoint === 'number' && o.props && typeof o.props.sourceStart === 'number' && o.inPoint * s + off < 0) o.props.sourceStart = +(o.props.sourceStart - (o.inPoint * s + off) * (o.props.speed || 1)).toFixed(4);
+  for (const k of ['inPoint', 'outPoint', 'startTime', 'contentStart']) if (typeof o[k] === 'number') o[k] = +Math.max(k === 'startTime' || k === 'contentStart' ? -1e9 : 0, o[k] * s + off).toFixed(4);
+  if (typeof o.duration === 'number') o.duration = +(o.duration * s).toFixed(4);
+  for (const v of Object.values(o)) if (v && typeof v === 'object') scaleTimes(v, s, off, seen);
 }
 
 export function aepToProject(parsed, compId, name = 'Projeto do AE') {
@@ -611,7 +615,7 @@ export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   proj.background = hex(comp.bg || [0, 0, 0]);
   const ctx = { media: new Set(), notes: new Set(), unsupported: new Set() };
   proj.layers = buildLayers(parsed, comp, proj, ctx);
-  scaleTimes(proj.layers, AE_TIME_SCALE);
-  proj.duration = +(proj.duration * AE_TIME_SCALE).toFixed(3);
+  scaleTimes(proj.layers, AE_TIME_SCALE, AE_TIME_OFFSET);
+  proj.duration = Math.max(0.1, +(proj.duration * AE_TIME_SCALE + AE_TIME_OFFSET).toFixed(3));
   return { project: proj, comp, media: [...ctx.media], notes: [...ctx.notes], unsupported: [...ctx.unsupported] };
 }
