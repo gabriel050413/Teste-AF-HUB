@@ -37,6 +37,7 @@ import { getGL } from './gl.js';
 import { TrackerPanel } from './tracker-panel.js';
 import { calibrateFromImage, CALIB_LABEL } from './calibrate.js';
 import { parseAEP, aepToProject, mainComps } from './aep.js';
+import { isAiFile, aiToPngFile } from './ai-import.js';
 import { xmlToProject } from './xml-import.js';
 import { TransitionsPanel } from './transitions-panel.js';
 import { checkForUpdate, showUpdateBanner } from './updater.js';
@@ -1042,6 +1043,10 @@ async function importMedia(files) {
   for (let f of files) {
     const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
     if (isVideo && /\.(mp4|mov|m4v)$/i.test(f.name)) f = await maybeProxy(f);
+    if (!isVideo && await isAiFile(f)) { // .ai do Illustrator é PDF: vira PNG com transparência (pdf.js)
+      try { f = await aiToPngFile(f); toast(`“${f.name}” importado como imagem (página 1 do .ai).`, 'info', 3000); }
+      catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); continue; }
+    }
     const isAudio = f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name);
     const isImage = f.type.startsWith('image/');
     if (!isVideo && !isAudio && !isImage) continue;
@@ -1542,7 +1547,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
+  'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
     // modo simples: as ferramentas avançadas aparecem numa grade (como o "Mais" dos apps de celular)
@@ -1567,7 +1572,7 @@ const commands = {
   add: () => openSheet('add'),
   'add-text': () => addLayer('text'),
   'add-adjustment': () => { addLayer('adjustment'); openSheet('browser', 'effects'); },
-  'add-media': async () => importMedia(await pickFiles('video/*,image/*')),
+  'add-media': async () => importMedia(await pickFiles('video/*,image/*,.ai')),
   'add-audio': async () => importMedia(await pickFiles('audio/*,.mp3,.wav,.m4a,.aac,.ogg')),
   'import-ffx': async () => {
     const files = await pickFiles('.ffx,.rgx,.cube,.json,application/octet-stream');
@@ -2153,7 +2158,7 @@ async function routeFiles(files) {
   const aex = files.filter((f) => /\.aex$/i.test(f.name));
   const mfjson = files.filter((f) => /\.motionframe\.json$/i.test(f.name));
   const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name) && !mfjson.includes(f));
-  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()]);
+  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()] || /\.ai$/i.test(f.name));
   // vários projetos no pacote/pasta: pergunta qual abrir (os presets, fontes e mídias entram de qualquer jeito)
   const projs = [...mfjson, ...aep, ...xml];
   if (!pack && projs.length > 1) {
