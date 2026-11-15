@@ -23,3 +23,8 @@ flamengo|9|ouvido
 cruzeiro|9|silencio
 atleticomg|7|aviao
 palmeiras|9|siuuu
+# --- times históricos (baseado na transmissão: Messi/Mbappé de braços abertos, Di María mãos ao ouvido/emoção)
+arg2022|10|abertos
+arg2022|11|ouvido
+arg2022|9|salto
+fra2022|10|abertos

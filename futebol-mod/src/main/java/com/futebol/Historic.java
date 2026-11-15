@@ -267,6 +267,54 @@ public final class Historic {
         }
     }
 
+
+    // ------------------------- diretor de TV (copiado da estrutura da transmissão da final 2022) -------------------------
+
+    /** Plano de câmera do momento: modo, jogador em foco, lado do gol e time. */
+    public record Cam(Cameras.Mode mode, FPlayer subject, int side, int team) {}
+
+    Cam cam() {
+        if (finished) return null;
+        Match.St st = m.st;
+        int team = Math.max(0, m.lastEventTeam), side = m.attackDir[team];
+        FPlayer sc = m.goalScorer != null ? m.goalScorer : shooter;
+        if (st == Match.St.GOAL) {                       // gol: close do artilheiro, festa rasteira no canto, torcida
+            int k = m.stTicks;
+            if (k < 38) return new Cam(Cameras.Mode.ROSTO, sc, side, team);
+            if (k < 70) return new Cam(Cameras.Mode.RASTEIRA, sc, side, team);
+            return new Cam(Cameras.Mode.TORCIDA, sc, side, team);
+        }
+        if (st == Match.St.REPLAY) {                     // replays: atrás do gol, bola de perto, rasteira, goleiro, ângulo alto
+            double f = m.replayIdx / (double) Math.max(1, m.replayLen);
+            boolean cele = m.replayCele && m.replayPass == m.replayPasses - 1;
+            if (cele) return new Cam(f < 0.45 ? Cameras.Mode.ROSTO : f < 0.75 ? Cameras.Mode.TORCIDA : Cameras.Mode.ALTA, sc, side, team);
+            if (m.replayPass == 0) return new Cam(f < 0.4 ? Cameras.Mode.GOL : f < 0.75 ? Cameras.Mode.BOLA : Cameras.Mode.RASTEIRA, sc, side, team);
+            return new Cam(f < 0.5 ? Cameras.Mode.ALTA : Cameras.Mode.ROSTO, f < 0.5 ? sc : m.gk(1 - team), side, team);
+        }
+        if (ph == Ph.EV && staging && shooter != null) {
+            int ss = shooter.team, sd = m.attackDir[ss];
+            boolean pen = idx < g.evs.size() && g.evs.get(idx).extra().equals("pen");
+            if (!shot) {
+                if (pen) return t < stageShot - 45 ? new Cam(Cameras.Mode.TV, shooter, sd, ss) : t < stageShot - 18 ? new Cam(Cameras.Mode.ROSTO, shooter, sd, ss) : new Cam(Cameras.Mode.GOL, shooter, sd, ss);
+                return t < stageShot - 30 ? new Cam(Cameras.Mode.TV, shooter, sd, ss) : new Cam(Cameras.Mode.ALTA, shooter, sd, ss);
+            }
+            if (m.st == Match.St.PLAYING && t - stageShot > 10 && keeper != null && saved) return new Cam(Cameras.Mode.ROSTO, keeper, sd, ss);
+            return new Cam(Cameras.Mode.GOL, shooter, sd, ss);
+        }
+        if (ph == Ph.PK && shooter != null) {            // pênaltis: atrás do batedor, frente do goleiro, reação
+            int ss = shooter.team, sd = m.attackDir[ss];
+            if (pkIdx >= g.pks.size()) return new Cam(Cameras.Mode.DRONE, shooter, sd, ss);
+            if (!shot) return t < 45 ? new Cam(Cameras.Mode.ROSTO, shooter, sd, ss) : t < 80 ? new Cam(Cameras.Mode.ROSTO, keeper, sd, ss) : new Cam(Cameras.Mode.ALTA, shooter, sd, ss);
+            if (t - 90 < 12) return new Cam(Cameras.Mode.GOL, shooter, sd, ss);
+            return new Cam(Cameras.Mode.ROSTO, pkOutcome == 'd' ? keeper : shooter, sd, ss);
+        }
+        if (ph == Ph.CERIMONIA) {
+            if (cerT < 60) return new Cam(Cameras.Mode.TV, null, 1, champion);
+            return null;
+        }
+        return null;
+    }
+
     // ------------------------- fim e pênaltis -------------------------
 
     void fim() {
@@ -295,7 +343,8 @@ public final class Historic {
 
     void pk() {
         if (pkIdx >= g.pks.size()) {
-            if (t < 60) return;
+            if (t == 2) festaPenaltis();
+            if (t < 170) return;
             champion = pens[0] > pens[1] ? 0 : 1;
             m.title("§6§l" + Roster.TIME_NOME[champion].toUpperCase() + " VENCE NOS PÊNALTIS", "§f" + pens[0] + " §8-§f " + pens[1]);
             staging = false;
@@ -354,6 +403,19 @@ public final class Historic {
         }
     }
     int shooterTeam;
+
+    /** Vitória nos pênaltis: o time inteiro corre para o goleiro e vira uma pilha de gente, vista de cima (drone). */
+    void festaPenaltis() {
+        int w = pens[0] > pens[1] ? 0 : 1;
+        FPlayer gk = m.gk(w);
+        Vec3 c = m.W(w, 61, 0);
+        staging = false; m.st = Match.St.PLAYING;
+        m.minOverride = "PÊNALTIS " + pens[0] + "-" + pens[1];
+        for (FPlayer p : m.teams[w]) { p.touchCd = 999; p.mode = FPlayer.Mode.HOLD; p.tx = gk.pos().x + Math.cos(p.def.num()) * 1.2; p.tz = gk.pos().z + Math.sin(p.def.num()) * 1.2; p.spd = 1.0; p.crouch = false; }
+        for (FPlayer p : m.teams[1 - w]) { p.tx = p.pos().x; p.tz = p.pos().z; p.spd = 0; Anim.play(m.level, p.e, Anim.LAMENTO, 120); }
+        if (m.crowd != null) { m.crowd.event("goal", w); m.crowd.event("end", w); }
+        if (m.cameras != null) m.cameras.shake(2.0);
+    }
 
     static double hd(Vec3 a, Vec3 b) { return Math.hypot(a.x - b.x, a.z - b.z); }
 

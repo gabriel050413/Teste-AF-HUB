@@ -151,6 +151,7 @@ public final class Cameras {
 
     private void director() {
         Match.St st = m.st;
+        if (m.script != null) { Historic.Cam hc = m.script.cam(); if (hc != null) { dMode = hc.mode(); dSubject = hc.subject(); dSide = hc.side(); dTeam = hc.team(); dLastSt = st; dLastSp = m.sp; dEnd = tick; return; } }
         boolean changed = st != dLastSt || (st == Match.St.SETPIECE && m.sp != dLastSp);
         dLastSt = st; dLastSp = m.sp;
         if (!changed && tick < dEnd && st != Match.St.REPLAY && st != Match.St.GOAL && st != Match.St.SETPIECE) return;

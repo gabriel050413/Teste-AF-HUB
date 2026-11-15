@@ -12,6 +12,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.2 — direção de TV baseada na final de 2022
+Diretor de câmera do modo "Simulando jogos" refeito a partir da estrutura dos melhores momentos de Argentina x França: lance ao vivo em plano aberto, close do batedor no pênalti,
+atrás do gol no chute, close do artilheiro no gol, festa rasteira, torcida, replays (atrás do gol, bola de perto, rasteira, goleiro, alto) e, nos pênaltis, close do batedor/goleiro e
+drone sobre a pilha de comemoração do campeão. Comemorações: Messi e Mbappé de braços abertos, Di María mão ao ouvido. Ainda aproximado (sem mão-de-coração, sem narração copiada).
+
 ## Novidades da v3.1 — SIMULANDO JOGOS
 Reencena os lances decisivos de 10 jogos famosos com os mesmos times e jogadores: `/futebol jogos` lista, `/futebol jogo argfra22` começa
 (`/futebol jogo pular` pula o lance, `/futebol jogo parar` encerra). Jogos: argfra22 (final 2022, com pênaltis e cerimônia do troféu),
