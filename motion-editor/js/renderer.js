@@ -750,7 +750,12 @@ function findFx(layer, type) {
 }
 
 export function renderLayer(ctx, layer, t, scale, extra, fps = 30) {
-  if (layer.threeD && cam3d) { ctx.save(); ctx.globalCompositeOperation = layer.blend || 'source-over'; render3D(ctx, layer, t, scale, extra); ctx.restore(); return; }
+  if (layer.threeD && cam3d) {
+    ctx.save(); ctx.globalCompositeOperation = layer.blend || 'source-over';
+    const mb3 = findFx(layer, 'motionBlur'), mp3 = mb3 ? evalParams(mb3, layerTime(layer, t)) : null;
+    if (mp3 && mp3.amount > 0) drawMotionBlur3D(ctx, layer, t, scale, extra, mp3, fps); else render3D(ctx, layer, t, scale, extra);
+    ctx.restore(); return;
+  }
   const m = layerTransform(layer, t);
   const echo = findFx(layer, 'echo');
   const mb = findFx(layer, 'motionBlur');
@@ -923,8 +928,34 @@ function render3D(ctx, layer, t, scale, extra) {
   gl.releaseAll();
 }
 
+let camScene = null; // camadas e tamanho da composição em desenho (o motion blur 3D refaz a câmera em cada instante do obturador)
+let mb3Acc = null, mb3Tmp = null;
+/** Motion blur de camada 3D: desenha a camada várias vezes dentro do obturador, com câmera e camada nos instantes certos, e soma. */
+function drawMotionBlur3D(ctx, layer, t, scale, extra, mp, fps) {
+  const n = Math.max(2, Math.min(16, Math.round(mp.samples || 8)));
+  const shutter = ((mp.amount / 100) * 0.5) / fps;
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  if (!mb3Acc) { mb3Acc = makeCanvas(W, H); mb3Tmp = makeCanvas(W, H); }
+  for (const c of [mb3Acc, mb3Tmp]) if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  const ac = mb3Acc.getContext('2d'), sc = mb3Tmp.getContext('2d'), tf = ctx.getTransform(), prevCam = cam3d;
+  ac.setTransform(1, 0, 0, 1, 0, 0); ac.globalCompositeOperation = 'source-over'; ac.globalAlpha = 1; ac.clearRect(0, 0, W, H);
+  try {
+    for (let i = 0; i < n; i++) {
+      const tau = t + shutter * (i / (n - 1) - 0.5);
+      if (camScene) cam3d = setupCamera(camScene.layers, tau, camScene.W, camScene.H) || prevCam;
+      sc.setTransform(1, 0, 0, 1, 0, 0); sc.globalCompositeOperation = 'source-over'; sc.globalAlpha = 1; sc.clearRect(0, 0, W, H);
+      sc.setTransform(tf);
+      render3D(sc, layer, tau, scale, extra);
+      ac.setTransform(1, 0, 0, 1, 0, 0); ac.globalCompositeOperation = 'lighter'; ac.globalAlpha = 1 / n;
+      ac.drawImage(mb3Tmp, 0, 0);
+    }
+  } finally { cam3d = prevCam; }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(mb3Acc, 0, 0); ctx.restore();
+}
+
 function drawLayerList(ctx, layers, t, scale, fps, onAdjust, compW = project?.width || 1080, compH = project?.height || 1920) {
-  const prevCam = cam3d;
+  const prevCam = cam3d, prevScene = camScene;
+  camScene = { layers, W: compW, H: compH };
   cam3d = setupCamera(layers, t, compW, compH);
   // ordem de desenho: de baixo para cima; camadas 3D seguidas são ordenadas pela distância à câmera (como no AE)
   const order = [];
@@ -941,7 +972,7 @@ function drawLayerList(ctx, layers, t, scale, fps, onAdjust, compW = project?.wi
   }
   try {
     for (const i of order) drawListItem(ctx, layers, i, t, scale, fps, onAdjust);
-  } finally { cam3d = prevCam; }
+  } finally { cam3d = prevCam; camScene = prevScene; }
 }
 
 function drawListItem(ctx, layers, i, t, scale, fps, onAdjust) {

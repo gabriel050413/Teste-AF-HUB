@@ -105,6 +105,7 @@ function readLayer(r, c) {
     guide: !!(b37 & 0x02),
     nullLayer: !!(b38 & 0x80), solo: !!(b38 & 0x08), threeD: !!(b38 & 0x04), adjustment: !!(b38 & 0x02),
     shy: !!(b39 & 0x40), effectsOn: !!(b39 & 0x04), audio: !!(b39 & 0x02), enabled: !!(b39 & 0x01),
+    motionBlur: !!(b39 & 0x80), // interruptor de motion blur da camada (ligado nos textos/formas do render de referência)
     sourceId: r.u32(o + 40),
     blend: c.size > 100 ? r.u8(o + 99) : 0,
     layerType: c.size > 131 ? r.u8(o + 131) : 0, // 0 mídia/sólido/comp, 1 luz, 2 câmera, 3 texto, 4 forma
@@ -469,6 +470,8 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       for (const fx of pre.effects) layer.effects.push(createEffectInstance(fx.type, fx.params, offset + l.startTime, { ...(fx.label ? { label: fx.label } : {}), ...(fx.matchName ? { matchName: fx.matchName } : {}), ...(fx.defs ? { defs: fx.defs } : {}) }));
       for (const e of pre.report.effects) if (e.status === 'unsupported') ctx.unsupported.add(e.name || e.matchName);
     }
+    // motion blur do After (ângulo do obturador padrão de 180°): borra o movimento da camada e da câmera
+    if (l.motionBlur && layer.type !== 'adjustment' && layer.type !== 'null' && layer.type !== 'camera') layer.effects.push(createEffectInstance('motionBlur', { amount: 100, samples: 12 }, 0));
     if (isGroup) {
       // pré-comp do AE: o conteúdo começa no Start Time da camada; time stretch vira velocidade; Time Remap vira o efeito
       const st0 = offset + l.startTime, sk = 1 / (l.stretch || 1);
