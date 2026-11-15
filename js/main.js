@@ -1342,7 +1342,8 @@ function showApps() {
   const base = new URL('downloads/', location.href).href;
   modal('Baixar o MotionFrame', `
     <p><b>💻 Windows (.exe)</b> — o editor completo num programa. Abre numa janela própria (usa o Edge/Chrome do PC, com aceleração da placa de vídeo) e funciona sem internet.</p>
-    <p><a class="btn primary" href="${base}MotionFrame.exe" download>Baixar MotionFrame.exe</a></p>
+    <p><a class="btn primary" href="${base}MotionFrame-leve.exe" download>Baixar MotionFrame leve (.exe, recomendado)</a> <a class="btn" href="${base}MotionFrame.exe" download>MotionFrame.exe (versão antiga, Electron)</a></p>
+    <p class="muted small">O <b>leve</b> é menor, mais rápido e lê pastas do Google Drive em 🔗 Importar de link.</p>
     <p class="muted small">O Windows pode avisar “aplicativo não reconhecido” (o programa não tem assinatura paga): clique em <i>Mais informações → Executar assim mesmo</i>. Deixe a janela preta aberta enquanto usa; feche-a para sair. O PC tem um código de aparelho próprio: peça um token para ele em 🔑 Conta e acesso.</p>
     <p><b>🤖 Android (.apk)</b></p>
     <p><a class="btn primary" href="${base}MotionFrame.apk" download>Baixar MotionFrame.apk</a></p>
@@ -1910,6 +1911,15 @@ async function downloadLink(url, onProg) {
     const fid = /folders\/([\w-]+)/.exec(url)?.[1] || DRIVE_ID(url);
     let list;
     try { list = await listDriveFolder(fid); } catch (e) {
+      const desk = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
+      if (desk) {
+        // programa de PC antigo (Electron / leve anterior): sem a ponte /__fetch — oferece o .exe novo
+        const base = 'https://ofd1.github.io/Teste-AF-HUB/downloads/';
+        modal('Atualize o programa do PC', `<p>Este MotionFrame do PC é uma versão anterior que ainda não lê pastas do Google Drive (a leitura fica dentro do programa, a atualização automática só troca o editor).</p>
+          <p><a class="btn primary" href="${base}MotionFrame-leve.exe" target="_blank" rel="noopener">Baixar MotionFrame leve (.exe novo)</a></p>
+          <p class="muted small">Enquanto isso: links de <b>arquivos</b> do Drive funcionam (cole um por linha), ou compacte a pasta em .zip.</p>`, [{ label: 'Fechar', value: null }]);
+        throw new Error('este programa do PC precisa ser atualizado para ler pastas (baixe o MotionFrame leve).');
+      }
       throw new Error('o navegador não deixa ler pastas do Drive. No app de PC/APK funciona; aqui, compacte a pasta em .zip no Drive ou cole os links dos arquivos (um por linha).');
     }
     if (!list.length) throw new Error('a pasta está vazia ou não é pública (compartilhe como “qualquer pessoa com o link”).');
