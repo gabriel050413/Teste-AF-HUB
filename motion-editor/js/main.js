@@ -2432,7 +2432,11 @@ async function importFontsFlow(files) {
 /** Troca os espaços reservados das mídias do .aep pelos arquivos escolhidos (casando pelo nome do arquivo). */
 const AUD_RE = /\.(mp3|wav|aiff?|m4a|aac|ogg|flac)$/i;
 async function relinkAEMedia({ substitute = false, files = null } = {}) {
-  if (!files) files = await pickFiles('video/*,image/*,audio/*');
+  if (!files) files = await pickFiles('video/*,image/*,audio/*,.ai');
+  if (!files.length) return;
+  // .ai (PDF do Illustrator) entra como PNG da página 1; o nome continua igual (Clock.ai → Clock.png)
+  files = await Promise.all(files.map(async (f) => { try { return (await isAiFile(f)) ? await aiToPngFile(f) : f; } catch (e) { toast(`Não deu para abrir “${f.name}”: ${e?.message || e}`, 'error', 6000); return null; } }));
+  files = files.filter(Boolean);
   if (!files.length) return;
   const used = new Set();
   const saved = new Map();

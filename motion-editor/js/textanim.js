@@ -58,7 +58,7 @@ function selectorAmounts(an, chars, t) {
     } else if (s.type === 'expr' && s.delay != null) {
       // oscilação amortecida do After por caractere: t = (tempo AE − início) − atraso × índice (1-based);
       // antes do atraso a quantidade é 100 %; depois, s = amp·cos(2π·freq·t) / e^(decay·t) (em %)
-      const tc = t / (s.k || 1) - (s.t0ae || 0);
+      const tc = t / (s.k || 1); // t já é o tempo local da camada (desde a entrada), em segundos do app
       vals = chars.map((c) => {
         const ti = tc - s.delay * ((c.ci ?? 0) + 1);
         if (ti < 0) return 1;
