@@ -205,6 +205,8 @@ export function parseAEP(buffer) {
       l.source = src ? { id: src.id, type: src.type, kind: src.kind, name: src.name } : null;
       // efeitos + transformação (keyframes em quadros × time scale da composição, relativos ao início da camada)
       const fx = parseFXChildren(r, l._chunks, (comp.fps || 30) * (comp.timeScale || 1));
+      // alguns .aep (ex.: OmarFX Wings) gravam lixo ("-_0_/-") como nome de todos os efeitos: usa o match name
+      for (const e of fx.effects) if (!e.name || /^[-_/0\s]+$/.test(e.name)) e.name = e.matchName;
       l.effects = fx.effects;
       l.properties = fx.properties;
       const fps = (comp.fps || 30) * (comp.timeScale || 1);
@@ -416,10 +418,13 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       layer.props.width = W; layer.props.height = H; layer.props.fill = hex((src.color || [0.5, 0.5, 0.5]).map((x) => x * 255));
     } else if (src?.type === 'footage') {
       // mídia do AE: vira um espaço reservado até o arquivo ser escolhido no aparelho
-      const file = src.fileName || src.name || 'mídia';
+      const file = src.fileName || src.name || l.name || 'mídia';
       const kind = AUD_EXT.test(file) ? 'audio' : IMG_EXT.test(file) ? 'image' : 'video';
       layer = LAYER_FACTORIES.solid(proj);
-      layer.props.width = W; layer.props.height = H; layer.props.fill = '#26262e';
+      // PNG/PSD/AI/SVG costumam ser logos com fundo transparente (asas, marcas): o espaço reservado opaco do tamanho
+      // do quadro fazia Fill/Tint/texturas pintarem a tela inteira — fica transparente até a mídia ser conectada
+      const alphaLike = /\.(png|webp|gif|psd|ai|eps|svg|tiff?|tga|exr)$/i.test(file);
+      layer.props.width = W; layer.props.height = H; layer.props.fill = alphaLike ? 'rgba(0,0,0,0)' : '#26262e';
       layer.props.aeMedia = { file, path: src.path || '', kind, width: W, height: H, fps: src.fps || 0, sourceStart: Math.max(0, (l.inPoint - l.startTime) / (l.stretch || 1)), speed: 1 / (l.stretch || 1) };
       if (kind === 'audio') layer.props.width = layer.props.height = 2;
       ctx.media.add(file);

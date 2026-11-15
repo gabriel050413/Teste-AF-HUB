@@ -60,7 +60,8 @@ const ROWS = [
   [/HUD_Components|Logo_Motion|Title_Motion/i, 'transform', 0], [/BCC Beat Reactor/i, 'transform', 0], [/BCC3Sequencer|BCC3Z Space|BCC VR (Insert|Reorient)/i, 'transform', 0],
 ];
 
-export const PK_IMPORT_RULES = ROWS.map(([test, to, mode, extra]) => ({ vendor: 'Plugins do usuário', plugin: `${to}${mode ? ` · modo ${mode}` : ''}`, to, test, set: { ...(mode ? { mode } : {}), ...(extra || {}) } }));
+// texturas do Sapphire/BCC aplicadas numa camada com recorte (asas, logo) ficam só dentro dela, como no AE
+export const PK_IMPORT_RULES = ROWS.map(([test, to, mode, extra]) => ({ vendor: 'Plugins do usuário', plugin: `${to}${mode ? ` · modo ${mode}` : ''}`, to, test, set: { ...(mode ? { mode } : {}), ...(to === T ? { keepAlpha: true } : {}), ...(extra || {}) } }));
 
 /** Plugins que não mexem na imagem (gerenciadores, scripts, utilitários): reconhecidos, mas sem efeito visual. */
 export const UTILITY_PLUGINS = /AEJuice|Pack Manager|ADBE PM System|Animation Composer|Script(EP|ET|LD|SP|TO)\b|BCCFXBrowser|BCCTS\b|Videoscope|S_ShowBadColors|S_OCIOTransform|BCC Remover|BCC3Wire Remover|Copy Ease|Shifter/i;
