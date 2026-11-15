@@ -500,6 +500,8 @@ function looksExpand(fx, raw) {
 
 export const IMPORT_RULES = [
   // Continuum (BCC) com os controles reais (doc da Boris FX + índices dos .ffx): vêm antes das regras genéricas
+  { vendor: ADOBE, plugin: 'Audio Spectrum', to: 'audioSpectrum', match: ['ADBE AudSpect'],
+    map: { start: { n: ['start point'] }, end: { n: ['end point'] }, bands: { n: ['frequency bands'] }, maxHeight: { n: ['maximum height'] }, thickness: { n: ['thickness'] }, color: { n: ['inside color'] } } },
   // áudio (OmarFX End Muffled Audio / Reverb)
   { vendor: ADOBE, plugin: 'Bass & Treble', to: 'audBassTreble', match: ['ADBE Aud BT'], map: { bass: { i: 1, n: ['bass'] }, treble: { i: 2, n: ['treble'] } } },
   { vendor: ADOBE, plugin: 'Reverb', to: 'audReverb', match: ['ADBE Aud Reverb'],
@@ -937,7 +939,7 @@ export const IMPORT_RULES = [
     map: { color: { i: 1, n: ['shadow color'] }, opacity: { i: 2, n: ['opacity'], conv: (v) => (v > 100 ? v / 2.55 : v) }, angle: { i: 3, n: ['direction'] }, distance: { i: 4, n: ['distance'] }, softness: { i: 5, n: ['softness'] }, only: { i: 6, n: ['shadow only'] } } },
   { vendor: ADOBE, plugin: 'Mosaic', to: 'mosaic', match: ['ADBE Mosaic'], map: { hBlocks: { i: 1, n: ['horizontal blocks'] }, vBlocks: { i: 2, n: ['vertical blocks'] } } },
   { vendor: 'Cycore (CC)', plugin: 'CC Vignette', to: 'vignette', match: ['CC Vignette'], map: { amount: { n: ['amount'] } } },
-  { vendor: ADOBE, plugin: 'Noise / Add Grain', to: 'noise', match: ['ADBE Noise', 'ADBE Add Grain', 'ADBE Noise2', 'ADBE Match Grain'], map: { amount: { n: ['amount of noise', 'intensity', 'amount'], conv: pct } } },
+  { vendor: ADOBE, plugin: 'Noise / Add Grain', to: 'noise', match: ['ADBE Noise', 'ADBE Add Grain', 'ADBE Noise2', 'ADBE Match Grain'], map: { amount: { n: ['amount of noise', 'intensity', 'amount'], conv: (v) => pct(v) * 0.35 } } }, // o Noise do AE em 35% é um grão leve; 1:1 cobria a imagem de chiado
   { vendor: ADOBE, plugin: 'Find Edges', to: 'findEdges', match: ['ADBE Find Edges'], map: { invert: { n: ['invert'] }, blend: { n: ['blend with original'] } } },
   { vendor: ADOBE, plugin: 'Strobe Light', to: 'strobe', match: ['ADBE Strobe Light'],
     map: { color: { n: ['strobe color'] } },
@@ -1018,7 +1020,7 @@ const normalize = (s) => (s || '').toLowerCase().trim();
  */
 // controles de expressão, pseudo-efeitos, áudio e pintura não são efeitos visuais: viram controles genéricos
 // (antes um Slider chamado "Blur" casava pelo nome e virava desfoque)
-const NON_VISUAL = /^(ADBE (Slider|Point3D|Point|Angle|Checkbox|Color|Layer|Dropdown) Control|ADBE AudSpect|ADBE Paint|Pseudo\/)/i;
+const NON_VISUAL = /^(ADBE (Slider|Point3D|Point|Angle|Checkbox|Color|Layer|Dropdown) Control|ADBE Paint|Pseudo\/)/i;
 
 export function matchEffect(matchName, displayName = '') {
   if (NON_VISUAL.test(matchName || '')) return null;
