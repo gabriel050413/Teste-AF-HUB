@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.8
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.9
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v2.9 — clipe do gol e comemorações estilo EA FC
+- **Vídeo do gol para baixar:** o cliente do mod grava a tela em segundo plano durante a partida. Quando sai gol, aparece no chat **🎬 CLIPE DO GOL PRONTO [⬇ BAIXAR VÍDEO] [📂 PASTA]**: o vídeo tem os **20 s antes do gol**, o gol, **os replays em vários ângulos e a comemoração**. Clique em baixar (ou use `/futebolclip salvar`) e o arquivo `.avi` vai para a pasta `futebol_clips/` do jogo (640×360, 20 fps, Motion-JPEG: abre no VLC/Windows Media Player; para MP4 use `ffmpeg -i gol.avi gol.mp4`). Guarda os últimos 4 clipes. ⚠️ Sem áudio.
+- **Comemoração principal de cada jogador** (`comemoracoes.txt`) e **16 comemorações no estilo EA FC**: deslize de joelhos, Siuuu, samba, meditação, silêncio para a torcida, soco no ar, aviãozinho, robô, bebê no berço, braços cruzados (frio), arco e flecha, surfista, braços abertos, dança coletiva, mão no ouvido e salto e grito — com animação de corpo própria. Haaland medita, Mbappé e Palmer cruzam os braços, Vini dança samba, Bellingham abre os braços, Salah abre os braços... os demais têm uma fixa.
+  > Não tenho acesso à lista oficial do EA FC 27: os nomes e as atribuições são inspirados nas comemorações populares da série e no que lembro de cada craque. Edite `comemoracoes.txt` para ajustar.
 
 ## Novidades da v2.8 — animações de corpo de verdade
 Agora o mod move os **braços, pernas, tronco e cabeça** dos jogadores com animações próprias (desenhadas no cliente, verificadas com capturas reais do jogo), disparadas pelo servidor em cada lance:

@@ -121,6 +121,47 @@ public final class ClientAnims {
             case Anim.JOELHO -> {
                 arm(ra, w, -2.6f, 0, 0.4f); arm(la, w, -2.6f, 0, -0.4f); h.xRot = lerp(h.xRot, -0.5f, w); b.xRot = lerp(b.xRot, -0.3f, w);
             }
+            case Anim.ROBO -> {
+                int step = (int) (t * 0.3f) % 4;
+                arm(ra, w, step == 0 || step == 1 ? -1.57f : -0.2f, 0, 0.1f); arm(la, w, step == 1 || step == 2 ? -1.57f : -0.2f, 0, -0.1f);
+                b.yRot = lerp(b.yRot, (step - 1.5f) * 0.35f, w); h.yRot = lerp(h.yRot, -(step - 1.5f) * 0.4f, w);
+            }
+            case Anim.BERCO -> {
+                float sway = (float) Math.sin(t * 0.35f);
+                arm(ra, w, -1.15f, -0.7f, 0.1f); arm(la, w, -1.15f, 0.7f, -0.1f); b.zRot = lerp(b.zRot, sway * 0.1f, w); h.xRot = lerp(h.xRot, 0.35f, w);
+            }
+            case Anim.FRIO -> {
+                float tr = (float) Math.sin(t * 2.2f) * 0.04f;
+                arm(ra, w, -0.85f + tr, 0.95f, 0.1f); arm(la, w, -0.85f - tr, -0.95f, -0.1f); h.xRot = lerp(h.xRot, -0.1f, w); b.xRot = lerp(b.xRot, 0.05f + tr, w);
+            }
+            case Anim.ARCO -> {
+                float draw = p < 0.5f ? sm(p / 0.5f) : 1f;
+                arm(la, w, -1.57f, 0.1f, -0.15f); arm(ra, w, -1.45f, 0.95f * draw, 0.2f); h.yRot = lerp(h.yRot, 0.35f, w); b.yRot = lerp(b.yRot, 0.2f, w);
+            }
+            case Anim.SHUSH -> {
+                arm(ra, w, -2.05f, -0.55f, 0.1f); arm(la, w, 0.1f, 0, -0.2f); h.xRot = lerp(h.xRot, -0.05f, w);
+            }
+            case Anim.SAMBA -> {
+                float a = (float) Math.sin(t * 0.6f);
+                b.zRot = lerp(b.zRot, a * 0.2f, w); h.zRot = lerp(h.zRot, -a * 0.2f, w);
+                arm(ra, w, -1.9f * (a > 0 ? 1 : 0.4f), 0, 0.6f); arm(la, w, -1.9f * (a < 0 ? 1 : 0.4f), 0, -0.6f);
+                rl.xRot = lerp(rl.xRot, a * 0.8f, w); ll.xRot = lerp(ll.xRot, -a * 0.8f, w);
+            }
+            case Anim.SURFE -> {
+                float a = (float) Math.sin(t * 0.5f);
+                arm(ra, w, -1.0f + a * 1.2f, 0, 0.9f); arm(la, w, -1.0f - a * 1.2f, 0, -0.9f); b.zRot = lerp(b.zRot, a * 0.1f, w);
+                rl.xRot = lerp(rl.xRot, -0.2f, w); ll.xRot = lerp(ll.xRot, 0.2f, w);
+            }
+            case Anim.ABERTO -> {
+                arm(ra, w, 0f, 0, 1.5f); arm(la, w, 0f, 0, -1.5f); h.xRot = lerp(h.xRot, -0.4f, w); b.xRot = lerp(b.xRot, -0.08f, w);
+            }
+            case Anim.SIUU -> {
+                float a = p < 0.35f ? 0.6f : 1.5f;
+                arm(ra, w, p < 0.35f ? 0.2f : -0.2f, 0, a); arm(la, w, p < 0.35f ? 0.2f : -0.2f, 0, -a); h.xRot = lerp(h.xRot, -0.25f, w); b.xRot = lerp(b.xRot, -0.1f, w);
+            }
+            case Anim.MEDITAR -> {
+                arm(ra, w, -0.9f, 0.25f, 0.6f); arm(la, w, -0.9f, -0.25f, -0.6f); h.xRot = lerp(h.xRot, 0.25f, w);
+            }
             default -> {}
         }
     }

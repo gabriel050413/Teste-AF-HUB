@@ -17,6 +17,12 @@ public class FutebolClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(ClipPayload.TYPE, (payload, ctx) -> ClipRecorder.onCmd(payload.cmd(), payload.text()));
+        ClientTickEvents.END_CLIENT_TICK.register(ClipRecorder::tick);
+        net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback.EVENT.register((d, r) -> d.register(
+            net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("futebolclip")
+                .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal("salvar").executes(c -> { ClipRecorder.salvar(0); return 1; })
+                    .then(net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument("id", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1)).executes(c -> { ClipRecorder.salvar(com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(c, "id")); return 1; })))));
         net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.registerGlobalReceiver(AnimPayload.TYPE, (payload, ctx) -> ClientAnims.set(payload.id(), payload.anim(), payload.dur()));
         String dir = System.getenv("FUTEBOL_SHOTS");
         if (dir == null) return;

@@ -32,6 +32,7 @@ final class AutoTest {
                     mm.st = Match.St.FULLTIME;
                 }
                 if (t[0] == 200 && System.getenv("FUTEBOL_ANIMTEST") == null) FutebolMod.match.start();
+                if (System.getenv("FUTEBOL_CLIPTEST") != null) { if (t[0] == 120 || t[0] % 100 == 7) ClipPayload.send(pl.level() instanceof net.minecraft.server.level.ServerLevel sl ? sl : null, 1, ""); if (t[0] == 560) ClipPayload.send((net.minecraft.server.level.ServerLevel) pl.level(), 2, ""); if (t[0] == 900) ClipPayload.send((net.minecraft.server.level.ServerLevel) pl.level(), 3, "Teste · BAR 1-0 RMA"); }
                 int k = t[0] - 700;
                 if (k >= 0 && k % 160 == 0 && k / 160 < plan.length) {
                     String id = plan[k / 160];

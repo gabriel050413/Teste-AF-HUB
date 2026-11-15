@@ -22,6 +22,8 @@ public final class Clubs {
     public static final java.util.Set<String> SKINS = new java.util.HashSet<>();
     /** Perfil de jogo: bônus de firula (0..40), firulas favoritas (0..7) e estilos (curva, forca, cavada, longe, falta, cruz, cabeca, lancamento, velocista). */
     public record Perfil(int drible, java.util.List<Integer> firulas, java.util.Set<String> estilo) {}
+    private static final Map<String, String> CELEBRACOES = new java.util.HashMap<>();
+    public static String celebracao(String clube, int num) { return CELEBRACOES.get(clube + "|" + num); }
     private static final Map<String, Perfil> PERFIS = new java.util.HashMap<>();
     static final String[] FIRULAS = {"finta", "pedalada", "elastico", "chapeu", "caneta", "vaca", "cortesec", "meialua"};
     public static Perfil perfil(String clube, int num) { return PERFIS.get(clube + "|" + num); }
@@ -45,6 +47,11 @@ public final class Clubs {
         SKINS.clear();
         ALTURAS.clear();
         PERFIS.clear();
+        CELEBRACOES.clear();
+        try (InputStream in = Clubs.class.getResourceAsStream("/futebol/comemoracoes.txt")) {
+            if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip)
+                .filter(l -> !l.isEmpty() && !l.startsWith("#")).forEach(l -> { String[] f = l.split("\\|"); if (f.length == 3) CELEBRACOES.put(f[0] + "|" + f[1], f[2].strip()); });
+        } catch (Exception ignored) {}
         try (InputStream in = Clubs.class.getResourceAsStream("/futebol/habilidades.txt")) {
             if (in != null) new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8)).lines().map(String::strip)
                 .filter(l -> !l.isEmpty() && !l.startsWith("#")).forEach(l -> {

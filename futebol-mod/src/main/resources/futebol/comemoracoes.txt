@@ -1,0 +1,25 @@
+# Comemoração principal: clube|camisa|nome
+# nomes: deslize, siuuu, samba, meditar, silencio, soco, aviao, robo, bebe, frio, arco, surf, abertos, danca, ouvido, salto
+# (frio = braços cruzados / "cold"; baseado no que lembro de cada craque — edite à vontade; quem não está aqui recebe uma fixa, sempre a mesma)
+mancity|9|meditar
+realmadrid|10|frio
+realmadrid|7|samba
+realmadrid|5|abertos
+chelsea|10|frio
+liverpool|11|abertos
+bayern|9|deslize
+barcelona|9|deslize
+barcelona|19|danca
+barcelona|11|silencio
+psg|10|samba
+psg|14|robo
+arsenal|7|abertos
+arsenal|14|abertos
+liverpool|7|danca
+mancity|47|bebe
+mancity|11|surf
+flamengo|10|bebe
+flamengo|9|ouvido
+cruzeiro|9|silencio
+atleticomg|7|aviao
+palmeiras|9|siuuu

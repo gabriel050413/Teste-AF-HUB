@@ -261,6 +261,7 @@ public final class Match {
     public int crowdSize = 140;
 
     public void remove() {
+        ClipPayload.send(level, 0, "");
         if (bar != null) bar.removeAllPlayers();
         if (cameras != null) cameras.stopAll();
         if (referee != null) referee.remove();
@@ -349,6 +350,7 @@ public final class Match {
         if (cameras != null) cameras.tick();
         if (nar != null) nar.tick();
         if (nar != null && tickCount % 20 == 0) nar.ambient();
+        if (tickCount % 100 == 7) ClipPayload.send(level, 1, "");
         if (tickCount % 100 == 1) { boolean dark = isNight() || level.isRaining(); if (dark != lightsOn) { lightsOn = dark; pitch.setLights(dark); } }
         if (referee != null) referee.tick();
         if (staff != null) staff.tick();
@@ -510,6 +512,7 @@ public final class Match {
             level.sendParticles(ParticleTypes.FIREWORK, c.x, c.y + 2, c.z, 12, 3, 1.5, 3, 0.1);
         }
         if (stTicks > 125) {
+            if (goalScorer != null) ClipPayload.send(level, 3, goalScorer.def.nome() + " · " + Roster.SIGLA[0] + " " + score[0] + "-" + score[1] + " " + Roster.SIGLA[1]);
             int conceded = 1 - lastEventTeam;
             resetForKickoff(conceded, true);
             beginSetPiece(SP.KICKOFF, conceded, new Vec3(pitch.cx(), pitch.surf(), pitch.cz()));
@@ -558,21 +561,26 @@ public final class Match {
         }
     }
 
-    // tipos de comemoração: 0 deslize de joelhos, 1 salto com giro, 2 dança, 3 meditação, 4 "cala a boca" para a torcida, 5 soco no ar no escanteio, 6 aviãozinho
-    static final String[] CELE_NOME = {"deslize de joelhos", "salto com giro", "dança", "meditação", "silêncio para a torcida", "soco no ar", "aviãozinho"};
+    // catálogo de comemorações (estilo EA FC). move: 0 corre ao escanteio e fica, 1 deslize de joelhos, 2 centro, 3 frente da torcida, 4 gira em volta da bandeira, 5 saltos com giro
+    record Cele(String nome, String token, int anim, int move, boolean crouch) {}
+    static final Cele[] CELES = {
+        new Cele("deslize de joelhos", "deslize", Anim.BRACOS, 1, false), new Cele("Siuuu", "siuuu", Anim.SIUU, 5, false),
+        new Cele("samba", "samba", Anim.SAMBA, 0, false), new Cele("meditação", "meditar", Anim.MEDITAR, 2, true),
+        new Cele("silêncio para a torcida", "silencio", Anim.SHUSH, 3, false), new Cele("soco no ar", "soco", Anim.PUNHO, 0, false),
+        new Cele("aviãozinho", "aviao", Anim.AVIAO, 4, false), new Cele("robô", "robo", Anim.ROBO, 2, false),
+        new Cele("bebê no berço", "bebe", Anim.BERCO, 0, false), new Cele("braços cruzados (frio)", "frio", Anim.FRIO, 2, false),
+        new Cele("arco e flecha", "arco", Anim.ARCO, 3, false), new Cele("surfista", "surf", Anim.SURFE, 4, false),
+        new Cele("braços abertos", "abertos", Anim.ABERTO, 2, false), new Cele("dança coletiva", "danca", Anim.DANCA, 0, false),
+        new Cele("mão no ouvido", "ouvido", Anim.OUVIDO, 3, false), new Cele("salto e grito", "salto", Anim.PUNHO, 5, false)};
     int celeType;
     boolean throwNow;
 
+    /** Comemoração principal do jogador (comemoracoes.txt) ou uma fixa derivada do nome. */
     int celebrationFor(FPlayer p) {
-        String k = Roster.ATUAL[p.team].id() + "_" + p.def.num();
-        return switch (k) {
-            case "mancity_9" -> 3;                                   // Haaland medita
-            case "realmadrid_7", "psg_14", "barcelona_19" -> 2;      // Vini dança...
-            case "realmadrid_10", "psg_10" -> 4;
-            case "bayern_9", "liverpool_11", "barcelona_9" -> 0;
-            case "arsenal_7", "mancity_47" -> 1;
-            default -> Math.floorMod(k.hashCode(), 7);
-        };
+        String club = Roster.ATUAL[p.team].id();
+        String tk = Clubs.celebracao(club, p.def.num());
+        if (tk != null) for (int i = 0; i < CELES.length; i++) if (CELES[i].token().equals(tk)) return i;
+        return Math.floorMod((club + "_" + p.def.num()).hashCode(), CELES.length);
     }
 
     /** Comemoração: cada artilheiro tem a sua; o time corre atrás; o adversário abaixa a cabeça. */
@@ -582,12 +590,13 @@ public final class Match {
         if (sc == null) for (FPlayer p : teams[t]) if (p.def.pos() == Pos.ST) sc = p;
         if (stTicks == 1) {
             celeType = celebrationFor(sc);
-            int[] an = {Anim.BRACOS, Anim.PUNHO, Anim.DANCA, 0, Anim.OUVIDO, Anim.PUNHO, Anim.AVIAO};
-            if (an[celeType] != 0) Anim.play(level, sc.e, an[celeType], 100);
+            Cele cl = CELES[celeType];
+            Anim.play(level, sc.e, cl.anim(), 105);
+            sayV("§d🎉 " + sc.def.nome() + ": " + cl.nome());
         }
-        if (stTicks == 50) for (FPlayer q : teams[t]) if (q != sc && !q.isGK()) Anim.play(level, q.e, (q.def.num() & 1) == 0 ? Anim.BRACOS : Anim.PUNHO, 70);
+        Cele cl = CELES[celeType];
+        if (stTicks == 50) for (FPlayer q : teams[t]) if (q != sc && !q.isGK()) Anim.play(level, q.e, cl.token().equals("danca") ? Anim.DANCA : cl.token().equals("bebe") ? Anim.BERCO : (q.def.num() & 1) == 0 ? Anim.BRACOS : Anim.PUNHO, 70);
         if (stTicks == 12) for (FPlayer q : teams[1 - t]) Anim.play(level, q.e, Anim.LAMENTO, 80);
-        if (stTicks == 1) { sayV("§d🎉 " + sc.def.nome() + ": " + CELE_NOME[celeType]); }
         Vec3 sp = sc.pos();
         double side = attackDir[t], zs = Math.signum(sp.z - pitch.cz() + 0.01);
         Vec3 corner = new Vec3(pitch.cx() + side * (Pitch.HALF_L - 5), pitch.surf(), pitch.cz() + zs * (Pitch.HALF_W - 6));
@@ -603,20 +612,18 @@ public final class Match {
             } else if (p.team != t || p.isGK()) { p.tx = p.pos().x; p.tz = p.pos().z; p.spd = 0.2; p.spinRate = 0; p.crouch = false; }
         }
         // ---- o artilheiro ----
-        Vec3 dest = switch (celeType) { case 3 -> center; case 4 -> stand; default -> corner; };
+        Vec3 dest = switch (cl.move()) { case 2 -> center; case 3 -> stand; default -> corner; };
         double d = hd(sp, dest);
         sc.tx = dest.x; sc.tz = dest.z; sc.spd = d > 1.5 ? 1.0 : 0.0;
         sc.crouch = false; sc.spinRate = 0;
         boolean arrived = d < 2.2 || stTicks > 75;
-        switch (celeType) {
-            case 0 -> { if (d < 8 && stTicks > 12) { sc.animPose = net.minecraft.world.entity.Pose.SWIMMING; sc.animTicks = 3; sc.spd = 0.7; } if (arrived) { sc.animPose = net.minecraft.world.entity.Pose.SWIMMING; sc.animTicks = 3; sc.spd = 0; } }
-            case 1 -> { if (arrived) { sc.spd = 0; sc.spinRate = 0.22; if (stTicks % 16 == 0 && sc.e.onGround()) sc.e.setDeltaMovement(0, 0.46, 0); } }
-            case 2 -> { if (arrived) { sc.spd = 0; sc.spinRate = Math.sin(stTicks * 0.4) * 0.3; if (stTicks % 8 == 0) { if (sc.e.onGround()) sc.e.setDeltaMovement(0, 0.28, 0); swing(sc); } } }
-            case 3 -> { if (arrived) { sc.spd = 0; sc.animPose = net.minecraft.world.entity.Pose.CROUCHING; sc.animTicks = 3; } }
-            case 4 -> { if (arrived) { sc.spd = 0; sc.fx = side; sc.fz = 0; if (stTicks % 10 == 0) swing(sc); } }
-            case 5 -> { if (arrived) { sc.spd = 0; if (stTicks % 9 == 0) { swing(sc); if (sc.e.onGround()) sc.e.setDeltaMovement(0, 0.4, 0); } } }
-            default -> { sc.animPose = net.minecraft.world.entity.Pose.FALL_FLYING; sc.animTicks = 3; sc.spd = 1.0; sc.tx = corner.x + Math.cos(stTicks * 0.15) * 5; sc.tz = corner.z + Math.sin(stTicks * 0.15) * 5; if (stTicks % 12 == 0) swing(sc); }
+        switch (cl.move()) {
+            case 1 -> { if (d < 8 && stTicks > 12) { sc.animPose = net.minecraft.world.entity.Pose.SWIMMING; sc.animTicks = 3; sc.spd = 0.7; } if (arrived) { sc.animPose = net.minecraft.world.entity.Pose.SWIMMING; sc.animTicks = 3; sc.spd = 0; } }
+            case 4 -> { sc.spd = 1.0; sc.tx = corner.x + Math.cos(stTicks * 0.15) * 5; sc.tz = corner.z + Math.sin(stTicks * 0.15) * 5; }
+            case 5 -> { if (arrived) { sc.spd = 0; sc.spinRate = 0.22; if (stTicks % 16 == 0 && sc.e.onGround()) sc.e.setDeltaMovement(0, 0.46, 0); } }
+            default -> { if (arrived) { sc.spd = 0; if (cl.crouch()) { sc.animPose = net.minecraft.world.entity.Pose.CROUCHING; sc.animTicks = 3; } if (cl.token().equals("silencio") || cl.token().equals("arco") || cl.token().equals("ouvido")) { sc.fx = side; sc.fz = 0; } if ((cl.token().equals("soco") || cl.token().equals("salto")) && stTicks % 12 == 0 && sc.e.onGround()) sc.e.setDeltaMovement(0, 0.4, 0); } }
         }
+        if (cl.token().equals("aviao")) { sc.animPose = net.minecraft.world.entity.Pose.FALL_FLYING; sc.animTicks = 3; }
         if (stTicks % 6 == 0) {                                      // chuva de papel picado / fogos na arquibancada do time
             Vec3 e = pitch.stadium.endCenter(t);
             level.sendParticles(ParticleTypes.END_ROD, e.x, e.y + 2, e.z, 14, 6, 3, 14, 0.05);
@@ -674,6 +681,7 @@ public final class Match {
         FPlayer who = lastToucher;
         boolean contra = who != null && who.team != team;
         if (cameras != null) cameras.shake(2.4);
+        ClipPayload.send(level, 2, "");
         score[team]++; cnt("gol"); stat[team][2]++; if (who != null && who.team == team) goalsBy.merge(who, 1, Integer::sum); goalMark = recCount; chancePending = false;
         for (ServerPlayer pl : level.players()) { String fav = Tickets.favorito.get(pl.getUUID()); if (fav != null && fav.equals(Roster.ATUAL[team].id())) { pl.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal("§aÉ do seu time!"))); pl.connection.send(new ClientboundSetTitleTextPacket(Component.literal("§6§l⚽ GOOOL DO " + Roster.ATUAL[team].nome().toUpperCase() + "!"))); } }
         lastEventTeam = team;
