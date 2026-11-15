@@ -1938,6 +1938,31 @@ async function downloadLink(url, onProg) {
   } else await get(url, decodeURIComponent(url.split('/').pop().split('?')[0]) || 'arquivo');
   return files;
 }
+/** Transferir tudo entre programas/aparelhos (MotionFrame.exe antigo → leve, PC → outro PC). */
+async function transferFlow() {
+  const go = await modal('Transferir tudo', `<p>Leva <b>todos os projetos</b>, as mídias, fontes, presets, configurações e o <b>acesso deste aparelho</b> para outro programa (ex.: do MotionFrame.exe antigo para o <b>MotionFrame leve</b>).</p>
+    <p class="muted small">1) Aqui: <b>Exportar</b> → salva <i>MotionFrame-transferencia….zip</i> (em partes, se for grande).<br>2) No outro programa: tela de acesso ou Mais opções › Transferir tudo › <b>Importar</b> e escolha o(s) arquivo(s). O acesso vem junto: no mesmo PC, não precisa de token novo.</p>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Importar', value: 'imp' }, { label: '📦 Exportar tudo', primary: true, value: 'exp' }]);
+  if (!go) return;
+  const { exportAll, importAll } = await import('./transfer.js');
+  if (go === 'exp') {
+    try {
+      toast('Preparando a transferência…', 'info', 3000);
+      const parts = await exportAll((t) => toast(t, 'info', 1200));
+      for (const pt of parts) await saveFile(pt.name, pt.blob);
+      toast(parts.length > 1 ? `Transferência pronta em ${parts.length} partes ✓ — importe todas no outro programa.` : 'Transferência pronta ✓ — importe esse arquivo no outro programa.', 'ok', 7000);
+    } catch (e) { toast(`Não deu para exportar: ${e.message}`, 'error', 7000); }
+    return;
+  }
+  const files = await pickFiles('.zip,application/zip', true);
+  if (!files?.length) return;
+  try {
+    const r = await importAll(files, (t) => toast(t, 'info', 1200));
+    toast(`Transferência importada: ${r.projects} projeto(s), ${r.media} mídia(s) ✓ — recarregando…`, 'ok', 3000);
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) { toast(`Não deu para importar: ${e.message}`, 'error', 8000); }
+}
+
 async function importFromLink() {
   let typed = '';
   const txt = await modal('Importar de um link', `<p>Cole o link do projeto (<b>.aep, .xml, .zip</b>, projeto do MotionFrame) ou de uma <b>pasta do Google Drive</b> com o projeto, as mídias, as fontes e os presets. O MotionFrame baixa tudo e abre junto — sem precisar ter nada no aparelho.</p>
@@ -1991,6 +2016,13 @@ async function resolveProjectFonts() {
  * e já conecta as mídias pelo nome (sem perguntar). Sem projeto, as mídias entram como camadas.
  */
 async function routeFiles(files) {
+  // transferência completa de outro programa: restaura tudo (projetos, mídias, acesso)
+  const tr = files.filter((f) => /MotionFrame-transferencia.*\.zip$/i.test(f.name || ''));
+  if (tr.length) {
+    try { const { importAll } = await import('./transfer.js'); const r = await importAll(tr, (t) => toast(t, 'info', 1200)); toast(`Transferência importada: ${r.projects} projeto(s) ✓ — recarregando…`, 'ok', 3000); setTimeout(() => location.reload(), 1500); }
+    catch (e) { toast(`Transferência: ${e.message}`, 'error', 8000); }
+    return;
+  }
   files = await expandZips(files);
   const pack = files.find((f) => f.mfPack);
   files = files.filter((f) => !f.mfPack);
@@ -2341,6 +2373,7 @@ const home = new HomeScreen({
   createAdvanced: () => createProjectFlow(),
   importProject: () => importProjectFile(),
   importLink: () => importFromLink(),
+  transfer: () => transferFlow(),
   logoAnim: () => animateLogoFlow(),
   demoLogo: async () => {
     // projeto de exemplo de motion design: logo feita com o pacote MoGraph (formas com Trim Paths, texto cinético, logo reveal)
@@ -2379,6 +2412,17 @@ const home = new HomeScreen({
   registerServiceWorker();
   loadSavedFonts().then(() => { frameCacheClear(); store.emit('change'); }).catch(() => {});
   home.show();
+  // programa antigo (Electron): avisa uma vez sobre o MotionFrame leve e a transferência
+  if (/Electron/i.test(navigator.userAgent)) {
+    let seen = false; try { seen = localStorage.getItem('motionframe.leveHint') === '1'; } catch { /* */ }
+    if (!seen) setTimeout(async () => {
+      try { localStorage.setItem('motionframe.leveHint', '1'); } catch { /* */ }
+      const r = await modal('Novo: MotionFrame leve', `<p>Existe uma versão nova do programa do PC, o <b>MotionFrame leve</b>: menor, mais rápido e lê pastas do Google Drive (🔗 Importar de link).</p><p>Para não perder nada: <b>📦 Transferir tudo › Exportar</b> aqui, e no leve <b>Importar</b> — projetos, mídias e o acesso vão junto (sem token novo).</p>`,
+        [{ label: 'Depois', value: null }, { label: 'Baixar o leve', value: 'dl' }, { label: '📦 Transferir agora', primary: true, value: 'tr' }]);
+      if (r === 'tr') transferFlow();
+      else if (r === 'dl') window.open('https://ofd1.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
+    }, 2500);
+  }
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.

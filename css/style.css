@@ -500,6 +500,7 @@ body.preview-max .max-ctl { top: max(8px, env(safe-area-inset-top)); }
 .access-code { display: flex; gap: 8px; align-items: center; } .access-code code { flex: 1; font-size: 17px; letter-spacing: 1px; background: #111; padding: 10px; border-radius: 8px; user-select: all; }
 .access-card textarea { width: 100%; background: #111; color: #eee; border: 1px solid #333; border-radius: 8px; padding: 10px; font: 13px monospace; resize: vertical; }
 .access-err { color: #ff6b6b; margin: 0; } .access-go { padding: 12px; font-size: 16px; }
+.access-transfer { margin-top: 6px; padding: 10px; background: transparent; border: 1px dashed #556; border-radius: 8px; color: inherit; cursor: pointer; text-align: left; }
 
 /* ---- painel Tracker (estilo After Effects) */
 .trk-panel { position: absolute; top: 8px; right: 8px; z-index: 30; width: min(300px, calc(100% - 16px)); max-height: calc(100% - 16px); overflow: auto;

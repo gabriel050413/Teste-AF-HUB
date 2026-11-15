@@ -94,11 +94,27 @@ export function accessScreen(code, reason) {
         <p class="access-err" ${reason ? '' : 'hidden'}>${reason || ''}</p>
         <button class="primary access-go" data-a="go">Acessar app</button>
         <p class="muted small">Se você limpar os dados do navegador ou usar outro aparelho, o código muda e é preciso um token novo.</p>
+        <button class="access-transfer" data-a="transfer">📦 Já usava o MotionFrame em outro programa? Importar a transferência</button>
+        <p class="muted small">No programa antigo: ☰ Menu (ou Mais opções na tela inicial) › <b>Transferir tudo</b> › Exportar. Aqui, escolha o(s) arquivo(s) <i>MotionFrame-transferencia</i>: projetos, mídias e o acesso vêm junto, sem token novo.</p>
       </div>`;
     document.body.appendChild(el);
     const err = el.querySelector('.access-err');
     el.querySelector('[data-a="copy"]').onclick = async () => {
       try { await navigator.clipboard.writeText(formatCode(code)); el.querySelector('[data-a="copy"]').textContent = 'Copiado ✓'; } catch { /* sem área de transferência */ }
+    };
+    el.querySelector('[data-a="transfer"]').onclick = () => {
+      const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true; inp.accept = '.zip,application/zip';
+      inp.onchange = async () => {
+        const files = [...(inp.files || [])]; if (!files.length) return;
+        err.hidden = false; err.textContent = 'Importando a transferência…';
+        try {
+          const { importAll } = await import('./transfer.js');
+          const r = await importAll(files, (t) => { err.textContent = t; });
+          err.textContent = `Pronto: ${r.projects} projeto(s) e ${r.media} mídia(s). Abrindo…`;
+          setTimeout(() => location.reload(), 900);
+        } catch (e) { err.textContent = `Não deu: ${e.message}`; }
+      };
+      inp.click();
     };
     el.querySelector('[data-a="go"]').onclick = async () => {
       const tok = el.querySelector('#accTok').value;
