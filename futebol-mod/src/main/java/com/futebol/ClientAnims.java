@@ -159,6 +159,9 @@ public final class ClientAnims {
                 float a = p < 0.35f ? 0.6f : 1.5f;
                 arm(ra, w, p < 0.35f ? 0.2f : -0.2f, 0, a); arm(la, w, p < 0.35f ? 0.2f : -0.2f, 0, -a); h.xRot = lerp(h.xRot, -0.25f, w); b.xRot = lerp(b.xRot, -0.1f, w);
             }
+            case Anim.CORACAO -> {
+                arm(ra, w, -1.25f, -0.55f, 0.1f); arm(la, w, -1.25f, 0.55f, -0.1f); h.xRot = lerp(h.xRot, 0.2f, w); b.xRot = lerp(b.xRot, 0.05f, w);
+            }
             case Anim.MEDITAR -> {
                 arm(ra, w, -0.9f, 0.25f, 0.6f); arm(la, w, -0.9f, -0.25f, -0.6f); h.xRot = lerp(h.xRot, 0.25f, w);
             }

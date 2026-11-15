@@ -576,7 +576,7 @@ public final class Match {
         new Cele("bebê no berço", "bebe", Anim.BERCO, 0, false), new Cele("braços cruzados (frio)", "frio", Anim.FRIO, 2, false),
         new Cele("arco e flecha", "arco", Anim.ARCO, 3, false), new Cele("surfista", "surf", Anim.SURFE, 4, false),
         new Cele("braços abertos", "abertos", Anim.ABERTO, 2, false), new Cele("dança coletiva", "danca", Anim.DANCA, 0, false),
-        new Cele("mão no ouvido", "ouvido", Anim.OUVIDO, 3, false), new Cele("salto e grito", "salto", Anim.PUNHO, 5, false)};
+        new Cele("mão no ouvido", "ouvido", Anim.OUVIDO, 3, false), new Cele("salto e grito", "salto", Anim.PUNHO, 5, false), new Cele("coração com as mãos", "coracao", Anim.CORACAO, 3, false)};
     int celeType;
     boolean throwNow;
 

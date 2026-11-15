@@ -31,7 +31,7 @@ public final class Historic {
     public record Pk(int team, int num, char r) {}
     public static final class Game {
         public String id, titulo, sub, home, away; public boolean fin; public int capH, capA;
-        public final List<Ev> evs = new ArrayList<>(); public final List<Pk> pks = new ArrayList<>();
+        public final List<Ev> evs = new ArrayList<>(); public final List<Pk> pks = new ArrayList<>(); public final Map<Integer, String> plays = new LinkedHashMap<>();
     }
 
     public static final Map<String, Game> GAMES = new LinkedHashMap<>();
@@ -49,6 +49,7 @@ public final class Historic {
                 switch (f[0]) {
                     case "JOGO" -> { g = new Game(); g.id = f[1]; g.titulo = f[2]; g.sub = f[3]; g.home = f[4]; g.away = f[5]; g.fin = f[6].equals("1"); g.capH = Integer.parseInt(f[7]); g.capA = Integer.parseInt(f[8]); GAMES.put(g.id, g); }
                     case "EV" -> g.evs.add(new Ev(f[1], f[2], f[3].isEmpty() ? 0 : Integer.parseInt(f[3]), f[4].isEmpty() ? 0 : Integer.parseInt(f[4]), f.length > 5 ? f[5] : ""));
+                    case "PLAY" -> g.plays.put(Integer.parseInt(f[1]), f[2]);
                     case "PK" -> g.pks.add(new Pk(Integer.parseInt(f[1]), Integer.parseInt(f[2]), f[3].charAt(0)));
                     default -> {}
                 }
@@ -132,6 +133,7 @@ public final class Historic {
         for (FPlayer p : m.all) {
             if (p == shooter) continue;
             p.touchCd = Math.max(p.touchCd, 30);
+            if (free.contains(p)) continue;
             if (p == keeper && !noSave[p.team]) { p.touchCd = 0; continue; }
             p.mode = FPlayer.Mode.HOLD;
             if (p.spd > 0.45) p.spd = 0.45;
@@ -204,6 +206,105 @@ public final class Historic {
         }
     }
 
+    // ------------------------- jogadas coreografadas (PLAY em jogos.txt) -------------------------
+    // tokens separados por ';'  @n,u,v = põe jogador do time que ataca | !n,u,v = põe adversário | nRu,v = corre (sem esperar)
+    // n>u,v = conduz a bola até lá | npM = passa rasteiro para M | nlM = bola alta para M | nF = sofre a falta (pênalti)
+    // nHn = (adversário n) toca na bola com a mão | Kn = n chuta e o goleiro defende (rebote) | ns = n chuta (gol) | wN = espera N ticks
+    final List<String> toks = new ArrayList<>();
+    int ti, playWait, playedIdx = -1, passT; boolean playing; String pst = "";
+    FPlayer holder, recv; double cu, cv; final java.util.Set<FPlayer> free = new java.util.HashSet<>();
+    Vec3 passTo; int attT;
+
+    FPlayer pl(String n, boolean att) { return find(att ? attT : 1 - attT, Integer.parseInt(n)); }
+
+    void startPlay(String script) {
+        toks.clear(); for (String s : script.split(";")) if (!s.isBlank()) toks.add(s.strip());
+        ti = 0; playing = true; pst = ""; holder = null; recv = null; free.clear(); playWait = 0; attT = shooter.team;
+    }
+
+    void glue() {
+        if (holder == null) return;
+        Vec3 q = holder.pos(); double dx = holder.tx - q.x, dz = holder.tz - q.z, d = Math.hypot(dx, dz);
+        double fx = d > 0.3 ? dx / d : m.attackDir[attT], fz = d > 0.3 ? dz / d : 0;
+        m.pinBall(new Vec3(q.x + fx * 0.85, m.pitch.surf(), q.z + fz * 0.85));
+    }
+
+    void endPlay(boolean restage) {
+        playing = false; free.clear();
+        if (restage) { t = 0; }
+    }
+
+    void stepPlay(Ev e) {
+        if (playWait > 0) { playWait--; glue(); return; }
+        for (FPlayer p : free) { if (p != holder || pst.equals("")) { if (p.spd == 0) p.spd = 0.7; } }
+        if (pst.equals("carry")) {
+            holder.tx = m.W(attT, cu, cv).x; holder.tz = m.W(attT, cu, cv).z; holder.spd = 0.85; holder.mode = FPlayer.Mode.CARRY; glue();
+            if (hd(holder.pos(), new Vec3(holder.tx, 0, holder.tz)) < 1.7) { pst = ""; holder.spd = 0; }
+            return;
+        }
+        if (pst.equals("pass")) {
+            passT++; Vec3 b = m.bp(); recv.tx = b.x; recv.tz = b.z; recv.spd = 1.0;
+            if (hd(recv.pos(), b) < 1.9 || passT > 55) { holder = recv; pst = ""; holder.touchCd = 0; recv = null; glue(); }
+            return;
+        }
+        if (pst.equals("save")) {
+            passT++;
+            if (passT == 13) {                                              // goleiro defende e a bola sobra para o rebote
+                Vec3 k = keeper.pos(); m.ball.snapTo(k.x - m.attackDir[attT] * 0.5, k.y + 1.0, k.z + side * 0.4); m.ball.setDeltaMovement(Vec3.ZERO);
+                m.gkSave(keeper, 1.0);
+            }
+            if (passT == 22) {
+                Vec3 w = m.W(attT, 60.5, side * 3.0); m.pinBall(w); holder = null; pst = ""; noSave[conceding] = true; allow = true; m.carrier = null;
+                keeper.touchCd = 60;
+            }
+            return;
+        }
+        while (ti < toks.size()) {
+            String s = toks.get(ti++);
+            FutebolMod.LOG.info("PLAY ev{} t={} '{}'", idx, t, s);
+            try {
+                char c0 = s.charAt(0);
+                if (c0 == '@' || c0 == '!') { String[] f = s.substring(1).split(","); FPlayer p = pl(f[0], c0 == '@'); if (p != null) place(p, c0 == '@' ? attT : attT, Double.parseDouble(f[1]), Double.parseDouble(f[2])); continue; }
+                if (c0 == 'w') { playWait = Integer.parseInt(s.substring(1)); return; }
+                if (c0 == 'K') { FPlayer p = pl(s.substring(1), true); holder = p; shooter = p; m.unpin(); noSave[conceding] = false; allow = false; keeper.touchCd = 0;
+                    p.touchCd = 0; double mo = (Pitch.GOAL_HALF - 1.1) / Pitch.SW; m.lastToucher = p; m.lastTouchTeam = attT;
+                    m.shootAt(p, 64, side * mo * 0.35, 0.5, 1.0, 0.2); pst = "save"; passT = 0; return; }
+                java.util.regex.Matcher mt = java.util.regex.Pattern.compile("^(\\d+)([>RplFHs])(.*)$").matcher(s);
+                if (!mt.matches()) continue;
+                FPlayer p = mt.group(1).isEmpty() ? null : pl(mt.group(1), !mt.group(2).equals("H"));
+                String a = mt.group(3);
+                switch (mt.group(2)) {
+                    case "R" -> { String[] f = a.split(","); Vec3 w = m.W(attT, Double.parseDouble(f[0]), Double.parseDouble(f[1])); p.tx = w.x; p.tz = w.z; p.spd = 0.85; p.mode = FPlayer.Mode.RUN; free.add(p); p.touchCd = 99; }
+                    case ">" -> { String[] f = a.split(","); holder = p; free.add(p); cu = Double.parseDouble(f[0]); cv = Double.parseDouble(f[1]); pst = "carry"; p.touchCd = 99; return; }
+                    case "p", "l" -> { FPlayer r = pl(a, true); holder = p; recv = r; free.add(p); free.add(r); r.touchCd = 99; Vec3 tg = r.pos();
+                        if (holder != null) { m.unpin(); p.touchCd = 0; m.lastToucher = p; m.lastTouchTeam = attT; Vec3 lead = new Vec3(tg.x + r.vx * 8, tg.y, tg.z + r.vz * 8);
+                            if (mt.group(2).equals("l")) m.kickLob(p, lead.x, lead.z, 22, 0.5); else m.kickGround(p, lead.x, lead.z, 0.95); }
+                        pst = "pass"; passT = 0; return; }
+                    case "F" -> { p.animPose = net.minecraft.world.entity.Pose.SWIMMING; p.animTicks = 55; m.unpin(); m.whistle(1f); if (m.referee != null) m.referee.whistleGesture(); m.title("§e§lFALTA!", "§7pênalti"); endPlay(true); return; }
+                    case "H" -> { Anim.play(m.level, p.e, Anim.BRACOS, 30); m.whistle(1f); m.title("§e§lMÃO NA BOLA!", "§7pênalti"); playWait = 30; ti = toks.size(); endPlayLater = true; return; }
+                    case "s" -> { shooter = p; holder = null; endPlay(false); fire(e, true); return; }
+                    default -> {}
+                }
+            } catch (RuntimeException ex) { FutebolMod.LOG.warn("PLAY inválido '{}': {}", s, ex.toString()); }
+        }
+        endPlay(true);
+    }
+    boolean endPlayLater;
+
+    /** O batedor chuta (gol ou defesa garantida do goleiro). */
+    void fire(Ev e, boolean gol) {
+        shot = true; shooter.touchCd = 0; m.unpin();
+        double maxOff = (Pitch.GOAL_HALF - 1.1) / Pitch.SW;
+        int a = shooter.team; Vec3 b = m.bp(), sp = shooter.pos();
+        if (hd(sp, b) > 3.2) shooter.e.snapTo(b.x - m.attackDir[a] * 1.2, m.pitch.surf(), b.z, Match.yawTo(m.attackDir[a], 0), 0);
+        m.lastToucher = shooter; m.lastTouchTeam = a;
+        double h = gol ? 0.3 + ((t + e.num()) % 7) * 0.12 : 0.4;
+        m.shootAt(shooter, ogEvent ? 0.4 : 64, side * maxOff * (gol ? 0.78 : 0.9), h, ogEvent ? 0.8 : 1.0, 0.25);
+        m.lastToucher = shooter; m.lastTouchTeam = a;
+        if (m.cameras != null) m.cameras.shake(0.6);
+        stageShot = t;
+    }
+
     void golOuDefesa(Ev e, boolean gol) {
         if (t == 1) {
             shooter = find(e.team(), e.num());
@@ -226,38 +327,34 @@ public final class Historic {
                 place(keeper, a, 1.5, -side * 1.5);
             } else {
                 double su = pen ? 57 : 47, sv = pen ? 0 : side * 7;
+                boolean pre = g.plays.containsKey(idx) && playedIdx != idx;
                 for (FPlayer p : m.all) if (p != shooter) {
                     if (p.team == a) place(p, a, Math.max(18, Math.min(52, p.def.u() + 8)), p.def.v() * 0.9);
-                    else place(p, a, pen ? 47 : 64 - (p.def.u() * 0.5 + 4), pen ? -16 + (p.def.num() % 12) * 3 : p.def.v() * 0.7);
+                    else place(p, a, pen && !pre ? 47 : 64 - (p.def.u() * 0.5 + 4), pen && !pre ? -16 + (p.def.num() % 12) * 3 : p.def.v() * 0.7);
                 }
-                if (pen) for (FPlayer p : m.teams[a]) if (p != shooter && !p.isGK()) place(p, a, 47, 16 - (p.def.num() % 12) * 2.6);
+                if (pen && !pre) for (FPlayer p : m.teams[a]) if (p != shooter && !p.isGK()) place(p, a, 47, 16 - (p.def.num() % 12) * 2.6);
                 place(shooter, a, su - (pen ? 6 : 10), sv + (pen ? 0 : side * 6));
-                Vec3 kw = m.W(conceding == a ? a : a, 62.6, -side * 1.5); keeper.e.snapTo(kw.x, m.pitch.surf(), kw.z, Match.yawTo(-m.attackDir[a], 0), 0);
+                Vec3 kw = m.W(a, 62.6, -side * 1.5); keeper.e.snapTo(kw.x, m.pitch.surf(), kw.z, Match.yawTo(-m.attackDir[a], 0), 0);
                 keeper.tx = kw.x; keeper.tz = kw.z;
                 spot = m.W(a, su, sv);
+                if (pre) { playedIdx = idx; m.pinBall(spot); startPlay(g.plays.get(idx)); stageShot = 100000; return; }
             }
             stageShot = pen ? 150 : 100;
             m.pinBall(spot);
-            if (pen) { m.whistle(0.9f); if (m.nar != null) m.nar.penalty(shooter); }
+            if (pen) { m.whistle(0.9f); }
             String tipo = gol ? (pen ? "PÊNALTI" : og ? "GOL CONTRA" : mao ? "A MÃO DE DEUS?" : "GOL") : "DEFESA";
             m.title("§e§l" + e.min() + "'  §f§l" + tipo, nome(shooter) + " §7(" + Roster.SIGLA[shooter.team] + ")");
         }
         if (shooter == null) return;
-        if (t == 8) falar(idx + "a");
+        if ((t == 8 || playedIdx == idx) && narrouIdx != idx) { narrouIdx = idx; falar(idx + "a"); }
+        if (playing) {
+            stepPlay(e);
+            if (!playing && endPlayLater) { endPlayLater = false; t = 0; }
+            return;
+        }
         if (!shot) {
             Vec3 b = m.bp(); shooter.tx = b.x - m.attackDir[shooter.team] * (ogEvent ? -0.8 : 0.9); shooter.tz = b.z; shooter.spd = 0.85; shooter.mode = FPlayer.Mode.SETPIECE;
-            if (t >= stageShot) {
-                shot = true; shooter.touchCd = 0; m.unpin();
-                double maxOff = (Pitch.GOAL_HALF - 1.1) / Pitch.SW;
-                int a = shooter.team;
-                Vec3 sp = shooter.pos();
-                if (hd(sp, b) > 3.2) shooter.e.snapTo(b.x - m.attackDir[a] * 1.2, m.pitch.surf(), b.z, Match.yawTo(m.attackDir[a], 0), 0);
-                m.lastToucher = shooter; m.lastTouchTeam = a;
-                double h = gol ? 0.3 + ((t + e.num()) % 7) * 0.12 : 0.4;
-                m.shootAt(shooter, ogEvent ? 0.4 : 64, side * maxOff * (gol ? 0.78 : 0.9), h, ogEvent ? 0.8 : 1.0, 0.25);
-                m.lastToucher = shooter; m.lastTouchTeam = a;
-                if (m.cameras != null) m.cameras.shake(0.6);
-            }
+            if (t >= stageShot) fire(e, gol);
         } else {
             int dt = t - stageShot;
             if (!gol && !saved && dt > 13 && m.st == Match.St.PLAYING) {                   // defesa garantida do goleiro
@@ -274,6 +371,7 @@ public final class Historic {
             if (!gol && dt > 90) { staging = false; allow = false; idx++; t = 0; m.unpin(); }
         }
     }
+    int narrouIdx = -1;
 
 
     // ------------------------- diretor de TV (copiado da estrutura da transmissão da final 2022) -------------------------

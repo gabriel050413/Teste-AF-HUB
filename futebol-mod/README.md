@@ -12,6 +12,12 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.4 — jogadas coreografadas + coração do Di María
+Linhas `PLAY|n|...` em jogos.txt encenam a jogada antes do gol (passes, condução, corridas, falta que gera pênalti, mão na bola, defesa e rebote).
+Argfra22 tem as 6 jogadas: pênalti de Di María (Messi→De Paul→Di María), o golaço do contra-ataque (Messi→Alvarez→Mac Allister→Di María), pênalti de Kolo Muani, Coman→Kolo Muani→Mbappé,
+chute de Alvarez + rebote do Messi, cruzamento na mão de Montiel. Sintaxe no cabeçalho do código (`Historic.java`). Nova comemoração "coração com as mãos" (Di María).
+Ainda sem camisa tirada e sem texturas novas de gramado/estádio/torcida/juiz. Para os outros 9 jogos: me mande o vídeo de cada um para coreografar igual.
+
 ## Novidades da v3.3 — narração do modo Simulando jogos
 167 falas novas (uma por lance: pênalti, gol com placar e minuto, defesa, cartão, substituição, intervalo, cada cobrança da disputa, campeão e cerimônia), na voz do locutor,
 com o ritmo/ordem emocional dos melhores momentos (texto próprio, sem copiar a transmissão). Geradas por `python3 tools/gerar_historicas.py --vozes-dir ./piper`

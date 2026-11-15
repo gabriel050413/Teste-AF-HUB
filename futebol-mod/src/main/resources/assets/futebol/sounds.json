@@ -5675,5 +5675,19 @@
 "name": "futebol:narrador/h_rmaatm14_in"
 }
 ]
+},
+"narrador.h_argfra22_11b": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_11b"
+}
+]
+},
+"narrador.h_argfra22_12a": {
+"sounds": [
+{
+"name": "futebol:narrador/h_argfra22_12a"
+}
+]
 }
 }
