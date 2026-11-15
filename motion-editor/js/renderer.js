@@ -86,6 +86,8 @@ function drawContent(ctx, layer, w, h, extra) {
   const p = layer.props;
   switch (layer.type) {
     case 'text': {
+      if (p.fontShiftY) { ctx.save(); ctx.translate(0, p.fontShiftY * p.fontSize); } // Inter assenta ~0,1 em abaixo da SF Pro (medido no render do After)
+      try {
       if (p.animators?.length) { drawAnimatedText(ctx, p, w, h, extra?.lt ?? 0, fontOf(p)); break; }
       ctx.font = fontOf(p);
       if ('letterSpacing' in ctx) ctx.letterSpacing = `${p.letterSpacing || 0}px`;
@@ -105,6 +107,7 @@ function drawContent(ctx, layer, w, h, extra) {
         ctx.fillStyle = p.color;
         ctx.fillText(line, x, y);
       });
+      } finally { if (p.fontShiftY) ctx.restore(); }
       break;
     }
     case 'rect':
@@ -484,6 +487,21 @@ function renderLayerImage(layer, t, scale0, extra) {
       }
       return canvas;
     }
+    // camada de ajuste: os efeitos (desfoques) leem para fora da tela. No After a borda se repete (não vira transparente/preto),
+    // então o contorno é preenchido esticando a primeira/última linha e coluna da composição
+    if (layer.type === 'adjustment' && extra?.snapshot && pad > 1 && !layer.masks?.length) {
+      const sw = Math.max(1, Math.round(w * scale)), sh = Math.max(1, Math.round(h * scale)), S = extra.snapshot, SW = S.width, SH = S.height;
+      cx.imageSmoothingEnabled = false;
+      cx.drawImage(S, 0, 0, SW, 1, pad, 0, sw, pad);                      // acima
+      cx.drawImage(S, 0, SH - 1, SW, 1, pad, pad + sh, sw, pad);          // abaixo
+      cx.drawImage(S, 0, 0, 1, SH, 0, pad, pad, sh);                      // esquerda
+      cx.drawImage(S, SW - 1, 0, 1, SH, pad + sw, pad, pad, sh);          // direita
+      cx.drawImage(S, 0, 0, 1, 1, 0, 0, pad, pad);                        // cantos
+      cx.drawImage(S, SW - 1, 0, 1, 1, pad + sw, 0, pad, pad);
+      cx.drawImage(S, 0, SH - 1, 1, 1, 0, pad + sh, pad, pad);
+      cx.drawImage(S, SW - 1, SH - 1, 1, 1, pad + sw, pad + sh, pad, pad);
+      cx.imageSmoothingEnabled = true;
+    }
     cx.translate(pad, pad);
     cx.scale(scale, scale);
     drawContent(cx, layer, w, h, { ...extra, videoSource: source, lt });
@@ -750,7 +768,7 @@ function findFx(layer, type) {
 }
 
 export function renderLayer(ctx, layer, t, scale, extra, fps = 30) {
-  if (layer.threeD && cam3d) {
+  if (layer.threeD && cam3d && layer.type !== 'adjustment') { // camada de ajuste 3D: o efeito vale para o quadro todo (não é um plano que encolhe com a câmera)
     ctx.save(); ctx.globalCompositeOperation = layer.blend || 'source-over';
     const mb3 = findFx(layer, 'motionBlur'), mp3 = mb3 ? evalParams(mb3, layerTime(layer, t)) : null;
     if (mp3 && mp3.amount > 0) drawMotionBlur3D(ctx, layer, t, scale, extra, mp3, fps); else render3D(ctx, layer, t, scale, extra);

@@ -187,6 +187,7 @@ export async function pickFont(current = '') {
 const FONT_ALIASES = { sfprodisplay: 'Inter', sfprotext: 'Inter', sfpro: 'Inter', sfprorounded: 'Inter', sfuidisplay: 'Inter', sfuitext: 'Inter', sfui: 'Inter', sanfrancisco: 'Inter', sf: 'Inter', bumbbled: 'Kaushan Script' };
 /** A Inter é ~10 % mais larga que a SF Pro Display (medido no render do After): o texto que usava SF Pro encolhe nessa proporção. */
 export const SF_SCALE = 0.9;
+export const SF_SHIFT_Y = -0.1; // em: sobe o texto (a Inter assenta mais baixo que a SF Pro)
 export const isSFPro = (name) => /^"?(sf ?pro|sf ?ui|san ?francisco|sf)([ _-]?(display|text|rounded))?([ _-]?(regular|bold|semibold|medium|light|black|heavy|thin|ultralight))?"?$/i.test(String(name || '').trim());
 const resolved = new Map();
 export async function resolveGoogleFont(name) {

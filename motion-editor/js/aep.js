@@ -193,6 +193,39 @@ function propTree(r, cs, fps) {
   return out;
 }
 
+/**
+ * Paint do After (efeito "ADBE Paint"): cada traço é um "Paint Atom" com o caminho dos pontos do mouse (om-s), cor ARGB,
+ * diâmetro, dureza e deslocamento. Devolve [{ pts, color:[r,g,b] 0..1, opacity, diameter, hardness, offset }] ou null.
+ */
+function readPaint(r, cs, fps) {
+  const atoms = [];
+  const find = (list) => {
+    let mn = null;
+    for (const c of list || []) {
+      if (c.id === 'tdmn') { mn = r.cstr(c.offset, c.size); continue; }
+      if (c.id !== 'LIST') continue;
+      const ccs = kids(c);
+      if (mn === 'ADBE Paint Atom' && c.listType === 'tdgp') atoms.push(ccs);
+      else if (c.listType === 'tdgp' || c.listType === 'sspc') find(ccs);
+      mn = null;
+    }
+  };
+  find(cs);
+  const out = [];
+  for (const ccs of atoms) {
+    const tree = propTree(r, ccs, fps);
+    const g = (nodes, mn) => (nodes || []).find((n) => n.mn === mn);
+    const sh = g(tree, 'ADBE Paint Shape')?.path?.shapes?.[0];
+    if (!sh?.pts?.length) continue;
+    const props = g(tree, 'ADBE Paint Properties')?.children || [];
+    const val = (n) => n?.prop?.value;
+    const col = val(g(props, 'ADBE Paint Color')) || [255, 255, 255, 255]; // ARGB 0..255
+    const pos = val(g(g(tree, 'ADBE Paint Transform')?.children, 'ADBE Paint Position')) || [0, 0];
+    out.push({ pts: sh.pts, color: [(col[1] ?? 255) / 255, (col[2] ?? 255) / 255, (col[3] ?? 255) / 255], opacity: ((col[0] ?? 255) / 255) * 100, diameter: val(g(props, 'ADBE Paint Diameter'))?.[0] ?? 10, hardness: val(g(props, 'ADBE Paint Hardness'))?.[0] ?? 100, offset: [pos[0] || 0, pos[1] || 0] });
+  }
+  return out.length ? out : null;
+}
+
 /** Abre um .aep e devolve { comps, footage, warnings }. Os efeitos de cada camada são lidos sob demanda. */
 export function parseAEP(buffer) {
   const r = new RiffReader(buffer);
@@ -212,6 +245,7 @@ export function parseAEP(buffer) {
       for (const e of fx.effects) if (!e.name || /^[-_/0\s]+$/.test(e.name)) e.name = e.matchName;
       l.effects = fx.effects;
       l.properties = fx.properties;
+      if (fx.effects.some((e) => e.matchName === 'ADBE Paint')) l.paint = readPaint(r, l._chunks, (comp.fps || 30) * (comp.timeScale || 1));
       const fps = (comp.fps || 30) * (comp.timeScale || 1);
       const tree = propTree(r, l._chunks, fps);
       l.shapes = tree.find((n) => n.mn === 'ADBE Root Vectors Group')?.children || null;
@@ -414,6 +448,14 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       layer.props.aeBaseline = true; // âncora na linha de base, como no AE
       const anims = convTextAnimators(l.textAnimators || [], offset + l.startTime);
       if (anims.length) layer.props.animators = anims;
+    } else if (l.paint?.length) {
+      // Paint do After: os traços (fração do sólido, origem no canto) viram um caminho de pontos com contorno redondo
+      layer = LAYER_FACTORIES.shape(proj, l.paint.map((st) => {
+        const cx = W / 2, cy = H / 2, P = st.pts.map(([x, y]) => [(x + st.offset[0]) * W - cx, (y + st.offset[1]) * H - cy]); // os pontos do Paint vêm em fração (0..1) do sólido
+        const bez = []; for (const q of P) bez.push(q, q, q); // vértice, alça de saída, alça de entrada (retas: o traço já é denso)
+        return { t: 'group', items: [{ t: 'path', path: { shapes: [{ closed: false, pts: bez }], times: [] } }, { t: 'stroke', color: anim(st.color), opacity: anim(st.opacity), width: anim(st.diameter), cap: 2, join: 2 }], tr: {} };
+      }));
+      layer.props.width = W; layer.props.height = H;
     } else if (l.layerType === 4) {
       layer = LAYER_FACTORIES.shape(proj, convShapes(l.shapes || [], offset + l.startTime));
       layer.props.width = comp.width; layer.props.height = comp.height;
