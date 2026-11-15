@@ -446,6 +446,10 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
     const cW = isGroup ? W : layer.type === 'shape' ? comp.width : W, cH = isGroup ? H : layer.type === 'shape' ? comp.height : H;
     applyTransform(layer, l, layer.type === 'shape' ? comp.width : W, layer.type === 'shape' ? comp.height : H, comp, offset + l.startTime, cW, cH, pixelAnchor);
     if (layer.type === 'shape') layer.transform.anchor = toAnim(propOf(l, 'ADBE Anchor Point'), (v) => [v[0] || 0, v[1] || 0], [0, 0], offset + l.startTime);
+    // Null sem Ponto de Âncora salvo (nulls de rig/câmera criados por script): a âncora fica na origem da camada —
+    // os filhos em (0,0) ficam em cima do null. Antes ia para o centro (50,50) e cada nível de uma corrente de nulls
+    // empurrava 50 px: a câmera presa em 7 nulls ia para o canto e o texto saía deslocado.
+    if (l.nullLayer && !propOf(l, 'ADBE Anchor Point')) layer.transform.anchor = { value: [-W / 2, -H / 2], keys: [] };
     if (layer.type === 'text') layer.transform.anchor = toAnim(propOf(l, 'ADBE Anchor Point'), (v) => [v[0] || 0, v[1] || 0], [0, 0], offset + l.startTime);
     // máscaras da camada (caminho em px da camada; no .aep podem vir normalizadas 0..1)
     if (l.masks?.length) layer.masks = l.masks.map((mk) => convMask(mk, W, H, offset + l.startTime)).filter(Boolean);
