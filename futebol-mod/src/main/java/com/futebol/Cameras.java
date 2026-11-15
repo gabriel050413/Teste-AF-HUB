@@ -160,12 +160,10 @@ public final class Cameras {
             case REPLAY -> {
                 double f = m.replayIdx / (double) Math.max(1, m.replayLen);
                 Mode want;
-                switch (m.replayPass) {
-                    case 0 -> want = f < 0.55 ? Mode.TV : Mode.ALTA;
-                    case 1 -> want = f < 0.6 ? Mode.GOL : Mode.RASTEIRA;
-                    case 2 -> want = f < 0.55 ? Mode.RASTEIRA : Mode.ROSTO;
-                    default -> want = f < 0.4 ? Mode.ROSTO : f < 0.7 ? Mode.TORCIDA : Mode.ALTA;
-                }
+                boolean cele = m.replayCele && m.replayPass == m.replayPasses - 1;
+                if (cele) want = f < 0.45 ? Mode.ROSTO : f < 0.75 ? Mode.TORCIDA : Mode.ALTA;
+                else if (m.replayPass == 0) want = f < 0.6 ? Mode.TV : Mode.ALTA;          // ângulo 1: transmissão aproximando
+                else want = f < 0.6 ? Mode.GOL : Mode.RASTEIRA;                             // ângulo 2: atrás do gol e rasteira
                 dSide = bx >= 0 ? 1 : -1; dTeam = Math.max(0, m.lastEventTeam);
                 dMode = want; dSubject = m.goalScorer != null ? m.goalScorer : m.lastToucher; dEnd = tick;
             }

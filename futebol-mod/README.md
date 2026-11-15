@@ -1,4 +1,4 @@
-# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v2.9
+# ⚽ Futebol — mod de Minecraft (Fabric 26.3) · v3.0
 
 Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (mandante) x Vindicators (visitante), goleiros Villager, bola de **Cubo de Enxofre com madeira dentro** e torcida de Villagers cantando.
 
@@ -11,6 +11,9 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 ```
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
+
+## Novidades da v3.0 — replay estilo Champions League (rápido)
+- O replay do gol agora dura **~12 s no total** (antes passava de 1 min): **2 ângulos de ~4–5 s** (transmissão aproximando → atrás do gol/rasteira) + **comemoração**. Cada ângulo corre rápido, **freia na jogada, congela um instante no chute** e vai em **câmera lenta** até o gol, depois acelera de novo. A passagem entre replays tem o **brilho/som da bola-estrela** (carrilhão + partículas) e a faixa "▶ REPLAY 1/2". O clipe de vídeo para baixar usa esses mesmos replays.
 
 ## Novidades da v2.9 — clipe do gol e comemorações estilo EA FC
 - **Vídeo do gol para baixar:** o cliente do mod grava a tela em segundo plano durante a partida. Quando sai gol, aparece no chat **🎬 CLIPE DO GOL PRONTO [⬇ BAIXAR VÍDEO] [📂 PASTA]**: o vídeo tem os **20 s antes do gol**, o gol, **os replays em vários ângulos e a comemoração**. Clique em baixar (ou use `/futebolclip salvar`) e o arquivo `.avi` vai para a pasta `futebol_clips/` do jogo (640×360, 20 fps, Motion-JPEG: abre no VLC/Windows Media Player; para MP4 use `ffmpeg -i gol.avi gol.mp4`). Guarda os últimos 4 clipes. ⚠️ Sem áudio.

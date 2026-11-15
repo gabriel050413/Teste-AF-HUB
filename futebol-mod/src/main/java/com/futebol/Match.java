@@ -2041,7 +2041,7 @@ public final class Match {
     /** goal = true: termina um pouco depois do gol; senão, os últimos 'seconds' segundos. */
     public boolean startReplay(boolean goal, int seconds, double speed) { return startReplayCore(goal ? goalMark : -1, goal, seconds, speed); }
 
-    public int replayPass, replayPasses = 1;
+    public int replayPass, replayPasses = 1; boolean replayCele; int freeze; boolean frozen;
     int[] passStart = new int[4], passEnd = new int[4];
 
     /** mark >= 0: gol/lance marcado (3 ângulos em câmera lenta + comemoração); mark < 0: os últimos 'seconds' segundos. */
@@ -2053,13 +2053,13 @@ public final class Match {
         int start, end;
         if (goal) {
             int ml = mark - firstGlobal;
-            start = Math.max(0, ml - 170); end = Math.min(all2.size(), ml + 100);
+            start = Math.max(0, ml - 85); end = Math.min(all2.size(), ml + 80);
             if (end - start < 60) return false;
             replayFrames = new ArrayList<>(all2.subList(start, end));
             replayKey = Math.max(30, Math.min(replayFrames.size() - 30, ml - start));
-            replayPasses = celebration ? 4 : 2;
-            for (int i = 0; i < 3; i++) { passStart[i] = 0; passEnd[i] = Math.min(replayFrames.size() - 1, replayKey + 16); }
-            passStart[3] = Math.min(replayFrames.size() - 2, replayKey + 16); passEnd[3] = replayFrames.size() - 1;
+            replayCele = celebration; replayPasses = celebration ? 3 : 2;
+            for (int i = 0; i < 2; i++) { passStart[i] = 0; passEnd[i] = Math.min(replayFrames.size() - 1, replayKey + 14); }
+            passStart[2] = Math.min(replayFrames.size() - 2, replayKey + 14); passEnd[2] = replayFrames.size() - 1;
         } else {
             end = all2.size(); start = Math.max(0, end - seconds * 20);
             replayFrames = new ArrayList<>(all2.subList(start, end));
@@ -2068,33 +2068,53 @@ public final class Match {
         }
         replayRestore = snapshot(); replayPrev = st; replayPrevTicks = stTicks;
         replayWasPinned = ballPinned; replayPin = pinPos;
-        replayPass = 0; replayPos = passStart[0]; replaySpeed = speed; replayLen = passEnd[0] - passStart[0]; replayIdx = 0;
+        frozen = false; freeze = 0; replayPass = 0; replayPos = passStart[0]; replaySpeed = speed; replayLen = passEnd[0] - passStart[0]; replayIdx = 0;
         st = St.REPLAY; stTicks = 0;
         if (cameras != null) cameras.forceAll(Cameras.Mode.AUTO);
         if (nar != null) nar.replay();
-        title(replayPasses > 1 ? "§e§l▶ REPLAY 1/" + (replayPasses == 4 ? 3 : 2) : "§e§l▶ REPLAY", "§7câmera lenta");
+        title(replayPasses > 1 ? "§e§l▶ REPLAY 1/2" : "§e§l▶ REPLAY", "§7câmera lenta");
+        replayFlash();
         FutebolMod.LOG.info("REPLAY iniciado: {} quadros, {} passadas", replayFrames.size(), replayPasses);
         return true;
     }
 
-    /** Velocidade estilo LaLiga/Champions: corre rápido, desacelera no chute, câmera lenta no gol, acelera de novo. */
+    /** Velocidade estilo Champions League: corre rápido, freia na jogada, câmera lenta no chute e acelera de novo (replay curto). */
     double replaySpeedAt(double pos) {
         if (replayPasses == 1) return replaySpeed;
-        if (replayPass == 3) return 0.9;                                        // comemoração em velocidade quase normal
+        if (replayCele && replayPass == replayPasses - 1) return 1.35;          // comemoração: rápido e direto
         double dk = pos - replayKey, a = Math.abs(dk);
-        double t = Math.max(0, Math.min(1, (a - 6) / (dk < 0 ? 40.0 : 26.0)));
-        t = t * t * (3 - 2 * t);                                                // suaviza a rampa
-        double mult = replayPass == 1 ? 1.15 : replayPass == 2 ? 0.9 : 1.0;
-        return (0.14 + 1.05 * t) * mult;
+        double t = Math.max(0, Math.min(1, (a - 4) / (dk < 0 ? 20.0 : 12.0)));
+        t = t * t * (3 - 2 * t);
+        double mult = replayPass == 1 ? 1.12 : 1.0;
+        return (0.28 + 1.9 * t) * mult;
+    }
+
+    /** Efeito de passagem entre replays (bola-estrela da Champions): som, brilho e partículas. */
+    void replayFlash() {
+        Vec3 b = bp();
+        level.playSound(null, b.x, b.y + 3, b.z, SoundEvents.NOTE_BLOCK_CHIME, SoundSource.NEUTRAL, 3f, 1.5f);
+        level.playSound(null, b.x, b.y + 3, b.z, SoundEvents.FIREWORK_ROCKET_TWINKLE, SoundSource.NEUTRAL, 2f, 1f);
+        level.sendParticles(ParticleTypes.END_ROD, b.x, b.y + 1, b.z, 30, 3, 2, 3, 0.2);
     }
 
     void tickReplay() {
-        replayPos += replaySpeedAt(replayPos);
+        boolean cel = replayCele && replayPass == replayPasses - 1;
+        if (freeze > 0) { freeze--; }
+        else {
+            double before = replayPos;
+            replayPos += replaySpeedAt(replayPos);
+            if (replayKey >= 0 && !cel && !frozen && before < replayKey && replayPos >= replayKey) {        // congela no chute, como na TV
+                freeze = 7; frozen = true; replayPos = replayKey;
+                Vec3 bb = bp(); level.sendParticles(ParticleTypes.END_ROD, bb.x, bb.y + 0.3, bb.z, 12, 0.4, 0.4, 0.4, 0.05);
+            }
+        }
         if (replayPos >= passEnd[replayPass]) {
             if (replayPass >= replayPasses - 1) { endReplay(); return; }
-            replayPass++; replayPos = passStart[replayPass];
-            title(replayPass == 3 ? "§6§lCOMEMORAÇÃO" : "§e§l▶ REPLAY " + (replayPass + 1) + "/" + (replayPasses == 4 ? 3 : 2), replayPass == 3 ? "§7o lance e a festa" : "§7outro ângulo");
-            if (crowd != null && replayPass == 3) crowd.event("goal", Math.max(0, lastEventTeam));
+            replayPass++; replayPos = passStart[replayPass]; frozen = false; freeze = 0;
+            boolean last = replayCele && replayPass == replayPasses - 1;
+            title(last ? "§6§lCOMEMORAÇÃO" : "§e§l▶ REPLAY " + (replayPass + 1) + "/2", last ? "§7o lance e a festa" : "§7outro ângulo");
+            replayFlash();
+            if (crowd != null && last) crowd.event("goal", Math.max(0, lastEventTeam));
         }
         int i = Math.min((int) replayPos, replayFrames.size() - 2);
         replayIdx = i - passStart[replayPass]; replayLen = Math.max(1, passEnd[replayPass] - passStart[replayPass]);
@@ -2118,7 +2138,10 @@ public final class Match {
 
     static double Mth_wrap(double d) { d %= 360; if (d > 180) d -= 360; if (d < -180) d += 360; return d; }
 
+    int replayDurTicks;
+
     void endReplay() {
+        replayDurTicks = stTicks;
         double[] f = replayRestore; int k = 0;
         for (FPlayer p : all) {
             p.e.snapTo(f[k], f[k + 1], f[k + 2], (float) f[k + 3], 0); k += 4;
@@ -2127,11 +2150,11 @@ public final class Match {
         }
         ball.snapTo(f[k], f[k + 1], f[k + 2]); ball.setDeltaMovement(Vec3.ZERO);
         ballPinned = replayWasPinned; pinPos = replayPin; ballVelSet = Vec3.ZERO;
-        replayKey = -1; replayPasses = 1; replayPass = 0;
+        replayKey = -1; replayPasses = 1; replayPass = 0; frozen = false; freeze = 0; replayCele = false;
         st = replayPrev; stTicks = replayPrevTicks;
         if (cameras != null) cameras.releaseForced();
         lastReplayEnd = tickCount;
-        FutebolMod.LOG.info("REPLAY terminou, voltando para {}", st);
+        FutebolMod.LOG.info("REPLAY terminou, voltando para {} (durou {} ticks = {} s)", replayPrev, replayDurTicks, replayDurTicks / 20.0);
     }
 
     // =====================================================================================
