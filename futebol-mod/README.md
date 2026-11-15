@@ -12,6 +12,11 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.5 — edição de TV copiada do vídeo da final
+O modo "Simulando jogos" agora segue a ordem e a duração dos planos da transmissão (medidos no vídeo): gol de jogada = plano aberto até a bola entrar, close do artilheiro (5 s), torcida, close do goleiro,
+3 replays longos (alto, rasteiro, atrás do gol/bola) e close da comemoração (coração do Di María) · pênalti = replays da falta (rasteiro/close) antes da cobrança, plano aberto, festa rasteira na pilha,
+cantos baixos, close do artilheiro e 5 replays curtos (atrás do gol, bola, goleiro) · a gravação para na hora do gol para os replays mostrarem a jogada. Editável em `Historic.tickGoal`.
+
 ## Novidades da v3.4 — jogadas coreografadas + coração do Di María
 Linhas `PLAY|n|...` em jogos.txt encenam a jogada antes do gol (passes, condução, corridas, falta que gera pênalti, mão na bola, defesa e rebote).
 Argfra22 tem as 6 jogadas: pênalti de Di María (Messi→De Paul→Di María), o golaço do contra-ataque (Messi→Alvarez→Mac Allister→Di María), pênalti de Kolo Muani, Coman→Kolo Muani→Mbappé,

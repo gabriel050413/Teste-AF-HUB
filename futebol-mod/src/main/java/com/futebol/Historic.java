@@ -87,10 +87,84 @@ public final class Historic {
     }
 
     public void afterGoal() {
-        allow = false; staging = false;
+        allow = false; staging = false; gt = 0; noRec = false; seqActive = false;
         m.resetForKickoff(1 - m.lastEventTeam, true);
         m.st = Match.St.PLAYING; m.stTicks = 0;
         next();
+    }
+
+    // ------------------------- sequenciador (linha do tempo copiada da edição da transmissão) -------------------------
+    // passo "cam": modo/jogador por N ticks | passo "rep": replay dos últimos S segundos, velocidade V, com a sequência de câmeras
+    record Step(boolean replay, String[] modes, int ticks, int secs, double speed) {}
+    final List<Step> seq = new ArrayList<>();
+    boolean seqActive, inRep, noRec; int si, sT, gt; Runnable onSeqEnd; Step repStep; FPlayer tmate;
+
+    static Step cam(String modes, int ticks) { return new Step(false, new String[]{modes}, ticks, 0, 0); }
+    static Step rep(int secs, double speed, String modes) { return new Step(true, modes.split("/"), 0, secs, speed); }
+
+    void startSeq(List<Step> steps, Runnable end) { seq.clear(); seq.addAll(steps); si = 0; sT = 0; inRep = false; seqActive = true; onSeqEnd = end; }
+
+    FPlayer subj(String k) {
+        FPlayer sc = m.goalScorer != null ? m.goalScorer : shooter;
+        return switch (k) {
+            case "s" -> sc;
+            case "k" -> keeper != null ? keeper : sc;
+            case "v" -> holderLast != null ? holderLast : sc;
+            case "t" -> { if (tmate == null || tmate == sc) for (FPlayer p : m.teams[sc.team]) if (p != sc && !p.isGK()) { tmate = p; break; } yield tmate != null ? tmate : sc; }
+            default -> sc;
+        };
+    }
+    FPlayer holderLast;
+    boolean gol0() { return idx < g.evs.size() && g.evs.get(idx).tipo().equals("GOL"); }
+
+    Cam camOf(String spec, double f) {
+        String[] parts = spec.split("/"); String one = parts[Math.min(parts.length - 1, (int) (f * parts.length))];
+        String[] ms = one.split("@"); Cameras.Mode md = Cameras.Mode.of(ms[0]); if (md == null) md = Cameras.Mode.TV;
+        FPlayer sj = ms.length > 1 ? subj(ms[1]) : subj("s");
+        int team = Math.max(0, m.lastEventTeam >= 0 ? m.lastEventTeam : (shooter != null ? shooter.team : 0));
+        return new Cam(md, sj, m.attackDir[team], team);
+    }
+
+    Cam seqCam() {
+        if (!seqActive || si >= seq.size()) return null;
+        Step s = seq.get(si);
+        if (s.replay()) return camOf(String.join("/", s.modes()), m.replayIdx / (double) Math.max(1, m.replayLen));
+        return camOf(s.modes()[0], 0);
+    }
+
+    void runSeq() {
+        if (!seqActive) return;
+        if (inRep) { if (m.st == Match.St.REPLAY) return; inRep = false; si++; sT = 0; }
+        if (si >= seq.size()) { seqActive = false; if (onSeqEnd != null) onSeqEnd.run(); return; }
+        Step s = seq.get(si);
+        if (!s.replay()) { if (++sT >= s.ticks()) { si++; sT = 0; } return; }
+        if (m.startReplayCore(-1, false, s.secs(), s.speed())) { inRep = true; m.title("§e§l▶ REPLAY", "§7" + g.titulo); } else { si++; sT = 0; }
+    }
+
+    /** Pós-gol (substitui o fluxo padrão): festa + replays na ordem da transmissão e volta ao jogo. */
+    public void tickGoal() {
+        gt++;
+        FPlayer sc = m.goalScorer != null ? m.goalScorer : shooter;
+        boolean pen = idx < g.evs.size() && g.evs.get(idx).extra().equals("pen");
+        if (gt == 1) {
+            tmate = null;
+            List<Step> s = new ArrayList<>();
+            Ev ev = g.evs.get(Math.min(idx, g.evs.size() - 1));
+            if (pen) {                       // pênalti (22 ao 90 s do vídeo): festa rasteira, pilha, replays curtos do chute
+                s.add(cam("rasteira@s", 100)); s.add(cam("rosto@t", 40)); s.add(cam("escanteio", 80)); s.add(cam("alta", 60)); s.add(cam("rosto@s", 60));
+                s.add(rep(4, 0.5, "alta/gol")); s.add(rep(3, 0.4, "gol")); s.add(rep(4, 0.4, "rasteira")); s.add(rep(3, 0.35, "bola")); s.add(rep(3, 0.4, "gol")); s.add(cam("rosto@s", 50));
+            } else {                         // gol de jogada: close da festa, torcida, goleiro, 3 replays longos (alto, rasteiro, atrás do gol), close final
+                s.add(cam("rosto@s", 100)); s.add(cam("torcida", 40)); s.add(cam("rosto@k", 25));
+                s.add(rep(10, 0.95, "tv/alta")); s.add(rep(9, 0.95, "rasteira/escanteio")); s.add(rep(6, 0.6, "gol/bola")); s.add(cam("rosto@s", 70));
+            }
+            startSeq(s, this::afterGoal);
+        }
+        if (gt == 30) noRec = true;
+        if (gt > 1 && !inRep && si == seq.size() - 1 && sT == 1 && sc != null && !pen) { Anim.play(m.level, sc.e, Anim.CORACAO, 60); }   // repete a festa no close final
+        m.celebrate();
+        if (gt % 14 == 0) for (FPlayer p : m.all) if (p.team == m.lastEventTeam && !p.isGK() && m.rnd.nextInt(3) == 0 && p.e.onGround()) p.e.setDeltaMovement(p.e.getDeltaMovement().x, 0.42, p.e.getDeltaMovement().z);
+        if (gt % 6 == 0) { Vec3 c = m.bp(); m.level.sendParticles(ParticleTypes.FIREWORK, c.x, c.y + 2, c.z, 12, 3, 1.5, 3, 0.1); }
+        runSeq();
     }
 
     void next() { idx++; ph = Ph.EV; t = 0; staging = false; shot = false; resolved = false; saved = false; allow = false; }
@@ -235,6 +309,7 @@ public final class Historic {
     }
 
     void stepPlay(Ev e) {
+        if (seqActive) { runSeq(); return; }
         if (playWait > 0) { playWait--; glue(); return; }
         for (FPlayer p : free) { if (p != holder || pst.equals("")) { if (p.spd == 0) p.spd = 0.7; } }
         if (pst.equals("carry")) {
@@ -280,7 +355,8 @@ public final class Historic {
                         if (holder != null) { m.unpin(); p.touchCd = 0; m.lastToucher = p; m.lastTouchTeam = attT; Vec3 lead = new Vec3(tg.x + r.vx * 8, tg.y, tg.z + r.vz * 8);
                             if (mt.group(2).equals("l")) m.kickLob(p, lead.x, lead.z, 22, 0.5); else m.kickGround(p, lead.x, lead.z, 0.95); }
                         pst = "pass"; passT = 0; return; }
-                    case "F" -> { p.animPose = net.minecraft.world.entity.Pose.SWIMMING; p.animTicks = 55; m.unpin(); m.whistle(1f); if (m.referee != null) m.referee.whistleGesture(); m.title("§e§lFALTA!", "§7pênalti"); endPlay(true); return; }
+                    case "F" -> { holderLast = p; p.animPose = net.minecraft.world.entity.Pose.SWIMMING; p.animTicks = 55; m.unpin(); m.whistle(1f); if (m.referee != null) m.referee.whistleGesture(); m.title("§e§lFALTA!", "§7pênalti"); noRec = true;
+                        startSeq(List.of(cam("tv", 50), rep(5, 0.55, "rasteira/rosto@v"), rep(4, 0.5, "alta")), () -> { noRec = false; endPlay(true); }); return; }
                     case "H" -> { Anim.play(m.level, p.e, Anim.BRACOS, 30); m.whistle(1f); m.title("§e§lMÃO NA BOLA!", "§7pênalti"); playWait = 30; ti = toks.size(); endPlayLater = true; return; }
                     case "s" -> { shooter = p; holder = null; endPlay(false); fire(e, true); return; }
                     default -> {}
@@ -381,6 +457,7 @@ public final class Historic {
 
     Cam cam() {
         if (finished) return null;
+        Cam sq = seqCam(); if (sq != null) return sq;
         Match.St st = m.st;
         int team = Math.max(0, m.lastEventTeam), side = m.attackDir[team];
         FPlayer sc = m.goalScorer != null ? m.goalScorer : shooter;
@@ -401,11 +478,11 @@ public final class Historic {
             int ss = shooter.team, sd = m.attackDir[ss];
             boolean pen = idx < g.evs.size() && g.evs.get(idx).extra().equals("pen");
             if (!shot) {
-                if (pen) return t < stageShot - 45 ? new Cam(Cameras.Mode.TV, shooter, sd, ss) : t < stageShot - 18 ? new Cam(Cameras.Mode.ROSTO, shooter, sd, ss) : new Cam(Cameras.Mode.GOL, shooter, sd, ss);
-                return t < stageShot - 30 ? new Cam(Cameras.Mode.TV, shooter, sd, ss) : new Cam(Cameras.Mode.ALTA, shooter, sd, ss);
+                if (pen) return new Cam(Cameras.Mode.TV, shooter, sd, ss);
+                return new Cam(Cameras.Mode.TV, shooter, sd, ss);
             }
             if (m.st == Match.St.PLAYING && t - stageShot > 10 && keeper != null && saved) return new Cam(Cameras.Mode.ROSTO, keeper, sd, ss);
-            return new Cam(Cameras.Mode.GOL, shooter, sd, ss);
+            return pen || !gol0() ? new Cam(Cameras.Mode.GOL, shooter, sd, ss) : new Cam(Cameras.Mode.TV, shooter, sd, ss);
         }
         if (ph == Ph.PK && shooter != null) {            // pênaltis: atrás do batedor, frente do goleiro, reação
             int ss = shooter.team, sd = m.attackDir[ss];

@@ -357,7 +357,7 @@ public final class Match {
         if (tickCount % 100 == 1) { boolean dark = isNight() || level.isRaining(); if (dark != lightsOn) { lightsOn = dark; pitch.setLights(dark); } }
         if (referee != null) referee.tick();
         if (staff != null) staff.tick();
-        if (st == St.PLAYING || st == St.SETPIECE || st == St.GOAL) record();
+        if ((st == St.PLAYING || st == St.SETPIECE || st == St.GOAL) && !(script != null && script.noRec)) record();
         for (FPlayer p : all) {
             if (p.touchCd > 0) p.touchCd--;
             if (p.tackleCd > 0) p.tackleCd--;
@@ -506,6 +506,7 @@ public final class Match {
     }
 
     void tickGoal() {
+        if (script != null) { script.tickGoal(); return; }
         if (stTicks == 105 && replaysAuto && rec.size() > 60) { startReplay(true, 8, 0.5); return; }
         celebrate();
         // comemoração: time que marcou pula
