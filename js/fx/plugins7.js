@@ -77,7 +77,7 @@ const TEX_MODES = ['Plasma', 'Células', 'Moiré', 'Trama (weave)', 'Manchas (sp
   'Grade', 'Grunge', 'Céu noturno (estrelas)', 'Gradiente linear', 'Gradiente radial', 'Gradiente 3 cores', 'Fundo suave', 'Fundo fractal', 'Espectro (spectralicious)', 'Nuvens',
   'Mármore', 'Granito', 'Pedra', 'Madeira', 'Aço escovado', 'Tijolo', 'Lua', 'Caustics (água)'];
 const TEX = frag(`${VORO}
-uniform float u_mode, u_tsc, u_speed, u_evo, u_con, u_op, u_blend, u_ang, u_asp;
+uniform float u_mode, u_tsc, u_speed, u_evo, u_con, u_op, u_blend, u_ang, u_asp, u_keep;
 uniform vec3 u_c1, u_c2, u_c3; uniform vec2 u_cen;
 vec3 pal(float v) { v = clamp((v - 0.5) * u_con + 0.5, 0.0, 1.0); return v < 0.5 ? mix(u_c1, u_c2, v * 2.0) : mix(u_c2, u_c3, v * 2.0 - 1.0); }
 void main() {
@@ -121,7 +121,7 @@ void main() {
   else if (u_blend < 3.5) r = 1.0 - (1.0 - src) * (1.0 - o); // tela
   else if (u_blend < 4.5) r = src + o;                      // adicionar
   else r = mix(2.0 * src * o, 1.0 - 2.0 * (1.0 - src) * (1.0 - o), step(0.5, src)); // sobrepor
-  float a = u_blend < 1.5 ? 1.0 : s.a;
+  float a = u_blend < 1.5 && u_keep < 0.5 ? 1.0 : s.a; // "manter transparência": a textura fica só onde a camada existe
   vec3 res = mix(src, r, u_op);
   gl_FragColor = pre(vec4(clamp(res, 0.0, 1.0), mix(s.a, a, u_op)));
 }`);
@@ -304,8 +304,8 @@ export default [
     description: 'Gera texturas e fundos (plasma, células, moiré, nuvens, mármore, madeira, céu estrelado, gradientes, espectro…) e mistura com a camada.',
     params: [sel('mode', 'Textura', TEX_MODES, 1), num('scale', 'Scale', 4, 0.1, 50, 0.1), num('speed', 'Speed', 0.5, -10, 10, 0.01), num('evolution', 'Evolution', 0, -100, 100, 0.01),
       num('contrast', 'Contrast', 1, 0.1, 5, 0.01), col('c1', 'Color 1', [0.05, 0.02, 0.15, 1]), col('c2', 'Color 2', [0.9, 0.3, 0.5, 1]), col('c3', 'Color 3', [1, 0.95, 0.7, 1]),
-      ang('angle', 'Angle', 90), pos('center', 'Center'), sel('blend', 'Combine', ['Substituir', 'Multiplicar', 'Tela (screen)', 'Adicionar', 'Sobrepor (overlay)'], 1), num('opacity', 'Mix with source %', 100, 0, 100)],
-    render: pass(TEX, (p, env) => ({ u_mode: p.mode, u_tsc: p.scale, u_speed: p.speed, u_evo: p.evolution, u_con: p.contrast, u_op: p.opacity / 100, u_blend: p.blend, u_ang: rad(p.angle), u_asp: asp(env), u_c1: rgb(p.c1), u_c2: rgb(p.c2), u_c3: rgb(p.c3), u_cen: p.center })),
+      ang('angle', 'Angle', 90), pos('center', 'Center'), sel('blend', 'Combine', ['Substituir', 'Multiplicar', 'Tela (screen)', 'Adicionar', 'Sobrepor (overlay)'], 1), num('opacity', 'Mix with source %', 100, 0, 100), bool('keepAlpha', 'Manter transparência da camada', false)],
+    render: pass(TEX, (p, env) => ({ u_mode: p.mode, u_tsc: p.scale, u_speed: p.speed, u_evo: p.evolution, u_con: p.contrast, u_op: p.opacity / 100, u_blend: p.blend, u_ang: rad(p.angle), u_asp: asp(env), u_c1: rgb(p.c1), u_c2: rgb(p.c2), u_c3: rgb(p.c3), u_cen: p.center, u_keep: p.keepAlpha ? 1 : 0 })),
   },
   {
     type: 'pkColor', label: 'Cor – operações (Sapphire/BCC)', category: 'Cor', plugin: 'Sapphire Adjust · BCC Color · Universe Noir',

@@ -280,6 +280,8 @@ function mapFfxEffect(fx, m, rep, plug = null) {
         inst.params[pd.key] = v;
         rep.mapped.push(`${src.name || src.matchName} → ${pd.label}${src.keyframes.length ? ` (${src.keyframes.length} keyframes)` : ''}`);
       }
+      // .aep guarda só o que mudou do padrão: o que não veio fica com o padrão do AE (não o do MotionFrame)
+      for (const [k, v] of Object.entries(rule.aeDefaults || {})) if (inst.params[k] === undefined) inst.params[k] = v;
       Object.assign(inst.params, rule.set || {});
       if (rule.post) rule.post(inst.params, raw, fx);
       if (def.type === 'glow' && inst.params.color !== undefined) inst.params.useColor = true;
