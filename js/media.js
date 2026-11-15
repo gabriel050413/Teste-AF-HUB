@@ -1,4 +1,5 @@
 // Gerenciador de mídia: imagens, vídeos (com dois decodificadores para frame blending) e sincronização.
+import { releaseCanvas } from './canvas-free.js';
 import { blendFrames, sourceRate, sourceTime, speedEffect, wantsInterp, vectorBlur, remapEffect, speedProp, dedupeOf, timedLayers } from './timing.js';
 import { valueAt } from './anim.js';
 import { flatLayers } from './state.js';
@@ -101,7 +102,7 @@ function readerFor(src) {
 // Quadro decodificado que saiu da lista do leitor (exportação). Cada quadro é uma tela do tamanho do vídeo; antes elas
 // ficavam esperando o coletor de lixo — no .exe (heap grande, coletor preguiçoso) centenas de telas de 8–33 MB se
 // acumulavam e a memória de vídeo estourava no meio da renderização. Agora é liberada assim que ninguém usa.
-const zero = (c) => { c.width = 0; c.height = 0; };
+const zero = (c) => releaseCanvas(c); // adiado: outra camada do mesmo quadro pode ainda desenhar este quadro
 function inUse(c) { for (const e of videos.values()) { if (e.last === c) return true; if (e.snaps) for (const x of e.snaps.values()) if (x === c) return true; } return false; }
 function freeReaderFrame(c) { if (inUse(c)) c._dead = true; else zero(c); }
 function dropSnap(e, old) { if ((!old._rd || old._dead) && old !== e.last) zero(old); }
@@ -152,8 +153,8 @@ function makeVideo(src, playback = false) {
 
 function dropVideoEntry(e) {
   for (const v of [e.a, e.b]) if (v) { try { v.pause(); releaseVideo(v); } catch { /* já liberado */ } if (v._scrub) { v._scrub.width = 0; v._scrub.height = 0; } }
-  if (e.snaps) { for (const c of e.snaps.values()) if (!c._rd) { c.width = 0; c.height = 0; } e.snaps.clear(); }
-  if (e.last && !e.last._rd) { e.last.width = 0; e.last.height = 0; }
+  if (e.snaps) { for (const c of e.snaps.values()) if (!c._rd) releaseCanvas(c); e.snaps.clear(); }
+  if (e.last && !e.last._rd) releaseCanvas(e.last);
   e.last = null;
 }
 /** Libera vídeos de camadas que não existem mais no projeto (apagadas, divididas, trocadas, outro projeto aberto).
@@ -465,7 +466,7 @@ export function dedupeTimes(layer, st) {
 const IOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)));
 const CACHE_BUDGET = IOS ? 70e6 : 160e6;
 function freeCache(c) {
-  for (const f of c.frames || []) { f.width = 0; f.height = 0; } // devolve a memória imediatamente (sem esperar o coletor)
+  for (const f of c.frames || []) releaseCanvas(f); // devolve a memória logo (alguns quadros depois: a exportação pode estar usando)
   c.frames = [];
 }
 

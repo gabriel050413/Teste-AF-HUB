@@ -2,6 +2,7 @@
 // confirmação (50–150 ms por quadro no celular), lê o MP4/MOV em ordem e decodifica no hardware, como um player.
 // Só volta ao keyframe anterior quando a edição pede um quadro para trás (reverse, Twixtor, Time Remap).
 // Se o formato não for suportado, quem chama cai na busca normal.
+import { releaseCanvas } from './canvas-free.js';
 import { probeMp4 } from './proxy.js';
 
 const KEEP = 6; // quadros decodificados guardados (A/B do frame blending, câmera lenta reaproveita)
@@ -76,7 +77,7 @@ export class SeqReader {
       while (this.frames.size > KEEP) {
         const k0 = this.frames.keys().next().value, old = this.frames.get(k0);
         this.frames.delete(k0);
-        if (this.size && old) { old.width = 0; old.height = 0; } // cache: devolve a memória na hora (iPhone)
+        if (this.size && old) releaseCanvas(old); // cache: devolve a memória logo (iPhone), sem apagar um quadro que ainda vai ser desenhado
         else if (old) this.onEvict?.(old); // exportação: quem usa o quadro decide quando liberar
       }
     }

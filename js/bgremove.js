@@ -1,3 +1,4 @@
+import { releaseCanvas } from './canvas-free.js';
 // Remoção de fundo por IA (MediaPipe Image Segmenter), tudo no aparelho — nada é enviado para servidores.
 // Os arquivos ficam em vendor/mediapipe e só são baixados quando o efeito "Remover fundo" é usado.
 const BASE = new URL('../vendor/mediapipe/', import.meta.url).href;
@@ -99,7 +100,7 @@ export function personMask(source, { model = 1, key, layerKey, t = 0, smooth = 0
   ctx.putImageData(img, 0, 0);
   cache.set(ck, c);
   // guarda mais máscaras (pequenas, ~320 px): pré-renderização, play e exportação reaproveitam em vez de rodar a IA de novo
-  if (cache.size > MASK_KEEP) { const k0 = cache.keys().next().value, old = cache.get(k0); cache.delete(k0); if (old) { old.width = 0; old.height = 0; } }
+  if (cache.size > MASK_KEEP) { const k0 = cache.keys().next().value, old = cache.get(k0); cache.delete(k0); if (old) releaseCanvas(old); }
   return c;
 }
 
