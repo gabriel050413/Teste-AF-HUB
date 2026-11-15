@@ -1,0 +1,263 @@
+# TIMES HISTÓRICOS (modo "Simulando jogos"). Escalações e notas (OVR) de memória/aproximadas — edite à vontade.
+#  CLUBE|id|Nome|Sigla|corCamisa|corShort|corReserva|formacao|Competição
+#  camisa|Nome|POS|OVR|tag     (11 titulares na ordem dos postos da formação; tags: craque, rapido, fisico, tecnico, artilheiro, muro, reflexo, cobrador)
+#  RES|camisa|Nome|POS|OVR|tag (reservas/substitutos que entram nos lances)
+CLUBE|arg2022|Argentina 2022|ARG|75AADB|FFFFFF|1B2A6B|433|Copa do Mundo 2022
+23|Emiliano Martínez|GK|87|reflexo
+26|Nahuel Molina|RB|78|rapido
+13|Cristian Romero|CB|84|fisico
+19|Nicolás Otamendi|CB|83|muro
+3|Nicolás Tagliafico|LB|79|tecnico
+24|Enzo Fernández|CM|82|tecnico
+20|Alexis Mac Allister|CM|82|tecnico
+7|Rodrigo De Paul|CM|82|fisico
+10|Lionel Messi|RW|94|craque
+9|Julián Álvarez|ST|83|rapido
+11|Ángel Di María|LW|86|rapido
+RES|5|Leandro Paredes|CM|80|cobrador
+RES|21|Paulo Dybala|ST|85|cobrador
+RES|4|Gonzalo Montiel|FB|78|cobrador
+CLUBE|fra2022|França 2022|FRA|1B2A6B|FFFFFF|FFFFFF|433|Copa do Mundo 2022
+1|Hugo Lloris|GK|86|reflexo
+5|Jules Koundé|RB|83|rapido
+4|Raphaël Varane|CB|86|muro
+18|Dayot Upamecano|CB|83|fisico
+22|Theo Hernández|LB|84|rapido
+8|Aurélien Tchouaméni|CM|85|fisico
+14|Adrien Rabiot|CM|83|fisico
+7|Antoine Griezmann|CM|87|tecnico
+11|Ousmane Dembélé|RW|85|rapido
+9|Olivier Giroud|ST|82|fisico
+10|Kylian Mbappé|LW|93|craque
+RES|12|Randal Kolo Muani|ST|80|rapido
+RES|20|Kingsley Coman|WG|84|rapido
+CLUBE|bra2014|Brasil 2014|BRA|FFDF00|0033A0|0033A0|4231|Copa do Mundo 2014
+12|Júlio César|GK|83|reflexo
+23|Maicon|RB|80|rapido
+4|David Luiz|CB|84|fisico
+13|Dante|CB|82|muro
+6|Marcelo|LB|85|rapido
+17|Luiz Gustavo|DM|82|fisico
+16|Fernandinho|DM|83|fisico
+7|Hulk|RW|83|fisico
+11|Oscar|AM|85|tecnico
+20|Bernard|LW|80|rapido
+9|Fred|ST|79|artilheiro
+CLUBE|ale2014|Alemanha 2014|GER|FFFFFF|1A1A1A|1A1A1A|433|Copa do Mundo 2014
+1|Manuel Neuer|GK|91|reflexo
+16|Philipp Lahm|RB|88|tecnico
+20|Jérôme Boateng|CB|87|muro
+5|Mats Hummels|CB|87|muro
+4|Benedikt Höwedes|LB|82|fisico
+7|Bastian Schweinsteiger|CM|88|fisico
+18|Toni Kroos|CM|90|tecnico
+6|Sami Khedira|CM|85|fisico
+13|Thomas Müller|RW|88|artilheiro
+11|Miroslav Klose|ST|85|artilheiro
+8|Mesut Özil|LW|88|tecnico
+RES|9|André Schürrle|WG|83|rapido
+CLUBE|bar2017|Barcelona 2017|BAR|004D98|A50044|EDBB00|433|Champions League 2016/17
+1|Marc-André ter Stegen|GK|87|reflexo
+22|Dani Alves|RB|85|tecnico
+3|Gerard Piqué|CB|87|muro
+23|Samuel Umtiti|CB|85|muro
+19|Lucas Digne|LB|79|rapido
+5|Sergio Busquets|DM|88|tecnico
+4|Ivan Rakitić|CM|86|tecnico
+8|Andrés Iniesta|CM|89|tecnico
+10|Lionel Messi|RW|94|craque
+9|Luis Suárez|ST|91|artilheiro
+11|Neymar|LW|92|craque
+RES|20|Sergi Roberto|RB|80|tecnico
+CLUBE|psg2017|PSG 2016/17|PSG|1B2A6B|1B2A6B|FFFFFF|433|Champions League 2016/17
+16|Kevin Trapp|GK|82|reflexo
+12|Thomas Meunier|RB|80|rapido
+5|Marquinhos|CB|84|muro
+2|Thiago Silva|CB|87|muro
+20|Layvin Kurzawa|LB|79|rapido
+6|Marco Verratti|CM|87|tecnico
+14|Blaise Matuidi|CM|83|fisico
+25|Adrien Rabiot|CM|80|tecnico
+11|Ángel Di María|RW|87|rapido
+9|Edinson Cavani|ST|87|artilheiro
+23|Julian Draxler|LW|84|rapido
+CLUBE|liv2005|Liverpool 2005|LIV|C8102E|C8102E|FFFFFF|442|Champions League 2004/05
+1|Jerzy Dudek|GK|83|reflexo
+3|Steve Finnan|RB|79|tecnico
+23|Jamie Carragher|CB|85|muro
+4|Sami Hyypiä|CB|85|muro
+22|Djimi Traoré|LB|74|rapido
+7|Harry Kewell|WG|82|rapido
+8|Steven Gerrard|CM|91|craque
+14|Xabi Alonso|CM|87|tecnico
+6|John Arne Riise|WG|81|cobrador
+5|Milan Baroš|ST|80|rapido
+10|Luis García|SS|82|tecnico
+RES|26|Vladimír Šmicer|WG|80|cobrador
+RES|16|Dietmar Hamann|DM|80|cobrador
+RES|9|Djibril Cissé|ST|81|cobrador
+CLUBE|mil2005|Milan 2005|MIL|C8102E|1A1A1A|FFFFFF|4231|Champions League 2004/05
+1|Dida|GK|85|reflexo
+2|Cafu|RB|86|rapido
+31|Jaap Stam|CB|84|muro
+13|Alessandro Nesta|CB|90|muro
+3|Paolo Maldini|LB|90|muro
+21|Andrea Pirlo|DM|89|cobrador
+8|Gennaro Gattuso|DM|84|fisico
+10|Clarence Seedorf|WG|86|tecnico
+22|Kaká|AM|90|craque
+7|Andriy Shevchenko|WG|92|artilheiro
+11|Hernán Crespo|ST|86|artilheiro
+RES|20|Jon Dahl Tomasson|ST|82|cobrador
+RES|18|Serginho|FB|80|cobrador
+CLUBE|mun1999|Manchester United 1999|MUN|DA291C|FFFFFF|1A1A1A|442|Champions League 1998/99
+1|Peter Schmeichel|GK|88|reflexo
+2|Gary Neville|RB|82|tecnico
+5|Ronny Johnsen|CB|82|muro
+6|Jaap Stam|CB|87|muro
+3|Denis Irwin|LB|82|tecnico
+7|David Beckham|WG|89|cobrador
+8|Nicky Butt|CM|82|fisico
+11|Ryan Giggs|CM|88|rapido
+17|Jesper Blomqvist|WG|78|rapido
+19|Dwight Yorke|ST|87|artilheiro
+9|Andy Cole|SS|85|artilheiro
+RES|10|Teddy Sheringham|SS|84|artilheiro
+RES|20|Ole Gunnar Solskjær|ST|84|artilheiro
+CLUBE|bay1999|Bayern 1999|BAY|DC052D|FFFFFF|FFFFFF|442|Champions League 1998/99
+1|Oliver Kahn|GK|91|reflexo
+13|Markus Babbel|RB|83|rapido
+10|Lothar Matthäus|CB|88|tecnico
+5|Thomas Linke|CB|82|muro
+3|Bixente Lizarazu|LB|85|rapido
+14|Mario Basler|WG|84|cobrador
+11|Stefan Effenberg|CM|87|tecnico
+16|Jens Jeremies|CM|82|fisico
+7|Mehmet Scholl|WG|85|tecnico
+9|Carsten Jancker|ST|83|fisico
+21|Alexander Zickler|SS|80|rapido
+CLUBE|rma2014|Real Madrid 2014|RMA|F2F2F2|FFFFFF|1B2A6B|433|Champions League 2013/14
+1|Iker Casillas|GK|87|reflexo
+15|Dani Carvajal|RB|82|rapido
+2|Raphaël Varane|CB|84|muro
+4|Sergio Ramos|CB|87|cobrador
+5|Fábio Coentrão|LB|82|rapido
+14|Xabi Alonso|CM|87|tecnico
+6|Sami Khedira|CM|84|fisico
+22|Ángel Di María|CM|87|rapido
+11|Gareth Bale|RW|90|rapido
+9|Karim Benzema|ST|88|tecnico
+7|Cristiano Ronaldo|LW|94|craque
+RES|12|Marcelo|LB|87|rapido
+RES|23|Isco|CM|84|tecnico
+RES|21|Álvaro Morata|ST|80|rapido
+CLUBE|atm2014|Atlético de Madrid 2014|ATM|C8102E|1B2A6B|1B2A6B|442|Champions League 2013/14
+13|Thibaut Courtois|GK|88|reflexo
+20|Juanfran|RB|82|rapido
+23|Miranda|CB|84|muro
+2|Diego Godín|CB|86|muro
+3|Filipe Luís|LB|84|rapido
+6|Koke|WG|84|tecnico
+14|Gabi|CM|84|fisico
+8|Tiago|CM|82|tecnico
+11|Arda Turan|WG|84|tecnico
+19|Diego Costa|ST|87|fisico
+7|David Villa|SS|85|artilheiro
+CLUBE|liv2019|Liverpool 2019|LIV|C8102E|C8102E|FFFFFF|433|Champions League 2018/19
+13|Alisson|GK|89|reflexo
+66|Trent Alexander-Arnold|RB|84|cobrador
+32|Joël Matip|CB|82|muro
+4|Virgil van Dijk|CB|90|muro
+26|Andy Robertson|LB|85|rapido
+3|Fabinho|DM|85|fisico
+14|Jordan Henderson|CM|82|fisico
+7|James Milner|CM|82|tecnico
+23|Xherdan Shaqiri|RW|82|tecnico
+27|Divock Origi|ST|79|artilheiro
+10|Sadio Mané|LW|89|rapido
+RES|5|Georginio Wijnaldum|CM|83|tecnico
+CLUBE|bar2019|Barcelona 2018/19|BAR|004D98|A50044|EDBB00|433|Champions League 2018/19
+1|Marc-André ter Stegen|GK|89|reflexo
+20|Sergi Roberto|RB|82|tecnico
+3|Gerard Piqué|CB|86|muro
+15|Clément Lenglet|CB|82|muro
+18|Jordi Alba|LB|87|rapido
+5|Sergio Busquets|DM|87|tecnico
+4|Ivan Rakitić|CM|85|tecnico
+22|Arturo Vidal|CM|84|fisico
+10|Lionel Messi|RW|94|craque
+9|Luis Suárez|ST|90|artilheiro
+7|Philippe Coutinho|LW|86|tecnico
+CLUBE|esp2010|Espanha 2010|ESP|C8102E|1B2A6B|FFFFFF|433|Copa do Mundo 2010
+1|Iker Casillas|GK|90|reflexo
+15|Sergio Ramos|RB|85|rapido
+3|Gerard Piqué|CB|85|muro
+5|Carles Puyol|CB|88|muro
+11|Joan Capdevila|LB|80|rapido
+16|Sergio Busquets|DM|84|tecnico
+14|Xabi Alonso|CM|86|tecnico
+8|Xavi|CM|91|craque
+6|Andrés Iniesta|CM|91|craque
+7|David Villa|ST|88|artilheiro
+18|Pedro|LW|83|rapido
+CLUBE|ned2010|Holanda 2010|NED|F57C00|F57C00|1B2A6B|433|Copa do Mundo 2010
+1|Maarten Stekelenburg|GK|82|reflexo
+2|Gregory van der Wiel|RB|80|rapido
+3|Johnny Heitinga|CB|80|muro
+4|Joris Mathijsen|CB|80|muro
+5|Giovanni van Bronckhorst|LB|80|tecnico
+6|Mark van Bommel|CM|82|fisico
+8|Nigel de Jong|CM|82|fisico
+10|Wesley Sneijder|CM|90|craque
+11|Arjen Robben|RW|90|rapido
+9|Robin van Persie|ST|87|artilheiro
+7|Dirk Kuyt|LW|83|fisico
+CLUBE|ita2006|Itália 2006|ITA|0033A0|FFFFFF|FFFFFF|442|Copa do Mundo 2006
+1|Gianluigi Buffon|GK|91|reflexo
+19|Gianluca Zambrotta|RB|85|rapido
+5|Fabio Cannavaro|CB|90|muro
+23|Marco Materazzi|CB|82|fisico
+3|Fabio Grosso|LB|82|rapido
+16|Mauro Camoranesi|WG|82|rapido
+21|Andrea Pirlo|CM|89|tecnico
+8|Gennaro Gattuso|CM|84|fisico
+20|Simone Perrotta|WG|82|fisico
+9|Luca Toni|ST|85|fisico
+7|Alberto Gilardino|SS|82|artilheiro
+RES|10|Alessandro Del Piero|SS|87|craque
+CLUBE|ale2006|Alemanha 2006|GER|FFFFFF|1A1A1A|1A1A1A|442|Copa do Mundo 2006
+1|Jens Lehmann|GK|85|reflexo
+3|Arne Friedrich|RB|80|muro
+17|Per Mertesacker|CB|82|muro
+5|Christoph Metzelder|CB|80|muro
+16|Philipp Lahm|LB|83|rapido
+19|Bernd Schneider|WG|80|rapido
+8|Torsten Frings|CM|84|fisico
+13|Michael Ballack|CM|87|craque
+7|Bastian Schweinsteiger|WG|83|tecnico
+11|Miroslav Klose|ST|86|artilheiro
+20|Lukas Podolski|SS|82|rapido
+CLUBE|arg1986|Argentina 1986|ARG|75AADB|FFFFFF|1B2A6B|442|Copa do Mundo 1986
+18|Nery Pumpido|GK|82|reflexo
+2|Óscar Ruggeri|CB|84|muro
+5|José Luis Brown|CB|82|muro
+19|José Cuciuffo|RB|80|muro
+6|Julio Olarticoechea|LB|80|rapido
+7|Jorge Burruchaga|WG|84|rapido
+14|Sergio Batista|CM|83|fisico
+21|Héctor Enrique|CM|82|tecnico
+12|Ricardo Giusti|WG|82|fisico
+11|Jorge Valdano|ST|85|artilheiro
+10|Diego Maradona|SS|96|craque
+CLUBE|ing1986|Inglaterra 1986|ENG|FFFFFF|1B2A6B|C8102E|442|Copa do Mundo 1986
+1|Peter Shilton|GK|88|reflexo
+2|Gary Stevens|RB|80|rapido
+6|Terry Fenwick|CB|80|muro
+5|Terry Butcher|CB|86|muro
+3|Kenny Sansom|LB|82|rapido
+17|Steve Hodge|WG|80|tecnico
+4|Glenn Hoddle|CM|85|tecnico
+7|Bryan Robson|CM|87|fisico
+11|Peter Beardsley|WG|83|tecnico
+10|Gary Lineker|ST|88|artilheiro
+9|Trevor Steven|SS|80|rapido

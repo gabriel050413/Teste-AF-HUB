@@ -20,7 +20,7 @@ DIG = {"0": ["111", "101", "101", "101", "111"], "1": ["010", "110", "010", "010
 
 # padrão da camisa titular: (tipo, cor2).  v=listras verticais, h=faixas horizontais, b=faixa central, m=mangas
 PADROES = {"barcelona": ("v", 0xA50044), "atleticomg": ("v", 0xFFFFFF), "newcastle": ("v", 0xFFFFFF), "flamengo": ("h", 0x1A1A1A),
-           "psg": ("b", 0xDA291C), "arsenal": ("m", 0xFFFFFF), "astonvilla": ("m", 0x7FB3E8), "bayern": ("b", 0xFFFFFF), "dortmund": ("b", 0x1A1A1A)}
+           "psg": ("b", 0xDA291C), "arg2022": ("v", 0xFFFFFF), "arg1986": ("v", 0xFFFFFF), "bar2017": ("v", 0xA50044), "bar2019": ("v", 0xA50044), "atm2014": ("v", 0xFFFFFF), "mil2005": ("v", 0x1A1A1A), "bra2014": ("m", 0x009C3B), "bay1999": ("b", 0xFFFFFF), "psg2017": ("b", 0xDA291C), "arsenal": ("m", 0xFFFFFF), "astonvilla": ("m", 0x7FB3E8), "bayern": ("b", 0xFFFFFF), "dortmund": ("b", 0x1A1A1A)}
 
 def rgb(h): return ((h >> 16) & 255, (h >> 8) & 255, h & 255)
 def shade(c, k): return tuple(max(0, min(255, int(v * k))) for v in c)
@@ -167,6 +167,16 @@ def ler_clubes():
         f = linha.split("|")
         if f[0] == "CLUBE": atual = f[1]; clubes[atual] = {"chest": int(f[4], 16), "shorts": int(f[5], 16), "alt": int(f[6], 16), "jog": []}
         else: clubes[atual]["jog"].append(int(f[0]))
+    # times históricos (modo "Simulando jogos"): titulares na ordem + linhas RES (reservas)
+    hp = os.path.join(RES, "futebol", "historicos.txt")
+    if os.path.exists(hp):
+        for linha in open(hp, encoding="utf-8"):
+            linha = linha.strip()
+            if not linha or linha.startswith("#"): continue
+            f = linha.split("|")
+            if f[0] == "CLUBE": atual = f[1]; clubes[atual] = {"chest": int(f[4], 16), "shorts": int(f[5], 16), "alt": int(f[6], 16), "jog": []}
+            elif f[0] == "RES": clubes[atual]["jog"].append(int(f[1]))
+            else: clubes[atual]["jog"].append(int(f[0]))
     return clubes
 
 def ler_aparencia():

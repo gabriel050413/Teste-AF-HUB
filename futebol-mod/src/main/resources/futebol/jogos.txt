@@ -1,0 +1,109 @@
+# SIMULANDO JOGOS — roteiros dos lances decisivos (minutos e autores reais; os movimentos são coreografados).
+# JOGO|id|Título|Competição · Local|casa|fora|final(1=cerimônia de troféu)|camisa do capitão casa|camisa do capitão fora
+# EV|minuto|GOL|time(0 casa,1 fora)|camisa|pen/og/mao/lance    EV|min|DEFESA|time do chutador|camisa|     EV|min|CARTAO|time|camisa|y/r
+# EV|min|SUB|time|camisa que sai|camisa que entra     EV|min|HT||| (intervalo)    PK|time|camisa|g(gol)/d(defendeu)/f(fora)
+JOGO|argfra22|Argentina 3 (4) x (2) 3 França|Final da Copa do Mundo 2022 · Lusail, Catar|arg2022|fra2022|1|10|1
+EV|23|GOL|0|10|pen
+EV|36|GOL|0|11|lance
+EV|45|HT|||
+EV|64|SUB|0|7|5
+EV|71|SUB|1|9|12
+EV|71|SUB|1|11|20
+EV|80|GOL|1|10|pen
+EV|81|GOL|1|10|lance
+EV|108|GOL|0|10|lance
+EV|116|SUB|0|9|21
+EV|118|GOL|1|10|pen
+EV|123|DEFESA|1|12|
+PK|1|10|g
+PK|0|10|g
+PK|1|20|d
+PK|0|21|g
+PK|1|8|f
+PK|0|5|g
+PK|1|12|g
+PK|0|26|g
+JOGO|brale14|Brasil 1 x 7 Alemanha|Semifinal da Copa do Mundo 2014 · Belo Horizonte|bra2014|ale2014|0|4|16
+EV|11|GOL|1|13|lance
+EV|23|GOL|1|11|lance
+EV|24|GOL|1|18|lance
+EV|26|GOL|1|18|lance
+EV|29|GOL|1|6|lance
+EV|45|HT|||
+EV|58|SUB|1|11|9
+EV|69|GOL|1|9|lance
+EV|79|GOL|1|9|lance
+EV|90|GOL|0|11|lance
+JOGO|barpsg17|Barcelona 6 x 1 PSG|Oitavas da Champions League 2016/17 · Camp Nou|bar2017|psg2017|0|10|2
+EV|3|GOL|0|9|lance
+EV|40|GOL|1|20|og
+EV|45|HT|||
+EV|50|GOL|0|10|pen
+EV|62|GOL|1|9|lance
+EV|80|SUB|0|4|20
+EV|88|GOL|0|11|lance
+EV|90+1|GOL|0|11|pen
+EV|90+5|GOL|0|20|lance
+JOGO|livmil05|Liverpool 3 (3) x (2) 3 Milan|Final da Champions League 2004/05 · Istambul|liv2005|mil2005|1|8|3
+EV|1|GOL|1|3|lance
+EV|23|SUB|0|7|26
+EV|39|GOL|1|11|lance
+EV|44|GOL|1|11|lance
+EV|45|HT|||
+EV|46|SUB|0|3|16
+EV|54|GOL|0|8|lance
+EV|56|GOL|0|26|lance
+EV|60|GOL|0|14|pen
+EV|85|SUB|0|5|9
+EV|117|DEFESA|1|7|
+EV|120|SUB|1|10|20
+EV|120|SUB|1|2|18
+PK|1|18|f
+PK|0|16|g
+PK|1|21|d
+PK|0|9|g
+PK|1|20|g
+PK|0|6|d
+PK|1|22|g
+PK|0|26|g
+PK|1|7|d
+JOGO|munbay99|Manchester United 2 x 1 Bayern|Final da Champions League 1998/99 · Camp Nou|mun1999|bay1999|1|1|1
+EV|6|GOL|1|14|lance
+EV|45|HT|||
+EV|67|SUB|0|17|10
+EV|81|SUB|0|9|20
+EV|90+1|GOL|0|10|lance
+EV|90+3|GOL|0|20|lance
+JOGO|rmaatm14|Real Madrid 4 x 1 Atlético de Madrid|Final da Champions League 2013/14 · Lisboa|rma2014|atm2014|1|1|2
+EV|36|GOL|1|2|lance
+EV|45|HT|||
+EV|59|SUB|0|5|12
+EV|79|SUB|0|22|23
+EV|90+3|GOL|0|4|lance
+EV|110|GOL|0|11|lance
+EV|118|GOL|0|12|lance
+EV|120|GOL|0|7|pen
+JOGO|livbar19|Liverpool 4 x 0 Barcelona|Semifinal da Champions League 2018/19 · Anfield|liv2019|bar2019|0|4|10
+EV|7|GOL|0|27|lance
+EV|45|HT|||
+EV|45|SUB|0|14|5
+EV|54|GOL|0|5|lance
+EV|56|GOL|0|5|lance
+EV|79|GOL|0|27|lance
+JOGO|espned10|Espanha 1 x 0 Holanda|Final da Copa do Mundo 2010 · Joanesburgo|esp2010|ned2010|1|1|10
+EV|28|CARTAO|1|8|y
+EV|45|HT|||
+EV|62|DEFESA|1|11|
+EV|83|DEFESA|1|11|
+EV|116|GOL|0|6|lance
+JOGO|itaale06|Itália 2 x 0 Alemanha|Semifinal da Copa do Mundo 2006 · Dortmund|ita2006|ale2006|0|5|13
+EV|45|HT|||
+EV|91|SUB|0|20|10
+EV|110|CARTAO|1|8|y
+EV|119|GOL|0|3|lance
+EV|120+1|GOL|0|10|lance
+JOGO|arging86|Argentina 2 x 1 Inglaterra|Quartas da Copa do Mundo 1986 · Cidade do México|arg1986|ing1986|0|10|7
+EV|45|HT|||
+EV|51|GOL|0|10|mao
+EV|55|GOL|0|10|lance
+EV|81|GOL|1|10|lance

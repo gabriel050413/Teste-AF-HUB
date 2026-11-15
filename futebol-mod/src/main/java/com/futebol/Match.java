@@ -47,6 +47,9 @@ public final class Match {
     boolean lightsOn;
     public boolean isNight() { long tm = Math.floorMod(level.getOverworldClockTime(), 24000L); return tm >= 12600 && tm <= 23400; }
     public java.util.function.Consumer<Match> onFinish;
+    /** Modo "Simulando jogos": roteiro de um jogo histórico (null = partida normal). */
+    public Historic script;
+    public String minOverride;
     public Screens screens;
     public final int[] attackDir = {1, -1};
     public final int[] score = new int[2];
@@ -383,6 +386,7 @@ public final class Match {
             case FULLTIME -> holdAll();
             case REPLAY -> tickReplay();
         }
+        if (script != null) script.tick();
         if (st != St.REPLAY) for (FPlayer p : all) step(p);
         if (ballPinned) { ball.snapTo(pinPos.x, pinPos.y, pinPos.z); ball.setDeltaMovement(Vec3.ZERO); }
         ballVelSet = ball.getDeltaMovement();
@@ -512,6 +516,7 @@ public final class Match {
             level.sendParticles(ParticleTypes.FIREWORK, c.x, c.y + 2, c.z, 12, 3, 1.5, 3, 0.1);
         }
         if (stTicks > 125) {
+            if (script != null) { script.afterGoal(); return; }
             if (goalScorer != null) ClipPayload.send(level, 3, goalScorer.def.nome() + " · " + Roster.SIGLA[0] + " " + score[0] + "-" + score[1] + " " + Roster.SIGLA[1]);
             int conceded = 1 - lastEventTeam;
             resetForKickoff(conceded, true);
@@ -678,6 +683,7 @@ public final class Match {
     }
 
     void goal(int team) {
+        if (script != null && !script.allowGoal(team)) { script.denied(team); return; }
         FPlayer who = lastToucher;
         boolean contra = who != null && who.team != team;
         if (cameras != null) cameras.shake(2.4);
@@ -694,7 +700,7 @@ public final class Match {
         goalScorer = who;
         if (nar != null && who != null) nar.goal(who, team, contra);
         String autor = who == null ? "" : (contra ? "gol contra de " : "") + who.def.nome() + " (#" + who.def.num() + ")";
-        title("§6§l⚽  G O O O L !", Roster.COR_CHAT[team] + "§l" + autor + " §7· " + Math.max(1, (half == 1 ? 0 : 45) + (int) (45.0 * clock / halfLen)) + "'");
+        title("§6§l⚽  G O O O L !", Roster.COR_CHAT[team] + "§l" + autor + " §7· " + (minOverride != null ? minOverride : Math.max(1, (half == 1 ? 0 : 45) + (int) (45.0 * clock / halfLen)) + "'"));
         say("§e⚽ " + placar() + " §7— " + autor);
         Vec3 b = bp();
         pinBall(new Vec3(b.x, b.y, b.z));
@@ -963,6 +969,23 @@ public final class Match {
         if (red) { p.out = true; p.touchCd = 999999; p.tackleCd = 999999; if (carrier == p) carrier = null; }
     }
 
+    /** Substituição: o reserva assume o posto (e a posição em campo) de quem sai. */
+    public FPlayer substitute(FPlayer out, Roster.Def in) {
+        int t = out.team;
+        Roster.Def nd = new Roster.Def(in.num(), in.nome(), in.pos() == Pos.GK ? out.def.pos() : in.pos(), out.def.u(), out.def.v(), in.st());
+        FPlayer np = new FPlayer(t, nd);
+        np.perfil = Clubs.perfil(Roster.ATUAL[t].id(), nd.num());
+        Vec3 pos = out.pos();
+        if (carrier == out) carrier = null;
+        out.e.discard();
+        np.e = makeMob(np);
+        np.e.snapTo(pos.x, pos.y, pos.z, np.e.getYRot(), 0);
+        for (int i = 0; i < teams[t].length; i++) if (teams[t][i] == out) teams[t][i] = np;
+        all.set(all.indexOf(out), np);
+        goalsBy.remove(out);
+        return np;
+    }
+
     Vec3 benchSpot(FPlayer p) { return new Vec3(pitch.cx() + (p.team == 0 ? -18 : 18), pitch.surf(), pitch.cz() + Pitch.HALF_W + 2.4); }
 
     boolean inBox(int t, Vec3 pos) {
@@ -1040,6 +1063,7 @@ public final class Match {
         for (int t = 0; t < 2; t++) {
             FPlayer g = gk(t);
             if (g.holding) continue;
+            if (script != null && script.noSave(t)) { g.shotActive = false; continue; }
             if (!g.shotActive && hv > 0.5 && carrier == null && lastTouchTeam != t) {
                 for (int n = 1; n < traj.length; n++) {
                     if (U(t, traj[n].x) <= 0.4) {
@@ -2192,6 +2216,7 @@ public final class Match {
     void hud() {
         int totalMin = (half == 1 ? 0 : 45) + (int) (45.0 * clock / halfLen);
         String tempo = st == St.IDLE || st == St.INTRO ? "AO VIVO" : st == St.FULLTIME ? "ENCERRADO" : st == St.HALFTIME ? "INTERVALO" : Math.min(totalMin, 90) + "'  " + half + "º TEMPO";
+        if (minOverride != null) tempo = minOverride;
         if (bar == null) bar = new net.minecraft.server.level.ServerBossEvent(java.util.UUID.randomUUID(), Component.literal(""), net.minecraft.world.BossEvent.BossBarColor.WHITE, net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
         for (ServerPlayer pl : level.players()) bar.addPlayer(pl);
         String n0 = Roster.COR_CHAT[0] + "§l" + Roster.SIGLA[0], n1 = Roster.COR_CHAT[1] + "§l" + Roster.SIGLA[1];

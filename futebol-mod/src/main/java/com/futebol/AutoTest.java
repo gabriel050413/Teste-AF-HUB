@@ -62,6 +62,11 @@ final class AutoTest {
         maxTicks = Integer.parseInt(v);
         ServerLifecycleEvents.SERVER_STARTED.register(srv -> {
             CommandSourceStack src = srv.createCommandSourceStack();
+            if (System.getenv("FUTEBOL_HISTORIC") != null) {
+                srv.getCommands().performPrefixedCommand(src, "futebol jogo " + System.getenv("FUTEBOL_HISTORIC"));
+                if (System.getenv("FUTEBOL_FAST") != null) srv.getCommands().performPrefixedCommand(src, "tick rate 2000");
+                return;
+            }
             srv.getCommands().performPrefixedCommand(src, "futebol ativar" + (System.getenv("FUTEBOL_CLUBS") != null ? " " + System.getenv("FUTEBOL_CLUBS") : ""));
             srv.getCommands().performPrefixedCommand(src, "futebol tempo " + (System.getenv("FUTEBOL_HALF") != null ? System.getenv("FUTEBOL_HALF") : "" + (maxTicks / 40)));
             dump(FutebolMod.match);
@@ -73,6 +78,12 @@ final class AutoTest {
             Match m = FutebolMod.match;
             if (m == null) return;
             ticks++;
+            if (System.getenv("FUTEBOL_HISTORIC") != null) {
+                Historic h = m.script;
+                if (ticks % 400 == 0) FutebolMod.LOG.info("HIST t=" + ticks + " ph=" + (h == null ? "-" : h.ph + " idx=" + h.idx + " t=" + h.t) + " st=" + m.st + " min=" + m.minOverride + " score=" + m.score[0] + "-" + m.score[1] + (h == null ? "" : " pens=" + h.pens[0] + "-" + h.pens[1]));
+                if ((h != null && h.finished) || ticks >= maxTicks) { FutebolMod.LOG.info("HIST FIM finished=" + (h != null && h.finished) + " score=" + m.score[0] + "-" + m.score[1] + " pens=" + (h == null ? "-" : h.pens[0] + "-" + h.pens[1]) + " ev=" + m.ev + " nar=" + m.nar.spoken); srv.halt(false); }
+                return;
+            }
             if (ticks % 600 == 0) { String r = m.cameras.selfTest(); if (ticks % 3000 == 0) FutebolMod.LOG.info("CAMTEST ruins=" + r); }
             if (m.carrier != null) { if (m.carrier.team == 0) possA++; else possB++; hist[(int) Math.min(3, Math.max(0, m.U(m.carrier.team, m.carrier.pos().x) / 16))]++; }
             if (m.st == Match.St.PLAYING) for (int t = 0; t < 2; t++) for (int i = 0; i < 11; i++) {

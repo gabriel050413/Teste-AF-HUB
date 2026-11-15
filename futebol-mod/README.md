@@ -12,6 +12,15 @@ Campo + estádio completos, 22 mobs jogando futebol de verdade: Pillagers (manda
 Constrói campo + estádio, coloca os times uniformizados (camisa, calção, número e nome), a torcida, os telões, e te dá o **Graveto do Árbitro** e o **Controle de Câmeras**.
 **Botão direito com o graveto = começa o jogo.** Graveto agachado = reinicia. `/futebol desativar` remove tudo e restaura o terreno.
 
+## Novidades da v3.1 — SIMULANDO JOGOS
+Reencena os lances decisivos de 10 jogos famosos com os mesmos times e jogadores: `/futebol jogos` lista, `/futebol jogo argfra22` começa
+(`/futebol jogo pular` pula o lance, `/futebol jogo parar` encerra). Jogos: argfra22 (final 2022, com pênaltis e cerimônia do troféu),
+brale14 (1x7), barpsg17 (6x1), livmil05 (Istambul, pênaltis + troféu), munbay99, rmaatm14, livbar19, espned10, itaale06, arging86.
+Minutos, autores, cartões, substituições e pênaltis seguem o jogo real; nas finais há cerimônia (vices recebem medalha, campeões pegam a taça um a um, capitão ergue, festa com todos).
+**Aproximações honestas:** escalações/notas dos 20 times históricos (`historicos.txt`) e roteiros (`jogos.txt`) são de memória e editáveis;
+movimentos e ângulos são coreografados pelo mod, não cópias da transmissão. Ainda NÃO há texturas novas de gramado/estádio/torcida/árbitro.
+Skins dos históricos: `python3 tools/gerar_skins.py`.
+
 ## Novidades da v3.0 — replay estilo Champions League (rápido)
 - O replay do gol agora dura **~12 s no total** (antes passava de 1 min): **2 ângulos de ~4–5 s** (transmissão aproximando → atrás do gol/rasteira) + **comemoração**. Cada ângulo corre rápido, **freia na jogada, congela um instante no chute** e vai em **câmera lenta** até o gol, depois acelera de novo. A passagem entre replays tem o **brilho/som da bola-estrela** (carrilhão + partículas) e a faixa "▶ REPLAY 1/2". O clipe de vídeo para baixar usa esses mesmos replays.
 

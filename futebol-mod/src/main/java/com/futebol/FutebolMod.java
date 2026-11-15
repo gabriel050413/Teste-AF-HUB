@@ -37,6 +37,7 @@ public class FutebolMod implements ModInitializer {
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(AnimPayload.TYPE, AnimPayload.CODEC);
         net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry.clientboundPlay().register(ClipPayload.TYPE, ClipPayload.CODEC);
         Clubs.load();
+        Historic.load();
         AutoTest.init();
         CommandRegistrationCallback.EVENT.register((d, r, env) -> registerCommands(d));
 
@@ -254,7 +255,7 @@ public class FutebolMod implements ModInitializer {
                     c.getSource().sendSuccess(() -> Component.literal("§a⚽ " + f.home().nome() + " x " + f.away().nome() + " — clique com o graveto para começar."), false);
                     return 1;
                 })))
-            .then(Commands.literal("recarregar").executes(c -> { Clubs.load(); c.getSource().sendSuccess(() -> Component.literal("§a" + Clubs.ALL.size() + " clubes carregados."), false); return 1; }))
+            .then(Commands.literal("recarregar").executes(c -> { Clubs.load(); Historic.load(); c.getSource().sendSuccess(() -> Component.literal("§a" + Clubs.ALL.size() + " clubes carregados."), false); return 1; }))
             .then(Commands.literal("desativar").executes(c -> {
                 if (match == null) { c.getSource().sendFailure(Component.literal("Nenhum campo ativo.")); return 0; }
                 match.remove(); match = null;
@@ -267,6 +268,29 @@ public class FutebolMod implements ModInitializer {
                 pl.getInventory().add(graveto());
                 return 1;
             }))
+            .then(Commands.literal("jogos").executes(c -> {
+                c.getSource().sendSuccess(() -> Component.literal("§6★ SIMULANDO JOGOS §7— use /futebol jogo <id>"), false);
+                for (Historic.Game g : Historic.GAMES.values()) c.getSource().sendSuccess(() -> Component.literal(" §e" + g.id + " §7— §f" + g.titulo + " §8(" + g.sub + ")" + (g.fin ? " §6🏆" : "")), false);
+                return 1;
+            }))
+            .then(Commands.literal("jogo")
+                .then(Commands.literal("parar").executes(c -> {
+                    if (match != null && match.script != null) { match.script.stop(); match.stopToKickoff(); c.getSource().sendSuccess(() -> Component.literal("§7Simulação encerrada."), false); }
+                    return 1;
+                }))
+                .then(Commands.literal("pular").executes(c -> {
+                    if (match == null || match.script == null || !match.script.pular()) { c.getSource().sendFailure(Component.literal("Nada para pular agora.")); return 0; }
+                    return 1;
+                }))
+                .then(Commands.argument("id", StringArgumentType.word()).suggests((ctx, b) -> net.minecraft.commands.SharedSuggestionProvider.suggest(Historic.GAMES.keySet(), b)).executes(c -> {
+                    Historic.Game g = Historic.GAMES.get(StringArgumentType.getString(c, "id"));
+                    if (g == null) { c.getSource().sendFailure(Component.literal("Jogo inválido. Use /futebol jogos.")); return 0; }
+                    Club h = Clubs.get(g.home), a = Clubs.get(g.away);
+                    if (h == null || a == null) { c.getSource().sendFailure(Component.literal("Times históricos não carregados (historicos.txt).")); return 0; }
+                    ativar(c.getSource(), h, a);
+                    new Historic(match, g);
+                    return 1;
+                })))
             .then(Commands.literal("iniciar").executes(c -> {
                 if (match == null) { c.getSource().sendFailure(Component.literal("Use /futebol ativar primeiro.")); return 0; }
                 match.start(); return 1;
