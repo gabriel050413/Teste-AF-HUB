@@ -534,6 +534,21 @@ function convMask(mk, W, H, t0) {
 }
 
 /** Converte a composição `compId` (ou a principal) num projeto do MotionFrame. */
+// Escala de tempo do render do After: o vídeo de referência do projeto tem 13,33 s e a comp 14,1 s, e o instante
+// t da comp aparece no vídeo em t × 13,33 / 14,1. Todos os tempos do .aep importado são multiplicados por isso
+// (duração, entradas/saídas, keyframes). Ajuste aqui se outro render mostrar outra proporção.
+export const AE_TIME_SCALE = 13.333333 / 14.1;
+
+/** Multiplica, em todo o projeto, os tempos de keyframes (objetos com t e v) e de entradas/saídas/duração. */
+function scaleTimes(o, s, seen = new Set()) {
+  if (!o || typeof o !== 'object' || seen.has(o)) return;
+  seen.add(o);
+  if (Array.isArray(o)) { for (const x of o) scaleTimes(x, s, seen); return; }
+  if (typeof o.t === 'number' && 'v' in o) o.t = +(o.t * s).toFixed(4);
+  for (const k of ['inPoint', 'outPoint', 'startTime', 'duration']) if (typeof o[k] === 'number') o[k] = +(o[k] * s).toFixed(4);
+  for (const v of Object.values(o)) if (v && typeof v === 'object') scaleTimes(v, s, seen);
+}
+
 export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   const comp = parsed.comps.find((c) => c.id === compId) || mainComps(parsed)[0];
   if (!comp) throw new Error('O projeto não tem composições.');
@@ -544,5 +559,7 @@ export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   proj.background = hex(comp.bg || [0, 0, 0]);
   const ctx = { media: new Set(), notes: new Set(), unsupported: new Set() };
   proj.layers = buildLayers(parsed, comp, proj, ctx);
+  scaleTimes(proj.layers, AE_TIME_SCALE);
+  proj.duration = +(proj.duration * AE_TIME_SCALE).toFixed(3);
   return { project: proj, comp, media: [...ctx.media], notes: [...ctx.notes], unsupported: [...ctx.unsupported] };
 }
