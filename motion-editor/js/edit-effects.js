@@ -4,6 +4,9 @@ const K = (...l) => ({ keys: l.map(([t, v, ease]) => ({ t, v, ...(ease ? { ease 
 const CAT = 'Efeitos das edits';
 
 export const EDIT_EFFECT_PRESETS = [
+  // ---- edit @jtp.wm07
+  { name: 'Ponto de luz atravessando (Optical Flares)', category: CAT, anchorStart: true, duration: 2.5, effects: [{ type: 'lensFlare', params: { style: 5, position: K([0, [-0.05, 0.45], 'linear'], [2.5, [1.05, 0.4]]), brightness: 160, size: 90, glow: 80, rays: 70, streak: 0.6, ghosts: 60, flicker: 15 } }] },
+  { name: 'Dentes de serra azuis (time slice)', category: CAT, anchorStart: true, duration: 0.5, effects: [{ type: 'sawSlice', params: { progress: K([0, 0, 'easeIn'], [0.25, 100, 'easeOut'], [0.5, 0]), teeth: 9, tint: 70, glow: 1.4 } }] },
   // ---- edits do @koreiiaw
   { name: 'Entrada do preto (Koreiia)', category: CAT, anchorStart: true, duration: 1, transform: { scale: { mode: 'abs', keys: [{ t: 0, v: [108, 108], ease: 'easeOut' }, { t: 1, v: [100, 100] }] } }, effects: [{ type: 'exposure', params: { exposure: K([0, -7, 'easeOut'], [1, 0]) } }, { type: 'lensBlur', params: { radius: K([0, 25, 'easeOut'], [0.8, 0]) } }] },
   { name: 'Saída roxa (Koreiia)', category: CAT, anchorStart: true, duration: 0.6, effects: [{ type: 'lensBlur', params: { radius: K([0, 0, 'easeIn'], [0.5, 30]) } }, { type: 'fill', params: { color: [0.18, 0.05, 0.42, 1], opacity: K([0, 0, 'easeIn'], [0.45, 100]) } }, { type: 'exposure', params: { exposure: K([0, 0, 'hold'], [0.4, 0, 'easeIn'], [0.6, -8]) } }] },

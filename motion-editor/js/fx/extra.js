@@ -6,7 +6,7 @@ import { frag, colorFrag, num, ang, col, bool, sel, pos, rgb, noise1 } from './c
 // constantes de calibração (ajustadas juntas nas CCs de referência; 1 = padrão)
 // calibrado juntando FTB, Rafa e Wdzik contra os prints do AE (erro médio 20,9 → 18,4): a Haze/Flare entra por cima e
 // por baixo, com metade da força; Contraste e Gamma do Colorista pela metade; Saturação +25%; vinheta 0,81
-const TK_DEF = { hdir: 2, vig: 0.81, sat: 1.25, con: 0.5, gam: 0.5, haze: 0.5 };
+const TK_DEF = { hdir: 2, vig: 0.81, sat: 1.25, con: 0.5, gam: 0.5, haze: 0.5, hazeK: 1, veil: 1 };
 const TK = (k) => globalThis.__MF_TUNE?.[k] ?? TK_DEF[k] ?? 1;
 const SHARPEN = frag(`
 uniform sampler2D u_tex2; uniform float u_amount; uniform float u_thr; uniform float u_luma;
@@ -329,7 +329,7 @@ void main() {
 // Matte box do Haze/Flare (calibrado com os prints do AE: FTB e Wdzik CC usam Size 50 / Shade 75)
 const MB_SIZE_K = 0.5, MB_SHADE_K = 0.3;
 const HAZE = frag(`
-uniform sampler2D u_tex2; uniform float u_exp, u_spill, u_reach, u_mbs, u_mbsh, u_mbk, u_mono, u_mbh; uniform vec3 u_tintc;
+uniform sampler2D u_tex2; uniform float u_exp, u_spill, u_reach, u_mbs, u_mbsh, u_mbk, u_mono, u_mbh; uniform vec3 u_tintc, u_veil;
 uniform float u_hdir;
 vec3 stripV(float y0, float y1, float x) {
   vec3 acc = vec3(0.0);
@@ -368,6 +368,9 @@ void main() {
     lin *= 1.0 - clamp(d, 0.0, 1.0) * u_mbsh * u_mbk;
   }
   vec3 o = pow(lin + h * (1.0 - min(lin, 1.0)), vec3(1.0 / 2.2));
+  // véu (veiling glare): a luz parasita espalhada levanta os pretos com a cor do Tint — medido nos previews
+  // ORIGINAL/COLOURED (Sydney Summer, Purple Push, Soft Focus): pretos 63 → 85–108 conforme o Spillage
+  o = 1.0 - (1.0 - clamp(o, 0.0, 1.0)) * (1.0 - u_veil);
   gl_FragColor = vec4(clamp(o, 0.0, 1.0) * a.a, a.a);
 }`);
 const RADIAL_SPLIT = frag(`
@@ -458,7 +461,7 @@ const EFFECTS = [
       if ((p.hazeExposure ?? -99) > -20 && s > 0) {
         const small = gl.copy(out, 96, Math.max(16, Math.round(96 * out.h / out.w)));
         const soft = gl.blur(small, Math.max(0.5, ((p.hazeSoftness ?? 60) / 100) * small.h * 0.5 + 1), 3);
-        out = gl.pass(HAZE, { u_tex: out, u_tex2: soft, u_exp: Math.pow(2, p.hazeExposure) * 0.4 * s * TK('haze'), u_spill: Math.max(0.01, (p.hazeSpill ?? 16) / 100), u_reach: Math.max(0.02, (p.hazeReach ?? 50) / 100 * 0.5), u_tintc: rgb(p.hazeTint || [1, 0.92, 0.82, 1]), u_mbs: Math.min(0.98, (p.hazeMBSize ?? 0) / 100 * MB_SIZE_K), u_mbsh: 0, u_mbk: MB_SHADE_K, u_hdir: TK('hdir') - 1.0, u_mono: 1, u_mbh: ((p.hazeMBShade ?? 0) / 100) });
+        out = gl.pass(HAZE, { u_tex: out, u_tex2: soft, u_exp: Math.pow(2, p.hazeExposure * TK('hazeK')) * 0.4 * s * TK('haze'), u_spill: Math.max(0.01, (p.hazeSpill ?? 16) / 100), u_reach: Math.max(0.02, (p.hazeReach ?? 50) / 100 * 0.5), u_tintc: rgb(p.hazeTint || [1, 0.92, 0.82, 1]), u_mbs: Math.min(0.98, (p.hazeMBSize ?? 0) / 100 * MB_SIZE_K), u_mbsh: 0, u_mbk: MB_SHADE_K, u_hdir: TK('hdir') - 1.0, u_mono: 1, u_mbh: ((p.hazeMBShade ?? 0) / 100), u_veil: rgb(p.hazeTint || [1, 0.92, 0.82, 1]).map((t) => Math.min(0.6, ((p.hazeSpill ?? 16) / 100) * (0.14 + 0.17 * Math.max(0, t)) * s * TK('veil'))) });
       }
       if ((p.anamSize || 0) > 0 && s > 0) {
         const hi = gl.pass(ANAM_HI, { u_tex: out, u_thr: (p.anamThreshold ?? 70) / 100, u_soft: 0.15 });
