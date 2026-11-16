@@ -563,7 +563,22 @@ export const IMPORT_RULES = [
   { vendor: 'RE:Vision', plugin: 'Twixtor', to: 'twixtor', test: /twixtor/i,
     map: { speed: { i: 5, n: ['speed %', 'speed'] }, frameBlend: { i: 1, n: ['frame interp', 'frame interpolation'], conv: (v) => v >= 2, inv: (b) => (b ? 3 : 1) } } }, // Frame Interp: 1 Nearest, 2 Blend, 3 Motion Weighted Blend
   { vendor: 'Red Giant', plugin: 'Magic Bullet Looks', to: 'looks', test: /^MB Look|magic ?bullet ?looks/i, expand: looksExpand },
-  { vendor: 'Red Giant', plugin: 'Magic Bullet Colorista / Mojo', to: 'colorGrade', test: /colorista|\bmojo\b/i },
+  // Mojo II avulso (manual da Maxon): Mojo, Mojo Tint, Punch It, Bleach It, Fade It, Skin Squeeze, Cool/Warm, Exposure
+  { vendor: 'Red Giant', plugin: 'Magic Bullet Mojo II', to: 'lkMojo', test: /\bmojo\b/i,
+    expand: (fx, raw) => {
+      const v = (n, d) => { const x = raw(n); return Number.isFinite(x) ? x : d; };
+      return [{ type: 'lkMojo', label: fx.name || 'Mojo II', params: { str: v('strength', 100), mojo: v('mojo', 50), cool: v('mojo', 50), skin: v('skin squeeze', 50), punch: v('punch it', 0), bleach: v('bleach it', 0), fade: v('fade it', 0), mtint: v('mojo tint', 0), exposure: v('exposure', 0), temp: v('cool/warm', 0) } }];
+    } },
+  // Colorista (IV/V) avulso: sliders principais (Exposure, Contrast −10..10, Temperature, Tint, Saturation) → Color Grade
+  { vendor: 'Red Giant', plugin: 'Magic Bullet Colorista', to: 'colorGrade', test: /colorista/i,
+    expand: (fx, raw) => {
+      const v = (n, d = 0) => { const x = raw(n); return Number.isFinite(x) ? x : d; };
+      const sat = v('saturation', 100);
+      return [{ type: 'colorGrade', label: fx.name || 'Colorista', params: {
+        exposure: Math.max(-4, Math.min(4, v('exposure') * (Math.abs(v('exposure')) > 4 ? 0.4 : 1))), contrast: Math.max(-100, Math.min(100, v('contrast') * 10)),
+        temperature: Math.max(-100, Math.min(100, v('temperature'))), tint: Math.max(-100, Math.min(100, v('tint'))),
+        saturation: Math.max(-100, Math.min(100, sat > 2 ? sat - 100 : (sat - 1) * 100)), highlights: v('highlights'), shadows: v('shadows') } }];
+    } },
   // Topaz Video AI (plugin do AE, categoria "Topaz Video AI"): efeitos "Enhance" e "Frame Interpolation".
   // Layout lido do próprio plugin: AI Model (Select Model|Proteus|Iris|Nyx|Artemis|Themis|Dione Robust|Dione Robust Dehalo),
   // Input Quality (LQ|MQ|HQ ou LQ|MQ), Output Resolution (Original|2x|4x ou Original|2x), Parameters (Auto|Relative to auto|
