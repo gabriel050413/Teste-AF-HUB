@@ -5,6 +5,7 @@ import { modal, toast, pickFiles } from './ui.js';
 import { escapeHtml as esc } from './util.js';
 import { ico } from './icons.js';
 
+const STORE_ICONS = { boost_post: 'rocket', pin_post: 'marker', feature_listing: 'star', badge_verified: 'check', ai_pack_5: 'wand', cloud_slot_3: 'cloud', badge_fire: 'fire', badge_gold: 'crown', badge_diamond: 'sparkle', frame_neon: 'target', frame_glitch: 'distort' };
 const TABS = [['home', 'home', 'Início'], ['feed', 'feed', 'Feed'], ['market', 'store', 'Mercado'], ['chat', 'chat', 'Chat'], ['me', 'user', 'Perfil']];
 const pts = (n) => `<b class="pt">◈ ${Number(n || 0).toLocaleString('pt-BR')}</b>`;
 const avatar = (u, size = 36) => {
@@ -106,7 +107,7 @@ export class CloudUI {
   // ---------- feed ----------
   async feed(tab = this.feedTab || 'trending') {
     this.feedTab = tab;
-    const tabs = [['trending', 'Em alta'], ['new', 'Novos'], ['following', 'Seguindo'], ['sale', 'À venda'], ['bounties', '🎯 Encomendas']];
+    const tabs = [['trending', 'Em alta'], ['new', 'Novos'], ['following', 'Seguindo'], ['sale', 'À venda'], ['bounties', 'Encomendas']];
     if (tab === 'bounties') return this.bounties(tabs);
     const r = await cloud.get(`/api/feed?tab=${tab}`);
     this.body.innerHTML = `<div class="c-seg">${tabs.map(([id, l]) => `<button data-f="${id}" class="${id === tab ? 'on' : ''}">${l}</button>`).join('')}<button class="c-btn primary c-post" data-post>＋ Postar</button></div>
@@ -122,7 +123,7 @@ export class CloudUI {
       <header>${avatar(p.user, 34)}<div><b class="c-user" data-u="${esc(p.user.username)}">${nameOf(p.user)}</b><small class="muted"> · ${timeAgo(p.created)}${p.boosted ? ' · 🚀 impulsionado' : ''}${p.pinned ? ' · 📌' : ''}</small></div></header>
       <div class="c-media">${p.video ? `<video src="${esc(cloud.media(p.video))}" ${p.thumb ? `poster="${esc(p.thumb)}"` : ''} controls playsinline preload="metadata"></video>` : `<img src="${esc(p.thumb)}" alt="">`}</div>
       <h4>${esc(p.title)}</h4>${p.description ? `<p class="muted">${esc(p.description)}</p>` : ''}
-      <div class="c-actions"><button data-like class="${p.liked ? 'on' : ''}">${p.liked ? '♥' : '♡'} <span>${p.likes}</span></button><button data-cm>💬 ${p.comments}</button><button data-tip>◈ Gorjeta</button><button data-boost>🚀</button>
+      <div class="c-actions"><button data-like class="${p.liked ? 'on' : ''}">${ico(p.liked ? 'heartFill' : 'heart')} <span>${p.likes}</span></button><button data-cm>${ico('chat')} ${p.comments}</button><button data-tip>${ico('coin')} Gorjeta</button><button data-boost title="Impulsionar">${ico('rocket')}</button>
         ${prod ? `<button class="c-btn primary" data-buy="${prod.id}">${prod.owned ? (prod.mine ? 'Meu produto' : 'Baixar') : prod.price ? `Comprar · ◈ ${prod.price}` : 'Pegar grátis'}</button>` : ''}</div>
       <div class="c-comments" hidden></div></article>`;
   }
@@ -132,7 +133,7 @@ export class CloudUI {
     root.querySelectorAll('.c-post-card').forEach((card) => {
       const id = card.dataset.id;
       const on = (s, fn) => card.querySelector(s)?.addEventListener('click', guard(fn));
-      on('[data-like]', async () => { const r = await cloud.post(`/api/posts/${id}/like`); const b = card.querySelector('[data-like]'); b.className = r.liked ? 'on' : ''; b.innerHTML = `${r.liked ? '♥' : '♡'} <span>${r.likes}</span>`; });
+      on('[data-like]', async () => { const r = await cloud.post(`/api/posts/${id}/like`); const b = card.querySelector('[data-like]'); b.className = r.liked ? 'on' : ''; b.innerHTML = `${ico(r.liked ? 'heartFill' : 'heart')} <span>${r.likes}</span>`; });
       on('[data-cm]', () => this.comments(card, id));
       on('[data-tip]', async () => {
         const v = await modal('Gorjeta', '<p>Quantos pontos quer dar para este editor?</p><input class="c-in" data-n type="number" min="1" value="10">', [{ label: 'Cancelar', value: null }, { label: 'Enviar', primary: true, value: (w) => +w.querySelector('[data-n]').value }]);
@@ -141,7 +142,7 @@ export class CloudUI {
         const r = await cloud.post('/api/tip', { to: author, amount: v, post_id: +id }); cloud.setPoints(r.balance); this.paintHeader(); toast('Gorjeta enviada!', 'ok');
       });
       on('[data-boost]', async () => {
-        const ok = await modal('Impulsionar post', '<p>🚀 Seu post sobe para o topo do feed por 24 h por <b>◈ 30</b>. Só funciona em posts seus.</p>', [{ label: 'Cancelar', value: false }, { label: 'Impulsionar', primary: true, value: true }]);
+        const ok = await modal('Impulsionar post', '<p>Seu post sobe para o topo do feed por 24 h por <b>◈ 30</b>. Só funciona em posts seus.</p>', [{ label: 'Cancelar', value: false }, { label: 'Impulsionar', primary: true, value: true }]);
         if (!ok) return;
         const r = await cloud.post('/api/store/buy', { id: 'boost_post', target: +id }); cloud.setPoints(r.balance); this.paintHeader(); toast('Post impulsionado por 24 h!', 'ok');
       });
@@ -167,7 +168,7 @@ export class CloudUI {
     let file = null;
     const res = await modal('Postar edit', `<input class="c-in" data-t placeholder="Título do edit">
       <textarea class="c-in" data-d rows="2" placeholder="Descrição (opcional)"></textarea>
-      <button class="c-btn" data-pick>🎞 Escolher vídeo (ou imagem)</button><div class="muted small" data-fn></div>
+      <button class="c-btn" data-pick>${ico('media')} Escolher vídeo (ou imagem)</button><div class="muted small" data-fn></div>
       <label class="c-chk"><input type="checkbox" data-sell ${proj ? '' : 'disabled'}> Vender o projeto aberto${proj ? ` (“${esc(proj.name || 'projeto')}”)` : ' (abra um projeto para vender)'}</label>
       <input class="c-in" data-price type="number" min="0" placeholder="Preço em pontos (0 = grátis)" hidden>`,
     [{ label: 'Cancelar', value: null }, { label: 'Publicar', primary: true, value: (w) => ({ title: w.querySelector('[data-t]').value, description: w.querySelector('[data-d]').value, sell: w.querySelector('[data-sell]').checked, price: +w.querySelector('[data-price]').value || 0 }) }], {
@@ -224,7 +225,7 @@ export class CloudUI {
       <p class="muted small">${r.stats.followers} seguidores · ${r.stats.following} seguindo · ${r.stats.posts} posts · ${r.stats.sales} vendas</p>
       ${r.listings.length ? `<h4 class="c-h">À venda</h4><div class="c-hscroll">${r.listings.map((l) => this.listingCard(l)).join('')}</div>` : ''}
       ${r.posts.length ? `<h4 class="c-h">Posts</h4>${r.posts.slice(0, 6).map((p) => `<div class="c-cm"><div>▶ ${esc(p.title)} <span class="muted">· ♥ ${p.likes}</span></div></div>`).join('')}` : ''}`,
-    [{ label: 'Fechar', value: null }, ...(me ? [] : [{ label: r.following ? 'Deixar de seguir' : 'Seguir', value: 'follow' }, { label: '✉ Mensagem', primary: true, value: 'dm' }])], { onMount: (w, close) => w.querySelectorAll('[data-l]').forEach((c) => c.addEventListener('click', () => close({ l: +c.dataset.l }))) });
+    [{ label: 'Fechar', value: null }, ...(me ? [] : [{ label: r.following ? 'Deixar de seguir' : 'Seguir', value: 'follow' }, { label: 'Mensagem', primary: true, value: 'dm' }])], { onMount: (w, close) => w.querySelectorAll('[data-l]').forEach((c) => c.addEventListener('click', () => close({ l: +c.dataset.l }))) });
     if (res === 'follow') { const f = await cloud.post(`/api/users/${encodeURIComponent(username)}/follow`); toast(f.following ? 'Seguindo!' : 'Deixou de seguir.', 'ok'); }
     else if (res === 'dm') { const c = await cloud.post('/api/chats', { with: username }); this.go('chat').then(() => this.thread(c.chat_id)); }
     else if (res?.l) await this.listingDialog(res.l);
@@ -233,7 +234,7 @@ export class CloudUI {
   async notifications() {
     const { notifications } = await cloud.get('/api/notifications');
     await cloud.post('/api/notifications/read'); cloud.unread = 0; this.paintHeader();
-    await modal('Notificações', notifications.map((n) => `<div class="c-cm"><div>${{ sale: '💰', tip: '◈', follow: '👤', comment: '💬', bounty: '🎯' }[n.type] || '🔔'} ${esc(n.text)} <small class="muted">${timeAgo(n.created)}</small></div></div>`).join('') || '<p class="muted">Nada novo.</p>', [{ label: 'Fechar', value: null }]);
+    await modal('Notificações', notifications.map((n) => `<div class="c-cm"><div>${ico({ sale: 'coin', tip: 'coin', follow: 'user', comment: 'chat', bounty: 'target' }[n.type] || 'bell')} ${esc(n.text)} <small class="muted">${timeAgo(n.created)}</small></div></div>`).join('') || '<p class="muted">Nada novo.</p>', [{ label: 'Fechar', value: null }]);
   }
 
   async wallet() {
@@ -250,7 +251,7 @@ export class CloudUI {
     this.body.innerHTML = `<div class="c-row"><input class="c-in" data-q placeholder="Buscar presets…" value="${esc(f.q)}"><button class="c-btn primary" data-sell>＋ Vender</button></div>
       <div class="c-chips"><button data-cat="" class="${!f.category ? 'on' : ''}">Todos</button>${(r.categories || []).map((c) => `<button data-cat="${esc(c)}" class="${f.category === c ? 'on' : ''}">${esc(c)}</button>`).join('')}</div>
       <div class="c-row"><select class="c-in" data-sort>${sorts.map(([v, l]) => `<option value="${v}" ${f.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select><label class="c-chk"><input type="checkbox" data-free ${f.free ? 'checked' : ''}> Grátis</label></div>
-      ${feat.listings?.length ? `<h4 class="c-h">⭐ Destaque de hoje</h4><div class="c-hscroll">${feat.listings.map((l) => this.listingCard(l)).join('')}</div>` : ''}
+      ${feat.listings?.length ? `<h4 class="c-h">${ico('star')} Destaque de hoje</h4><div class="c-hscroll">${feat.listings.map((l) => this.listingCard(l)).join('')}</div>` : ''}
       <h4 class="c-h">${r.total} preset(s)</h4><div class="c-grid">${r.listings.map((l) => this.listingCard(l)).join('') || '<div class="c-empty">Nenhum preset encontrado.</div>'}</div>`;
     const q = (s) => this.body.querySelector(s);
     q('[data-q]').addEventListener('keydown', (e) => { if (e.key === 'Enter') { f.q = e.target.value.trim(); this.market().catch(() => {}); } });
@@ -262,7 +263,7 @@ export class CloudUI {
   }
 
   listingCard(l) {
-    return `<button class="c-listing" data-l="${l.id}"><div class="c-prev">${l.preview ? `<img src="${esc(l.preview)}" alt="">` : `<span>${l.kind === 'project' ? '🎬' : '★'}</span>`}${l.featured ? '<i>⭐</i>' : ''}</div>
+    return `<button class="c-listing" data-l="${l.id}"><div class="c-prev">${l.preview ? `<img src="${esc(l.preview)}" alt="">` : `<span>${ico(l.kind === 'project' ? 'media' : 'presets')}</span>`}${l.featured ? `<i>${ico('star')}</i>` : ''}</div>
       <b>${esc(l.title)}</b><small class="muted">${esc(l.seller.username)} · ${l.rating ? `★ ${l.rating}` : 'novo'} · ${l.sales} venda(s)</small>
       <span class="c-price ${l.price ? '' : 'free'}">${l.owned ? '✓ Seu' : l.price ? `◈ ${l.price}` : 'Grátis'}</span></button>`;
   }
@@ -274,7 +275,7 @@ export class CloudUI {
       <p><b>${nameOf(l.seller)}</b> · ${esc(l.category)} · ${l.kind === 'project' ? 'Projeto' : 'Preset'}</p><p>${esc(l.description || 'Sem descrição.')}</p>
       <p class="muted small">${l.sales} venda(s) · ${l.rating ? `★ ${l.rating} (${l.rating_count})` : 'sem avaliações'} · ${(l.size / 1024).toFixed(1)} KB</p>
       ${reviews.map((r) => `<div class="c-cm"><div><b>${esc(r.username)}</b> ${'★'.repeat(r.stars)} ${esc(r.text || '')}</div></div>`).join('')}
-      ${l.owned && !l.mine ? '<button class="c-link" data-rate>Avaliar</button>' : ''}${l.mine ? '<button class="c-link" data-feature>⭐ Destacar por ◈ 50</button><button class="c-link danger" data-del>Remover do mercado</button>' : ''}`,
+      ${l.owned && !l.mine ? '<button class="c-link" data-rate>Avaliar</button>' : ''}${l.mine ? '<button class="c-link" data-feature>Destacar por ◈ 50</button><button class="c-link danger" data-del>Remover do mercado</button>' : ''}`,
     [{ label: 'Fechar', value: null }, ...act], { onMount: (w, close) => { for (const k of ['rate', 'feature', 'del']) w.querySelector(`[data-${k}]`)?.addEventListener('click', () => close(k)); } });
     if (res === 'buy') { const r = await cloud.post(`/api/market/${id}/buy`); cloud.setPoints(r.balance); this.paintHeader(); toast(l.price ? `Comprado! Saldo: ◈ ${r.balance}` : 'Adicionado!', 'ok'); return this.install(id); }
     if (res === 'install') return this.install(id);
@@ -306,7 +307,7 @@ export class CloudUI {
       <input class="c-in" data-title placeholder="Título"><textarea class="c-in" data-desc rows="2" placeholder="Descrição"></textarea>
       <select class="c-in" data-cat>${cats.map((c) => `<option>${esc(c)}</option>`).join('')}</select>
       <input class="c-in" data-price type="number" min="0" placeholder="Preço em pontos (0 = grátis)" value="20">
-      <button class="c-btn" data-img>🖼 Imagem de prévia (opcional)</button>`,
+      <button class="c-btn" data-img>${ico('image')} Imagem de prévia (opcional)</button>`,
     [{ label: 'Cancelar', value: null }, { label: 'Publicar', primary: true, value: (w) => ({ what: w.querySelector('[data-what]').value, which: +w.querySelector('[data-which]').value, title: w.querySelector('[data-title]').value, description: w.querySelector('[data-desc]').value, category: w.querySelector('[data-cat]').value, price: +w.querySelector('[data-price]').value || 0 }) }], {
       onMount: (w) => {
         w.querySelector('[data-what]').addEventListener('change', (e) => { w.querySelector('[data-which]').hidden = e.target.value === 'j'; });
@@ -342,7 +343,7 @@ export class CloudUI {
     this.openChat = id;
     const { messages } = await cloud.get(`/api/chats/${id}/messages`);
     this.body.innerHTML = `<div class="c-thread"><button class="c-link" data-back>‹ Conversas</button><div class="c-msgs"></div>
-      <div class="c-row c-compose"><button class="c-btn" data-att>📎</button><input class="c-in" data-t placeholder="Mensagem…"><button class="c-btn primary" data-send>Enviar</button></div></div>`;
+      <div class="c-row c-compose"><button class="c-btn" data-att aria-label="Anexo">${ico('clip')}</button><input class="c-in" data-t placeholder="Mensagem…"><button class="c-btn primary" data-send>Enviar</button></div></div>`;
     const box = this.body.querySelector('.c-msgs');
     const add = (m) => { const mine = m.user?.id === cloud.user.id; box.insertAdjacentHTML('beforeend', `<div class="c-msg ${mine ? 'me' : ''}">${mine ? '' : `<small>${nameOf(m.user)}</small>`}${m.media ? (/\.(mp4|webm|mov)/i.test(m.media) ? `<video src="${esc(cloud.media(m.media))}" controls></video>` : `<img src="${esc(cloud.media(m.media))}" alt="">`) : ''}${m.text ? `<span>${esc(m.text)}</span>` : ''}<small>${timeAgo(m.created)}</small></div>`); box.scrollTop = box.scrollHeight; };
     this.addMsg = (m) => { if (m.chat_id === id) add(m); };
@@ -358,7 +359,7 @@ export class CloudUI {
 
   onMessage(m) {
     if (this.visible && this.openChat === m.chat_id && this.addMsg) { this.addMsg(m); cloud.post(`/api/chats/${m.chat_id}/read`).catch(() => {}); return; }
-    if (m.user?.id !== cloud.user?.id) toast(`✉ ${m.user?.username}: ${(m.text || 'anexo').slice(0, 60)}`, 'info', 4000);
+    if (m.user?.id !== cloud.user?.id) toast(`${m.user?.username}: ${(m.text || 'anexo').slice(0, 60)}`, 'info', 4000);
   }
 
   // ---------- perfil e loja ----------
@@ -367,13 +368,13 @@ export class CloudUI {
     cloud.setPoints(user.points); cloud.inventory = inventory; this.paintHeader();
     const own = (id) => store.items.find((s) => s.id === id)?.owned;
     this.body.innerHTML = `<div class="c-card c-me">${avatar(user, 72)}<div><h3>${nameOf(user)}</h3><div class="muted small">${esc(user.email)}</div>${pts(user.points)}</div></div>
-      <div class="c-card"><b>🎁 Bônus diário</b> <span class="muted small">${daily.streak} dia(s) seguidos</span><br>
+      <div class="c-card"><b>${ico('gift')} Bônus diário</b> <span class="muted small">${daily.streak} dia(s) seguidos</span><br>
         <button class="c-btn primary" data-daily ${daily.available ? '' : 'disabled'}>${daily.available ? `Resgatar ◈ ${daily.next_bonus}` : `Volte em ${Math.ceil(daily.next_in_ms / 3600000)} h`}</button></div>
       <div class="c-card"><b>Você vendeu</b> ${pts(sales.earned)} <span class="muted small">em ${sales.listings.length} item(ns)</span></div>
-      <h4 class="c-h">Loja de pontos</h4><div class="c-grid">${store.items.map((s) => `<div class="c-item"><span class="ic">${s.icon}</span><b>${esc(s.name)}</b><small class="muted">${esc(s.desc)}</small>
+      <h4 class="c-h">Loja de pontos</h4><div class="c-grid">${store.items.map((s) => `<div class="c-item"><span class="ic">${ico(STORE_ICONS[s.id] || 'store')}</span><b>${esc(s.name)}</b><small class="muted">${esc(s.desc)}</small>
         ${s.kind === 'cosmetic' && own(s.id) ? `<button class="c-btn" data-equip="${s.id}">${user[s.slot] === s.value ? 'Equipado ✓' : 'Equipar'}</button>` : `<button class="c-btn primary" data-store="${s.id}">◈ ${s.price}</button>`}</div>`).join('')}</div>
-      <div class="c-card"><b>Seu estoque</b><div class="muted small">🧠 gerações de IA em pacote: ${inventory.ai_use || 0} · ☁️ vagas de nuvem: ${store.cloud.slots} (${store.cloud.used} em uso)</div></div>
-      <h4 class="c-h">Nuvem</h4><div class="c-card"><button class="c-btn" data-backup>☁️ Salvar projeto aberto na nuvem</button><div data-cloudlist class="muted small"></div></div>
+      <div class="c-card"><b>Seu estoque</b><div class="muted small">gerações de IA em pacote: ${inventory.ai_use || 0} · vagas de nuvem: ${store.cloud.slots} (${store.cloud.used} em uso)</div></div>
+      <h4 class="c-h">Nuvem</h4><div class="c-card"><button class="c-btn" data-backup>${ico('cloud')} Salvar projeto aberto na nuvem</button><div data-cloudlist class="muted small"></div></div>
       <div class="c-card"><b>Servidor</b><div class="muted small">${esc(cloud.api)}</div><button class="c-btn" data-srv>Trocar</button> <button class="c-btn danger" data-out>Sair da conta</button></div>`;
     const q = (s) => this.body.querySelector(s);
     q('[data-daily]')?.addEventListener('click', guard(async () => { const r = await cloud.post('/api/daily'); cloud.setPoints(r.balance); toast(`+${r.bonus} pontos! Sequência: ${r.streak} dia(s).`, 'ok'); this.me(); }));
