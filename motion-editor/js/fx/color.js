@@ -122,7 +122,7 @@ export default [
   },
   {
     type: 'hueSat', label: 'Matiz / Saturação', category: 'Cor',
-    params: [ang('hue', 'Matiz', 0), num('saturation', 'Saturação', 0, -100, 100), num('lightness', 'Luminosidade', 0, -100, 100), bool('colorize', 'Colorir'), col('colorizeColor', 'Cor (colorir)', [1, 0.3, 0.2, 1]), { key: 'ranges', label: 'Faixas de cor (do AE)', kind: 'hidden', default: null }],
+    params: [ang('hue', 'Matiz', 0), num('saturation', 'Saturação', 0, -100, 100), num('lightness', 'Luminosidade', 0, -100, 100), bool('colorize', 'Colorir'), col('colorizeColor', 'Cor (colorir)', [1, 0.3, 0.2, 1]), { key: 'ranges', label: 'Faixas de cor (do AE)', kind: 'hidden', default: [] }],
     render: fx(HUESAT, (p) => {
       // faixas de cor (Channel Range do AE): 6 × [r1, r2, r3, r4, matiz, saturação, luminosidade]
       const R = Array.isArray(p.ranges) && p.ranges.length >= 42 ? p.ranges : null;
