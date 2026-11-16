@@ -170,8 +170,13 @@ export default [
       num('hard2', 'Dureza (tranco seco)', 0, 0, 100, 1),
       num('tilt', 'Inclinação 3D (tilt X/Y, °)', 0, 0, 45, 0.5), num('focal', 'Lente da inclinação (px)', 1500, 200, 6000, 10),
       bool('sapphire', 'Modo S_Shake (Sapphire)', false), sel('style', 'S_Shake – Style', ['Normal', 'Twitchy', 'Jumpy'], 1), num('centerBias', 'S_Shake – Center Bias', 0, 0, 1, 0.01),
+      // S_Shake: frequência por eixo e tremor periódico (Wave), como no plugin
+      { ...num('freqX', 'S_Shake – X Rand Freq', 1, 0, 20, 0.01), advanced: true }, { ...num('freqY', 'S_Shake – Y Rand Freq', 1, 0, 20, 0.01), advanced: true },
+      { ...num('waveX', 'S_Shake – X Wave Amp %', 0, 0, 1000), advanced: true }, { ...num('waveY', 'S_Shake – Y Wave Amp %', 0, 0, 1000), advanced: true }, { ...num('waveTilt', 'S_Shake – Tilt Wave Amp (°)', 0, 0, 90, 0.1), advanced: true },
+      { ...num('waveFX', 'S_Shake – X Wave Freq (Hz)', 0.5, 0, 60, 0.01), advanced: true }, { ...num('waveFY', 'S_Shake – Y Wave Freq (Hz)', 0.5, 0, 60, 0.01), advanced: true }, { ...num('waveFT', 'S_Shake – Tilt Wave Freq (Hz)', 0.5, 0, 60, 0.01), advanced: true },
+      { ...num('phaseX', 'S_Shake – X Phase', 0, -10, 10, 0.01), advanced: true }, { ...num('phaseY', 'S_Shake – Y Phase', 0, -10, 10, 0.01), advanced: true },
     ],
-    pad: (p, { layer, w, h } = {}) => (isFull(layer) ? 0 : p.amount * 1.3 + (Math.max(w || 0, h || 0) * (p.zoom + p.rotation)) / 100),
+    pad: (p, { layer, w, h } = {}) => (isFull(layer) ? 0 : p.amount * 1.3 * (p.sapphire ? 1.9 * Math.max(p.ampX ?? 100, p.ampY ?? 100, 100) / 100 : 1) + p.amount * Math.max(p.waveX || 0, p.waveY || 0) / 100 + (Math.max(w || 0, h || 0) * (p.zoom + p.rotation)) / 100),
     render: (src, p, env) => {
       const fps = env.fps || 30;
       // S_Shake (Sapphire): um ruído por eixo na Frequency (X/Y Rand Freq = 1). Oitavas extras (2× a frequência)
@@ -237,10 +242,16 @@ export default [
         const ax = (p.ampX ?? 100) / 100, ay = (p.ampY ?? 100) / 100, dr = sap && style !== 3 ? 0 : (p.drift || 0) * p.amount;
         const am = sap ? p.amount / 100 : 1; // no S_Shake a Amplitude multiplica também o Tilt (graus) e o Z
         const nk = p.mode === 2 ? 0.75 : 1; // no impacto: tranco + tremor por cima
+        // S_Shake: frequência própria de cada eixo (X/Y Rand Freq) e tremor periódico (X/Y/Tilt Wave Amp × Wave Freq em
+        // ciclos por segundo) — o "balanço"/caída num eixo só; tudo escalado pela Amplitude (que pode estar animada)
+        const fx = sap ? f * (p.freqX ?? 1) : f, fy = sap ? f * (p.freqY ?? 1) : f;
+        // shakes rápidos (hard) mais fortes; os lentos (panning, ≤ 3 Hz) ficam exatamente como estavam
+        const hg = sap ? 1 + (globalThis.__MF_TUNE?.shakeHard ?? 0.9) * Math.max(0, Math.min(1, ((p.frequency || 0) - 3) / 9)) : 1;
+        const wave = (amp, wf, ph) => (sap && amp ? Math.sin(Math.PI * 2 * ((wf ?? 0.5) * t + (ph || 0))) * amp / 100 : 0);
         return {
-          dx: p.axis === 3 ? 0 : wig(f, p.seed) * p.amount * ax * k * nk + Math.cos(kickDir) * kk * p.amount * ax * 1.15 + noiseG(t * 0.35, p.seed + 7) * dr,
-          dy: p.axis === 2 ? 0 : wig(f, p.seed + 17) * p.amount * ay * k * nk + Math.sin(kickDir) * kk * p.amount * ay * 1.15 + noiseG(t * 0.3, p.seed + 8) * dr,
-          rot: wig(f, p.seed + 33) * p.rotation * am * k * nk + kk * p.rotation * 0.9,
+          dx: p.axis === 3 ? 0 : wig(fx, p.seed) * p.amount * ax * k * nk * hg + wave(p.waveX, p.waveFX, p.phaseX) * p.amount * k + Math.cos(kickDir) * kk * p.amount * ax * 1.15 + noiseG(t * 0.35, p.seed + 7) * dr,
+          dy: p.axis === 2 ? 0 : wig(fy, p.seed + 17) * p.amount * ay * k * nk * hg + wave(p.waveY, p.waveFY, p.phaseY) * p.amount * k + Math.sin(kickDir) * kk * p.amount * ay * 1.15 + noiseG(t * 0.3, p.seed + 8) * dr,
+          rot: wig(f, p.seed + 33) * p.rotation * am * k * nk + (sap && p.waveTilt ? Math.sin(Math.PI * 2 * (p.waveFT ?? 0.5) * t) * p.waveTilt * am * k : 0) + kk * p.rotation * 0.9,
           s: sap ? 1 + wig(f * 0.9, p.seed + 51) * (p.zoom / 100) * am * k : 1 + Math.abs(wig(f * 0.9, p.seed + 51)) * (p.zoom / 100) * k * nk + Math.abs(kk) * (p.zoom / 100) * 1.2,
         };
       };
