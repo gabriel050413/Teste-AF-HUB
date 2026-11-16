@@ -2654,4 +2654,4 @@ const home = new HomeScreen({
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.
-window.motionframe = { cloud, cloudUI, store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };
+window.motionframe = { routeFiles: (f) => routeFiles(f), cloud, cloudUI, store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };
