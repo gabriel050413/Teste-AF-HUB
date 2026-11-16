@@ -215,4 +215,43 @@ EDITS3_EXTRA.push({
   render: (src, p, env) => env.gl.pass(PUPPET, { u_tex: src, u_neck: cuv(env, p.neck), u_sl: cuv(env, p.shoulderL), u_sr: cuv(env, p.shoulderR), u_hip: cuv(env, p.hip), u_feet: cuv(env, p.feet), u_top: cuv(env, p.top), u_headR: p.headR * env.rect[2] * (env.W / Math.max(1, env.H || env.W)), u_head: p.head, u_hair: p.hair, u_arms: p.arms, u_breath: p.breath, u_sway: p.sway, u_spd: p.speed }),
 });
 
+
+// ---------------------------------------------------------------- Headbop por deformação (sem cortar a cabeça)
+// A cabeça gira num pivô no pescoço com uma faixa de transição suave (o pescoço estica, não rasga), acena para
+// baixo no beat, o tronco inclina junto (menos que a cabeça) e o corpo inteiro "quica" a partir dos pés.
+const HEADBOP = frag(`
+uniform vec2 u_neck, u_top, u_feet;
+uniform float u_headR, u_tilt, u_nod, u_bob, u_lean, u_band;
+vec2 A;
+vec2 rotA(vec2 p, vec2 c, float a) { vec2 d = (p - c) * A; float s = sin(a), co = cos(a); d = vec2(d.x * co - d.y * s, d.x * s + d.y * co); return d / A + c; }
+void main() {
+  A = vec2(u_size.x / u_size.y, 1.0);
+  vec2 p = v_uv;
+  float H = max(0.05, u_feet.y - u_top.y), hh = max(0.02, u_neck.y - u_top.y);
+  // 1) quique do corpo (encolhe um pouco na vertical e alarga de leve a partir dos pés)
+  float sy = 1.0 - 0.022 * u_bob, sx = 1.0 + 0.008 * u_bob;
+  p = vec2(u_feet.x + (p.x - u_feet.x) / sx, u_feet.y + (p.y - u_feet.y) / sy);
+  // 2) tronco inclina junto com a cabeça (pivô no quadril, peso cresce até o pescoço)
+  vec2 hip = vec2(u_neck.x, u_neck.y + hh * 2.6);
+  float wl = smoothstep(hip.y, u_neck.y, p.y);
+  p = rotA(p, hip, -u_lean * wl);
+  // 3) cabeça: pivô um pouco abaixo do queixo; faixa de transição suave no pescoço
+  vec2 pv = vec2(u_neck.x, u_neck.y + hh * 0.08);
+  float dx = abs(p.x - pv.x) * A.x;
+  float wh = smoothstep(pv.y + hh * u_band, pv.y - hh * u_band * 1.2, p.y) * (1.0 - smoothstep(u_headR * 1.7, u_headR * 2.8, dx));
+  float dip = u_nod * hh * 0.09;
+  p.y -= dip * wh;
+  p.y = pv.y + (p.y - pv.y) / (1.0 - 0.06 * u_nod * wh); // aceno: a cabeça "achata" um pouco ao inclinar para frente
+  p = rotA(p, pv, -u_tilt * wh);
+  gl_FragColor = samp(p);
+}`);
+EDITS3_EXTRA.push({
+  type: 'headbopWarp', label: 'Headbop (deformação)', category: 'Distorção', plugin: 'Headbop',
+  description: 'Cabeça balançando no ritmo sem cortar a imagem: o pescoço estica suave, o tronco inclina junto e o corpo quica. Os keyframes de Inclinação, Aceno e Quique fazem o ritmo — use o Headbop automático para criar tudo sozinho.',
+  params: [num('tilt', 'Inclinação da cabeça (°)', 0, -40, 40, 0.1), num('nod', 'Aceno (0–1)', 0, -1, 2, 0.01), num('bob', 'Quique do corpo (0–1)', 0, -1, 2, 0.01), num('lean', 'Inclinação do tronco (°)', 0, -20, 20, 0.1),
+    pos('neck', 'Pino: pescoço', [0.5, 0.3]), pos('top', 'Pino: topo da cabeça', [0.5, 0.08]), pos('feet', 'Pino: base (pés/quadril)', [0.5, 1]), num('headR', 'Raio da cabeça', 0.12, 0.02, 0.6, 0.005), num('band', 'Suavidade do pescoço', 0.35, 0.08, 1, 0.01)],
+  pad: (p, { w, h }) => Math.max(w, h) * 0.06,
+  render: (src, p, env) => env.gl.pass(HEADBOP, { u_tex: src, u_neck: cuv(env, p.neck), u_top: cuv(env, p.top), u_feet: cuv(env, p.feet), u_headR: p.headR * env.rect[2] * (env.W / Math.max(1, env.H || env.W)), u_tilt: (p.tilt * Math.PI) / 180, u_nod: p.nod, u_bob: p.bob, u_lean: (p.lean * Math.PI) / 180, u_band: p.band }),
+});
+
 export default [...EDITS3, ...EDITS3_EXTRA];

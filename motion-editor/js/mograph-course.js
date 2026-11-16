@@ -37,7 +37,7 @@ function word(P, cam, s, x, y, t0, t1, o = {}) {
   l.transform.position = A([x, y]);
   if (o.anim !== false) {
     const d = o.d ?? 0.35;
-    l.props.animators = [{ props: { opacity: A(0), position: A([0, fs * 0.55]) }, selectors: [{ type: 'range', based: 1, shape: 1, smooth: 100, start: { value: 0, keys: [{ t: t0, v: 0, ease: 'expoOut' }, { t: t0 + d, v: 100, ease: 'linear' }] }, end: A(100) }] }];
+    l.props.animators = [{ props: { opacity: A(0), position: A([0, fs * 0.45]) }, selectors: [{ type: 'range', based: 1, shape: 1, smooth: 100, start: { value: 0, keys: [{ t: t0, v: 0, ease: 'expoOut' }, { t: t0 + d, v: 100, ease: 'linear' }] }, end: A(100) }] }];
     l.transform.scale = kf([[t0, [96, 96], 'back'], [t0 + d + 0.1, [100, 100]]]);
   }
   P.layers.unshift(l);
@@ -61,42 +61,32 @@ const pop = (l, t, over = 108) => { const s0 = l.transform.scale.value || [100, 
 const reveal = (l, t, d = 0.3) => { l.transform.scale = kf([[t, [0, 100], 'expoOut'], [t + d, [100, 100]]]); return l; };
 
 /**
- * Movimentos de câmera com keyframes SOBREPOSTOS: cada parada já começa a próxima (nunca fica parado).
- * moves: [{ t, to: [x,y] centro da cena, zoom, rot }]. Também cria a camada de ajuste com lens blur e
- * desfoque direcional nos movimentos.
+ * Câmera contínua (como nas edits de referência): em cada cena a câmera DERIVA devagar e sem parar; a troca de
+ * cena é um whip rápido (~0,2 s) com curva bezier — sai acelerando e chega freando bem devagar, emendando na
+ * deriva da próxima cena. O borrão vem do Motion Blur de verdade em cada camada (inclui o movimento dos nulls).
+ * scenes: [{ c: [x,y] centro, at: chegada (s), drift: [dx,dy] px durante a cena, zoom, rot }]
  */
-function moveCamera(P, cam, moves) {
-  const W = P.width, H = P.height;
+function moveCamera(P, cam, scenes, { whip = 0.22, blur = true } = {}) {
   const posK = [], zoomK = [], rotK = [];
-  moves.forEach((m, i) => {
-    const p = [-m.to[0], -m.to[1]];
-    const d = m.d ?? 0.55;
-    if (i === 0) { posK.push([m.t, p, 'linear']); zoomK.push([m.t, [m.zoom ?? 100, m.zoom ?? 100], 'linear']); rotK.push([m.t, m.rot ?? 0, 'linear']); return; }
-    const prev = moves[i - 1], drift = m.t - d - 0.02;
-    // deriva lenta na cena anterior (o movimento nunca para) e depois o "pulo" rápido com expo
-    const pp = [-prev.to[0], -prev.to[1]];
-    posK.push([Math.max(prev.t + 0.05, drift), [pp[0] - (m.to[0] - prev.to[0]) * 0.04, pp[1] - (m.to[1] - prev.to[1]) * 0.04], 'expoInOut'], [m.t, p, 'easeOut']);
-    const z = m.zoom ?? 100, zp = prev.zoom ?? 100;
-    zoomK.push([Math.max(prev.t + 0.05, drift), [zp * 1.04, zp * 1.04], 'expoInOut'], [m.t - d * 0.45, [Math.min(z, zp) * 0.72, Math.min(z, zp) * 0.72], 'expoInOut'], [m.t, [z, z], 'easeOut']);
-    rotK.push([Math.max(prev.t + 0.05, drift), prev.rot ?? 0, 'expoInOut'], [m.t, m.rot ?? 0, 'easeOut']);
+  const K = (t, v, o = {}) => ({ t: +Math.max(0, t).toFixed(4), v, ease: o.ease || 'linear', ...(o.outInf != null ? { outInf: o.outInf } : {}), ...(o.inInf != null ? { inInf: o.inInf } : {}) });
+  scenes.forEach((sc, i) => {
+    const next = scenes[i + 1];
+    const end = next ? next.at - whip : P.duration;
+    const dr = sc.drift || [0, 0], z = sc.zoom ?? 100, r = sc.rot ?? 0;
+    const p0 = [-(sc.c[0] - dr[0] / 2), -(sc.c[1] - dr[1] / 2)], p1 = [-(sc.c[0] + dr[0] / 2), -(sc.c[1] + dr[1] / 2)];
+    // chegada (freia devagar: influência de entrada alta) → deriva linear → saída do whip (acelera)
+    posK.push(K(sc.at, p0, { ease: 'linear', inInf: 0.92 }), K(end, p1, { ease: next ? 'bezier' : 'linear', outInf: 0.55 }));
+    zoomK.push(K(sc.at, [z, z], { ease: 'linear', inInf: 0.9 }), K(end, [z * 1.05, z * 1.05], { ease: next ? 'bezier' : 'linear', outInf: 0.55 }));
+    rotK.push(K(sc.at, r, { ease: 'linear', inInf: 0.9 }), K(end, r + (sc.rotDrift ?? 0), { ease: next ? 'bezier' : 'linear', outInf: 0.55 }));
   });
-  cam.pos.transform.position = kf(posK);
-  cam.zoom.transform.scale = kf(zoomK);
-  cam.zoom.transform.rotation = kf(rotK);
-  // efeitos dos movimentos: lens blur + desfoque direcional na direção do pulo
-  const adj = LAYER_FACTORIES.adjustment(P); adj.name = 'FX · blur dos movimentos'; adj.inPoint = 0; adj.outPoint = P.duration;
-  const lens = [[0, 0, 'linear']];
-  moves.slice(1).forEach((m) => { const d = m.d ?? 0.55; lens.push([m.t - d, 0, 'easeIn'], [m.t - d * 0.4, 22, 'easeOut'], [m.t + 0.08, 0, 'linear']); });
-  adj.effects.push(createEffectInstance('lensBlur', { radius: { keys: lens.map(([t, v, ease]) => ({ t: Math.max(0, t), v, ease })) } }));
-  moves.slice(1).forEach((m, i) => {
-    const prev = moves[i], d = m.d ?? 0.55, dx = m.to[0] - prev.to[0], dy = m.to[1] - prev.to[1];
-    const ang = (Math.atan2(dx, -dy) * 180) / Math.PI;
-    adj.effects.push(createEffectInstance('dirBlur', { angle: Math.round(ang), length: { keys: [{ t: Math.max(0, m.t - d), v: 0, ease: 'expoIn' }, { t: m.t - d * 0.4, v: 140, ease: 'expoOut' }, { t: m.t + 0.06, v: 0, ease: 'linear' }] } }));
-  });
-  // shake bem leve (frequência 2, como no tutorial)
-  adj.effects.push(createEffectInstance('shake', { frequency: 2, amount: 12, rotation: 0.4 }));
+  cam.pos.transform.position = { value: posK[0].v, keys: posK };
+  cam.zoom.transform.scale = { value: zoomK[0].v, keys: zoomK };
+  cam.zoom.transform.rotation = { value: rotK[0].v, keys: rotK };
+  if (blur) for (const l of P.layers) if (l.parent === cam.pos.id && !l.effects.some((e) => e.type === 'motionBlur')) l.effects.push(createEffectInstance('motionBlur', { amount: 150, samples: 16 }));
+  // camada de ajuste leve: textura de papel e um shake bem lento (frequência 2)
+  const adj = LAYER_FACTORIES.adjustment(P); adj.name = 'FX · shake lento'; adj.inPoint = 0; adj.outPoint = P.duration;
+  adj.effects.push(createEffectInstance('shake', { frequency: 1.5, amount: 6, rotation: 0.25 }));
   P.layers.unshift(adj);
-  void W; void H;
   return adj;
 }
 
@@ -104,58 +94,62 @@ function moveCamera(P, cam, moves) {
 export function buildSabrinaStyle() {
   const P = project('Modelo · Mograph estilo Sabrina', 13.4);
   const cam = camera(P);
-  const S = { s1: [540, 540], s2: [1900, 540], s3: [1900, 1900], s4: [540, 1900], s5: [540, 3300], s6: [1900, 3300], s7: [3300, 3300] };
-  const R = '#e5322d';
+  const G = 2200; // distância entre cenas no cenário
+  const S = { s1: [540, 540], s2: [540 + G, 540], s3: [540 + G, 540 + G], s4: [540, 540 + G], s5: [540, 540 + 2 * G], s6: [540 + G, 540 + 2 * G], s7: [540 + G, 540 + 3 * G] };
   // cena 1: Come / ride / on / me.
   const [x1, y1] = S.s1;
-  word(P, cam, 'Come', x1, y1 - 250, 0.1, 2.4, { size: 150 });
-  reveal(asset(P, cam, 'assets/ai/mograph/select-box.svg', x1, y1 - 250, 480, 160, 0.1, 2.4, 'Seleção'), 0.15, 0.25);
-  word(P, cam, 'ride', x1, y1 - 80, 0.45, 2.4, { size: 150 });
-  reveal(asset(P, cam, 'assets/ai/mograph/squiggle.svg', x1, y1 - 5, 300, 27, 0.7, 2.4, 'Sublinhado vermelho'), 0.7);
-  word(P, cam, 'on', x1, y1 + 100, 0.8, 2.4, { size: 150, color: '#ffffff', box: '#111111' });
-  word(P, cam, 'me.', x1, y1 + 270, 1.15, 2.4, { size: 150 });
-  // cena 2: I mean / “camaraderie”
+  word(P, cam, 'Come', x1, y1 - 300, 0.05, 2.4, { size: 190 });
+  reveal(asset(P, cam, 'assets/ai/mograph/select-box.svg', x1, y1 - 300, 600, 200, 0.05, 2.4, 'Seleção'), 0.1, 0.3);
+  word(P, cam, 'ride', x1, y1 - 95, 0.4, 2.4, { size: 190 });
+  reveal(asset(P, cam, 'assets/ai/mograph/squiggle.svg', x1, y1 + 2, 380, 34, 0.7, 2.4, 'Sublinhado vermelho'), 0.7, 0.35);
+  word(P, cam, 'on', x1, y1 + 120, 0.8, 2.4, { size: 190, color: '#ffffff', box: '#111111' });
+  word(P, cam, 'me.', x1, y1 + 330, 1.15, 2.4, { size: 190 });
+  // cena 2: I mean / “camaraderie” (mais largo que a tela: a câmera desliza por ele)
   const [x2, y2] = S.s2;
-  word(P, cam, 'I mean', x2 - 160, y2 - 120, 2.2, 3.9, { size: 110 });
-  word(P, cam, '“camaraderie”', x2, y2 + 40, 2.45, 3.9, { size: 140, d: 0.5 });
-  // cena 3: relógio mundial (iPhone) + ilha
+  word(P, cam, 'I mean', x2 - 260, y2 - 150, 2.25, 4.0, { size: 150 });
+  word(P, cam, '“camaraderie”', x2 + 120, y2 + 60, 2.45, 4.0, { size: 230, d: 0.55 });
+  // cena 3: relógio mundial (iPhone) + ilha — ocupa a tela
   const [x3, y3] = S.s3;
-  pop(asset(P, cam, 'assets/ai/iphone/world-clock.svg', x3, y3 + 30, 860, 717, 3.6, 5.8, 'Relógio mundial'), 3.65, 104);
-  pop(asset(P, cam, 'assets/ai/iphone/dynamic-island.svg', x3 + 200, y3 - 380, 260, 78, 3.6, 5.8, 'Ilha'), 3.8, 115);
+  pop(asset(P, cam, 'assets/ai/iphone/world-clock.svg', x3, y3 + 40, 1040, 867, 3.7, 5.9, 'Relógio mundial'), 3.75, 103);
+  pop(asset(P, cam, 'assets/ai/iphone/dynamic-island.svg', x3 + 230, y3 - 440, 300, 90, 3.7, 5.9, 'Ilha'), 3.9, 112);
+  pop(asset(P, cam, 'assets/ai/iphone/status-bar.svg', x3, y3 - 520, 1040, 80, 3.7, 5.9, 'Barra de status'), 3.85, 102);
   // cena 4: notas
   const [x4, y4] = S.s4;
-  pop(asset(P, cam, 'assets/ai/iphone/notes.svg', x4, y4, 860, 876, 5.6, 7.5, 'Notas'), 5.65, 103);
-  const cur = asset(P, cam, 'assets/ai/mograph/cursor-text.svg', x4 + 300, y4 - 155, 14, 60, 5.9, 7.5, 'Cursor');
+  pop(asset(P, cam, 'assets/ai/iphone/notes.svg', x4, y4 + 30, 1040, 1059, 5.7, 7.6, 'Notas'), 5.75, 102);
+  const cur = asset(P, cam, 'assets/ai/mograph/cursor-text.svg', x4 + 335, y4 - 185, 16, 70, 5.9, 7.6, 'Cursor');
   cur.transform.opacity = kf([5.9, 6.2, 6.5, 6.8, 7.1, 7.4].map((t, i) => [t, i % 2 ? 0 : 100, 'hold']));
-  // cena 5: where art / thou, why not / uponeth / me  (palavras em caixa, X e círculo vermelhos)
+  // cena 5: palavras em caixa, X e círculo vermelhos
   const [x5, y5] = S.s5;
-  // linhas de palavras em caixa, com largura estimada (Inter 900 ≈ 0,6 em por letra)
-  const rowsW = [[['where', 7.3], ['art', 7.55]], [['thou,', 7.8], ['why', 8.0], ['not', 8.2]], [['uponeth', 8.45]]];
-  const FS = 100, place = {};
+  const rowsW = [[['where', 7.45], ['art', 7.65]], [['thou,', 7.9], ['why', 8.1], ['not', 8.3]], [['uponeth', 8.55]]];
+  const FS = 130, place = {};
   rowsW.forEach((row, ri) => {
-    const ws = row.map(([w]) => w.length * FS * 0.6 + FS * 0.2), gap = 22, tot = ws.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
+    const ws = row.map(([w]) => w.length * FS * 0.6 + FS * 0.2), gap = 26, tot = ws.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
     let x = x5 - tot / 2;
-    row.forEach(([w, t], i) => { const cx = x + ws[i] / 2; place[w] = [cx, y5 - 170 + ri * 130]; word(P, cam, w, cx, y5 - 170 + ri * 130, t, 10.2, { size: FS, d: 0.25, outline: '#111111', name: w }); x += ws[i] + gap; });
+    row.forEach(([w, t], i) => { const cx = x + ws[i] / 2, cy = y5 - 230 + ri * 170; place[w] = [cx, cy]; word(P, cam, w, cx, cy, t, 10.3, { size: FS, d: 0.28, outline: '#111111', name: w }); x += ws[i] + gap; });
   });
-  reveal(asset(P, cam, 'assets/ai/mograph/cross.svg', place.not[0], place.not[1], 200, 150, 8.7, 10.2, 'X vermelho'), 8.7, 0.18);
-  word(P, cam, 'me', x5 - 120, y5 + 230, 8.9, 10.2, { size: 100, color: '#9a9aa0' });
-  reveal(asset(P, cam, 'assets/ai/mograph/scribble-circle.svg', x5 - 120, y5 + 235, 300, 200, 9.1, 10.2, 'Círculo vermelho'), 9.1, 0.3);
+  reveal(asset(P, cam, 'assets/ai/mograph/cross.svg', place.not[0], place.not[1], 260, 195, 8.8, 10.3, 'X vermelho'), 8.8, 0.18);
+  word(P, cam, 'me', x5 - 150, y5 + 300, 9.0, 10.3, { size: 130, color: '#9a9aa0' });
+  reveal(asset(P, cam, 'assets/ai/mograph/scribble-circle.svg', x5 - 150, y5 + 305, 380, 255, 9.2, 10.3, 'Círculo vermelho'), 9.2, 0.32);
   // cena 6: idioma
   const [x6, y6] = S.s6;
-  pop(asset(P, cam, 'assets/ai/iphone/language.svg', x6, y6, 720, 880, 10.0, 11.8, 'Idiomas'), 10.05, 104);
-  // cena 7: hhhhhh com rastro (Wide Time) e borrão
+  pop(asset(P, cam, 'assets/ai/iphone/language.svg', x6, y6 + 20, 860, 1051, 10.1, 11.9, 'Idiomas'), 10.15, 103);
+  // cena 7: hhhhhhh com rastro
   const [x7, y7] = S.s7;
-  const h = word(P, cam, 'hhhhhhh', x7, y7, 11.6, 13.4, { size: 200, d: 0.6 });
-  h.effects.push(createEffectInstance('echo', { time: -0.03, count: 6, decay: 0.7 }), createEffectInstance('dirBlur', { angle: 90, length: { keys: [{ t: 11.6, v: 80, ease: 'expoOut' }, { t: 12.2, v: 0, ease: 'linear' }] } }));
+  const h = word(P, cam, 'hhhhhhhhh', x7, y7, 11.7, 13.4, { size: 300, d: 0.7 });
+  h.effects.push(createEffectInstance('echo', { time: -0.035, count: 6, decay: 0.72 }));
   moveCamera(P, cam, [
-    { t: 0, to: S.s1, zoom: 118 }, { t: 2.35, to: S.s2, zoom: 100, rot: -4 }, { t: 3.75, to: S.s3, zoom: 104, rot: 0 }, { t: 5.75, to: S.s4, zoom: 100, rot: 3 },
-    { t: 7.4, to: S.s5, zoom: 112, rot: 0 }, { t: 10.15, to: S.s6, zoom: 100, rot: -3 }, { t: 11.75, to: S.s7, zoom: 108, rot: 0 },
+    { c: S.s1, at: 0, drift: [0, -70], zoom: 104, rot: 0 },
+    { c: S.s2, at: 2.4, drift: [520, 0], zoom: 100, rot: -2 },
+    { c: S.s3, at: 3.9, drift: [0, -90], zoom: 100, rot: 0 },
+    { c: S.s4, at: 5.85, drift: [70, -50], zoom: 100, rot: 2, rotDrift: -1 },
+    { c: S.s5, at: 7.55, drift: [0, -110], zoom: 100, rot: 0 },
+    { c: S.s6, at: 10.25, drift: [-50, -70], zoom: 100, rot: -2, rotDrift: 1 },
+    { c: S.s7, at: 11.85, drift: [380, 0], zoom: 100, rot: 0 },
   ]);
   // fixos na tela (sem câmera): forma de onda e assinatura
   const wave = asset(P, null, 'assets/ai/mograph/waveform.svg', 540, 1010, 420, 84, 0, 13.4, 'Forma de onda');
-  wave.transform.scale = kf([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13].map((t, i) => [t, [100, i % 2 ? 70 : 115], 'easeInOut']));
-  asset(P, null, 'assets/ai/mograph/edited-by.svg', 930, 980, 210, 56, 7.3, 13.4, 'Edited by');
-  // fundo
+  wave.transform.scale = kf(Array.from({ length: 27 }, (_, i) => [i * 0.5, [100, i % 2 ? 70 : 115], 'easeInOut']));
+  asset(P, null, 'assets/ai/mograph/edited-by.svg', 930, 980, 210, 56, 7.4, 13.4, 'Edited by');
   const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = P.duration;
   bg.effects.push(createEffectInstance('noise', { amount: 4 }));
   P.layers.push(bg);
@@ -169,7 +163,7 @@ function lessonText() {
   word(P, cam, 'come', 540, 380, 0.2, 4, { size: 150 });
   word(P, cam, 'ride', 540, 540, 0.55, 4, { size: 150 });
   word(P, cam, 'on', 540, 700, 0.9, 4, { size: 150, color: '#fff', box: '#111' });
-  moveCamera(P, cam, [{ t: 0, to: [540, 540], zoom: 112 }]);
+  moveCamera(P, cam, [{ c: [540, 540], at: 0, drift: [0, -60], zoom: 108 }]);
   const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = 4; P.layers.push(bg);
   return P;
 }
@@ -180,7 +174,7 @@ function lessonCamera() {
   word(P, cam, 'cena 1', ...S[0], 0, 5, { size: 140, anim: false });
   word(P, cam, 'cena 2', ...S[1], 0, 5, { size: 140, anim: false });
   word(P, cam, 'cena 3', ...S[2], 0, 5, { size: 140, anim: false });
-  moveCamera(P, cam, [{ t: 0, to: S[0], zoom: 110 }, { t: 1.8, to: S[1], zoom: 100, rot: -4 }, { t: 3.6, to: S[2], zoom: 108, rot: 0 }]);
+  moveCamera(P, cam, [{ c: S[0], at: 0, drift: [-200, 0], zoom: 105 }, { c: S[1], at: 1.8, drift: [0, -120], zoom: 100, rot: -3 }, { c: S[2], at: 3.6, drift: [-200, 0], zoom: 104, rot: 0 }]);
   const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = 5; P.layers.push(bg);
   return P;
 }
@@ -192,7 +186,7 @@ function lessonScribbles() {
   reveal(asset(P, cam, 'assets/ai/mograph/cross.svg', 690, 460, 230, 172, 1.2, 4, 'X vermelho'), 1.2, 0.18);
   word(P, cam, 'me', 540, 680, 0.8, 4, { size: 120, color: '#9a9aa0' });
   reveal(asset(P, cam, 'assets/ai/mograph/scribble-circle.svg', 540, 685, 330, 220, 1.6, 4, 'Círculo vermelho'), 1.6, 0.35);
-  moveCamera(P, cam, [{ t: 0, to: [540, 540], zoom: 104 }]);
+  moveCamera(P, cam, [{ c: [540, 540], at: 0, drift: [0, -50], zoom: 102 }]);
   const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = 4; P.layers.push(bg);
   return P;
 }
@@ -204,15 +198,58 @@ function lessonIphone() {
   pop(asset(P, cam, 'assets/ai/iphone/bubble-gray.svg', 420, 430, 520, 116, 1.5, 5, 'Balão cinza'), 1.5, 110);
   const sb = asset(P, cam, 'assets/ai/iphone/search-bar.svg', 540, 900, 800, 104, 2.2, 5, 'Barra de busca');
   sb.transform.position = kf([[2.2, [540, 1250], 'back'], [2.7, [540, 900]]]);
-  moveCamera(P, cam, [{ t: 0, to: [540, 540], zoom: 100 }]);
+  moveCamera(P, cam, [{ c: [540, 540], at: 0, drift: [-40, -40], zoom: 100 }]);
   const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = 5; P.layers.push(bg);
   return P;
+}
+
+function lessonLyrics() {
+  const P = project('Aula · Da letra para as cenas', 7.2);
+  const cam = camera(P);
+  const S = [[540, 540], [540 + 2200, 540], [540 + 2200, 540 + 2200]];
+  word(P, cam, 'all my', S[0][0], S[0][1] - 330, 0.1, 2.4, { size: 120 });
+  word(P, cam, 'time', S[0][0], S[0][1] - 190, 0.35, 2.4, { size: 170 });
+  pop(asset(P, cam, 'assets/ai/iphone/alarm.svg', S[0][0], S[0][1] + 120, 940, 282, 0.6, 2.4, 'Alarme'), 0.6, 104);
+  word(P, cam, 'you text me', S[1][0], S[1][1] - 330, 2.4, 4.8, { size: 120 });
+  pop(asset(P, cam, 'assets/ai/iphone/bubble-gray.svg', S[1][0] - 90, S[1][1] - 40, 760, 170, 2.7, 4.8, 'Balão cinza'), 2.7, 108);
+  pop(asset(P, cam, 'assets/ai/iphone/bubble-blue.svg', S[1][0] + 90, S[1][1] + 160, 760, 170, 3.2, 4.8, 'Balão azul'), 3.2, 108);
+  word(P, cam, 'where are you', S[2][0], S[2][1] - 380, 4.8, 7.2, { size: 120 });
+  pop(asset(P, cam, 'assets/ai/iphone/map-pin.svg', S[2][0], S[2][1] + 80, 860, 860, 5.0, 7.2, 'Mapa'), 5.0, 103);
+  moveCamera(P, cam, [{ c: S[0], at: 0, drift: [0, -80], zoom: 104 }, { c: S[1], at: 2.4, drift: [140, 0], zoom: 100, rot: -2 }, { c: S[2], at: 4.8, drift: [0, -100], zoom: 102, rot: 0 }]);
+  const bg = LAYER_FACTORIES.solid(P); bg.name = 'Fundo branco'; bg.props.fill = '#f4f4f2'; bg.inPoint = 0; bg.outPoint = P.duration; P.layers.push(bg);
+  return P;
+}
+
+/** Encaixa as chegadas de cena da câmera (nulls "CAM") nas batidas: desloca cada par saída/chegada junto. */
+export function snapCameraToBeats(layers, beats) {
+  const cams = layers.filter((l) => /^CAM ·/.test(l.name));
+  if (!cams.length || beats.length < 2) return 0;
+  const near = (t) => beats.reduce((a, b) => (Math.abs(b - t) < Math.abs(a - t) ? b : a), beats[0]);
+  let n = 0;
+  for (const l of cams) for (const prop of ['position', 'scale', 'rotation']) {
+    const ks = l.transform[prop]?.keys; if (!ks || ks.length < 4) continue;
+    for (let i = 2; i + 1 < ks.length + 1 && i < ks.length; i += 2) {
+      const at = ks[i].t, d = near(at) - at, prev = ks[i - 1];
+      const lo = ks[i - 2].t + 0.05, hi = ks[i + 1] ? ks[i + 1].t - 0.05 : Infinity;
+      if (prev.t + d > lo && at + d < hi) { prev.t = +(prev.t + d).toFixed(4); ks[i].t = +(at + d).toFixed(4); if (prop === 'position') n++; }
+    }
+  }
+  return n;
 }
 
 export const MOGRAPH_MODULE = {
   id: 'mograph2', title: 'Mograph de verdade (estilo Kiuzr / Sabrina)', icon: '✨',
   desc: 'O mograph dos tutoriais: 1) animar o texto, 2) câmera com nulls e keyframes sobrepostos, 3) efeitos nos movimentos. Termina com o modelo completo estilo “Sabrina edit”.',
   lessons: [
+    { id: 'mg0', title: 'Assista primeiro: anatomia de uma edit mograph', min: 4, build: buildSabrinaStyle, steps: [
+      ['Esta é a edit completa que você vai aprender a fazer (estilo Kiuzr / “Sabrina edit”). Toque ▶ e assista inteira antes de mexer em qualquer coisa.', { t: 0, play: true }],
+      ['Cena 1 — tipografia: palavras grossas, uma por linha, cada uma entrando por letra. Detalhes: caixa de seleção, sublinhado vermelho e marca-texto.', { t: 1.6 }],
+      ['Transição — whip de câmera: em 0,2 s a câmera voa para a próxima cena e o motion blur borra tudo na direção do movimento.', { t: 2.3 }],
+      ['Cena 2 — a câmera NUNCA para: ela desliza devagar sobre a frase enquanto as letras entram.', { t: 3.0 }],
+      ['Cenas 3 e 4 — interface de iPhone (relógio mundial, notas) ocupando a tela inteira, entrando com pop.', { t: 4.6 }],
+      ['Cena 5 — “corrigindo a letra”: palavras em caixa, X e círculo vermelhos desenhados.', { t: 9.6 }],
+      ['Elementos fixos na tela (forma de onda e “Edited by”) dão unidade à edit inteira. Nas próximas aulas você monta cada parte.', { t: 12.5 }],
+    ] },
     { id: 'mg1', title: 'Os 3 passos do mograph + texto que entra por letra', min: 4, build: lessonText, steps: [
       ['Todo mograph tem 3 passos: (1) ANIMAR os elementos, (2) fazer a TRANSIÇÃO com a câmera e (3) colocar os EFEITOS. Começamos pelo texto.', { t: 0 }],
       ['Cada palavra tem um animador de texto: as letras começam mais baixas e transparentes e sobem uma a uma (Posição + Opacidade por caractere, curva expo). Toque ▶.', { t: 0.2, sel: 'come', play: true }],
@@ -236,6 +273,17 @@ export const MOGRAPH_MODULE = {
       ['Mograph com interface de celular: o mapa entra com pop, as mensagens aparecem uma depois da outra e a barra de busca sobe com overshoot (Bouncer).', { t: 0, play: true }],
       ['Para colocar um vídeo DENTRO de um elemento (ex.: no lugar de uma foto), use Track Matte: a forma em cima vira a máscara do vídeo.', { t: 2.5, cmd: 'track-matte' }],
       ['Todos os elementos são vetores (.ai): ficam nítidos mesmo com zoom grande da câmera.', { t: 3 }],
+    ] },
+    { id: 'mg6', title: 'Ritmo: câmera nas batidas da música', min: 3, build: lessonCamera, steps: [
+      ['No mograph cada troca de cena (whip) cai numa batida. Primeiro coloque a música do seu edit no projeto.', { t: 0, cmd: 'add-media' }],
+      ['Depois toque em “Câmera nas batidas”: o app acha as batidas e move cada chegada de cena da CAM para a batida mais perto, mantendo a deriva e o whip.', { t: 0.5, cmd: 'cam-to-beats' }],
+      ['Regra de ouro: frases longas = deriva longa; palavras de impacto = whip curto e seco. Teste tocando ▶ várias vezes.', { t: 1.6, play: true }],
+    ] },
+    { id: 'mg7', title: 'Criatividade: transformar a letra em cenas', min: 4, build: lessonLyrics, steps: [
+      ['O segredo criativo do mograph: cada trecho da letra vira um OBJETO do dia a dia que todo mundo reconhece. Toque ▶.', { t: 0, play: true }],
+      ['“all my time” → alarme/relógio. “you text me” → balões de mensagem. “where are you” → mapa com pino. Literal e simples: o público entende na hora.', { t: 3.3 }],
+      ['Método: 1) escreva a letra; 2) circule as palavras concretas (tempo, mensagem, lugar, idioma, música); 3) troque cada uma por um elemento (.ai grátis); 4) as palavras abstratas ficam como tipografia.', { t: 5.5, cmd: 'ai-assets' }],
+      ['Varie a cada cena: tipografia → interface → tipografia → anotação (X, círculo). Nunca duas cenas iguais seguidas.', { t: 6 }],
     ] },
     { id: 'mg5', title: 'Modelo completo: mograph estilo “Sabrina edit”', min: 4, build: buildSabrinaStyle, steps: [
       ['Edit completa (13 s) juntando tudo: palavras por letra, seleção, sublinhado, marca-texto, relógio mundial, notas, caixas com X e círculo, idiomas e “hhhhhhh” com rastro. Toque ▶.', { t: 0, play: true }],

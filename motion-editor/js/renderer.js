@@ -461,6 +461,8 @@ function layerResK(layer, t) {
   let s = Math.max(Math.abs(m.sx), Math.abs(m.sy));
   let p = layer.parent ? layerIndex.get(layer.parent) : null;
   for (let i = 0; p && i < 8; i++) { const pm = layerTransform(p, t); s *= Math.max(Math.abs(pm.sx), Math.abs(pm.sy)); p = p.parent ? layerIndex.get(p.parent) : null; }
+  // vetores (texto, formas, SVG) ampliados pela câmera: rasteriza maior, como o "Continuously Rasterize" do AE
+  if (s > 1.05 && (['text', 'shape', 'rect', 'ellipse'].includes(layer.type) || (layer.type === 'image' && /\.svg(\?|$)/i.test(layer.props.src || '')))) return Math.min(renderOpts.final ? 4 : 2.5, s);
   if (!(s > 0) || s >= 0.87) return 1;
   return Math.max(0.05, Math.min(1, s * 1.15));
 }
@@ -861,18 +863,27 @@ export function renderLayer(ctx, layer, t, scale, extra, fps = 30) {
     extra?.beforeDraw?.();
     const mp = mb ? evalParams(mb, layerTime(layer, t)) : null;
     if (mp && mp.amount > 0) {
-      const n = Math.max(2, Math.round(mp.samples));
       const shutter = ((mp.amount / 100) * 0.5) / fps;
+      // amostras adaptativas: em movimentos rápidos (whip de câmera) usa mais cópias para o borrão ficar contínuo
+      let n = Math.max(2, Math.round(mp.samples));
+      {
+        const at = (tau) => { const c = accumCanvas.getContext('2d'); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); if (layer.parent) applyParents(c, layer, tau, scale); const lm = layerTransform(layer, tau); const T = c.getTransform(); c.restore(); return [T.a * lm.x * scale + T.c * lm.y * scale + T.e, T.b * lm.x * scale + T.d * lm.y * scale + T.f]; };
+        if (!accumCanvas) accumCanvas = makeCanvas(ctx.canvas.width, ctx.canvas.height);
+        const p0 = at(t - shutter / 2), p1 = at(t + shutter / 2);
+        n = Math.min(72, Math.max(n, Math.ceil(Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / 2.5)));
+      }
       if (!accumCanvas) accumCanvas = makeCanvas(ctx.canvas.width, ctx.canvas.height);
       if (accumCanvas.width !== ctx.canvas.width || accumCanvas.height !== ctx.canvas.height) { accumCanvas.width = ctx.canvas.width; accumCanvas.height = ctx.canvas.height; }
       const ac = accumCanvas.getContext('2d');
       ac.setTransform(1, 0, 0, 1, 0, 0);
       ac.globalCompositeOperation = 'source-over';
       ac.clearRect(0, 0, accumCanvas.width, accumCanvas.height);
-      if (layer.parent) applyParents(ac, layer, t, scale);
       ac.globalCompositeOperation = 'lighter';
       for (let i = 0; i < n; i++) {
         const tau = t + shutter * (i / (n - 1) - 0.5);
+        // o movimento dos pais (nulls de câmera) também borra, como no AE
+        ac.setTransform(1, 0, 0, 1, 0, 0);
+        if (layer.parent) applyParents(ac, layer, tau, scale);
         drawLayerImage(ac, img, layerTransform(layer, tau), scale, 1 / n);
       }
       ctx.globalAlpha = 1;
