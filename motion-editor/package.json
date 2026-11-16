@@ -9,6 +9,7 @@
     "presets": "node tools/build-presets.mjs",
     "build": "node tools/build-presets.mjs && node tools/build-www.mjs && node tools/make-update.mjs",
     "update": "node tools/make-update.mjs",
+    "deploy": "node tools/deploy-pages.mjs",
     "android": "npm run build && npx cap sync android && npx cap open android",
     "ios": "npm run build && npx cap sync ios && npx cap open ios"
   },

@@ -15,7 +15,7 @@ use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 static WWW: Dir = include_dir!("$CARGO_MANIFEST_DIR/www");
 const PORT: u16 = 47830;
-const REMOTE: &str = "https://ofd1.github.io/Teste-AF-HUB/";
+const REMOTE: &str = "https://gabriel050413.github.io/Teste-AF-HUB/";
 
 fn data_dir() -> PathBuf {
     dirs::data_dir().unwrap_or_else(std::env::temp_dir).join("MotionFrame")

@@ -6,7 +6,7 @@ O MotionFrame já tem o projeto iOS pronto (Capacitor, pasta `ios/`). O GitHub A
 Um iPhone só instala apps **assinados**. Há três caminhos:
 
 1. **Sem gastar nada (recomendado para uso pessoal): PWA**
-   Abra https://ofd1.github.io/Teste-AF-HUB/ no **Safari** → Compartilhar → **Adicionar à Tela de Início**.
+   Abra https://gabriel050413.github.io/Teste-AF-HUB/ no **Safari** → Compartilhar → **Adicionar à Tela de Início**.
    Vira um app em tela cheia, funciona offline e não precisa de assinatura.
 
 2. **Assinar o IPA com o seu Apple ID (grátis, vale 7 dias)**

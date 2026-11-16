@@ -228,15 +228,22 @@ function readPaint(r, cs, fps) {
 
 /** Abre um .aep e devolve { comps, footage, warnings }. Os efeitos de cada camada são lidos sob demanda. */
 export function parseAEP(buffer) {
+  const head = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer, buffer.byteOffset || 0, 16);
+  const headTxt = String.fromCharCode(...head);
+  if (/^\s*(<\?xml|<)/.test(headTxt)) throw new Error('Este é um .aepx (XML). No After Effects use Arquivo › Salvar como › Salvar uma cópia… e escolha o formato .aep.');
+  if (!/^RIF[FX]/.test(headTxt)) throw new Error('Este arquivo não é um projeto do After Effects (.aep): o cabeçalho não bate.');
   const r = new RiffReader(buffer);
   const root = r.parse();
   if (root.listType !== 'Egg!') throw new Error('Não é um projeto do After Effects (.aep).');
+  const warnings = [];
+  if (root.truncated) warnings.push('O arquivo parece cortado (download incompleto): o que deu para ler foi importado.');
   const items = [];
   walkItems(r, root.children, items);
   const byId = new Map(items.map((i) => [i.id, i]));
   const comps = items.filter((i) => i.type === 'comp');
   for (const comp of comps) {
     for (const l of comp.layers) {
+      try {
       const src = byId.get(l.sourceId);
       l.source = src ? { id: src.id, type: src.type, kind: src.kind, name: src.name } : null;
       // efeitos + transformação (keyframes em quadros × time scale da composição, relativos ao início da camada)
@@ -254,12 +261,16 @@ export function parseAEP(buffer) {
       l.textMore = (tree.find((n) => n.mn === 'ADBE Text Properties')?.children || []).find((n) => n.mn === 'ADBE Text More Options') || null;
       const btdk = findDeep(l._chunks, (c) => c.id === 'LIST' && c.listType === 'btdk');
       if (btdk) { try { l.text = textFromCOS(parseCOS(r.bytes.subarray(btdk.offset + 4, btdk.offset + btdk.size))); } catch { /* texto ilegível */ } }
+      } catch (e) { // camada ilegível: entra sem efeitos/propriedades e o aviso aparece no relatório
+        l.effects = l.effects || []; l.properties = l.properties || {}; l.shapes = l.shapes || null; l.masks = l.masks || []; l.textAnimators = l.textAnimators || []; l.parseError = String(e?.message || e);
+        warnings.push(`Camada “${l.name || l.id}” em “${comp.name}”: leitura parcial (${l.parseError}).`);
+      }
       delete l._chunks;
     }
     // composições usadas dentro de outras (pré-composições)
     comp.usedIn = comps.filter((c) => c !== comp && c.layers.some((l) => l.sourceId === comp.id)).map((c) => c.id);
   }
-  return { comps, items, byId, footage: items.filter((i) => i.type === 'footage') };
+  return { comps, items, byId, footage: items.filter((i) => i.type === 'footage'), warnings };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -420,6 +431,7 @@ function convCamera(l, comp, proj, offset) {
 function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
   const out = [];
   for (const l of comp.layers) {
+    try {
     if (l.camera) continue; // câmeras de vista internas do AE (Front, Left, Top…): não fazem parte do render
     if (l.layerType === 2) { // câmera do AE → câmera 3D do MotionFrame
       const cam = convCamera(l, comp, proj, offset);
@@ -522,6 +534,7 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       if (trm?.keyframes?.length >= 2) layer.effects.unshift(createEffectInstance('timeRemap', { time: toAnim(trm, (v) => v[0] || 0, 0, st0), frameBlend: false }, 0));
     }
     out.push(layer);
+    } catch (e) { ctx.notes.add(`A camada “${l.name || l.id}” não pôde ser convertida (${e?.message || e}) e foi ignorada.`); }
   }
   // parentesco: o id da camada no AE → id da camada no MotionFrame (mesma composição)
   const byAe = new Map(out.map((x) => [x._aeId, x]));
@@ -613,7 +626,7 @@ export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   proj.fps = Math.round(comp.fps * 1000) / 1000;
   proj.duration = Math.max(0.1, Math.min(3600, +comp.duration.toFixed(3)));
   proj.background = hex(comp.bg || [0, 0, 0]);
-  const ctx = { media: new Set(), notes: new Set(), unsupported: new Set() };
+  const ctx = { media: new Set(), notes: new Set(parsed.warnings || []), unsupported: new Set() };
   proj.layers = buildLayers(parsed, comp, proj, ctx);
   scaleTimes(proj.layers, AE_TIME_SCALE, AE_TIME_OFFSET);
   proj.duration = Math.max(0.1, +(proj.duration * AE_TIME_SCALE + AE_TIME_OFFSET).toFixed(3));

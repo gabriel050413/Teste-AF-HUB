@@ -1,6 +1,6 @@
 // Verificador de versão nova (site/PWA e APK). O app de desktop se atualiza sozinho pelo processo principal.
 import { APP_VERSION } from './projects.js';
-const REMOTE = 'https://ofd1.github.io/Teste-AF-HUB/'; // site oficial: usado pelo APK/iOS e como reserva
+const REMOTE = 'https://gabriel050413.github.io/Teste-AF-HUB/'; // site oficial: usado pelo APK/iOS e como reserva
 // no site/PWA, a versão nova é procurada no mesmo lugar de onde o app foi aberto (funciona em qualquer hospedagem)
 const SELF = /^https?:/.test(location.protocol) ? new URL('./', location.href).href : null;
 const num = (v) => parseInt(String(v || '').replace(/\D/g, ''), 10) || 0;

@@ -760,7 +760,9 @@ window.addEventListener('custom-fx', async (e) => {
 });
 // versão nova publicada: avisa (agora e a cada 30 min)
 setTimeout(() => checkForUpdate({ onNew: autoUpdate }), 4000);
-setInterval(() => checkForUpdate({ onNew: autoUpdate }), 30 * 60 * 1000);
+setInterval(() => checkForUpdate({ onNew: autoUpdate }), 10 * 60 * 1000);
+let lastUpd = 0; // ao voltar para o app (aba/PWA em segundo plano) confere de novo, no máximo 1× por minuto
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - lastUpd > 60000) { lastUpd = Date.now(); checkForUpdate({ onNew: autoUpdate }); } });
 window.addEventListener('app-updated', () => toast('Versão nova do MotionFrame instalada. Volte para a tela inicial (⌂) para usar.', 'ok', 8000));
 if (dock.open.includes('composer')) setTimeout(() => composer.startPreview(), 300);
 
@@ -1940,7 +1942,7 @@ async function downloadLink(url, onProg) {
       const desk = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
       if (desk) {
         // programa de PC antigo (Electron / leve anterior): sem a ponte /__fetch — oferece o .exe novo
-        const base = 'https://ofd1.github.io/Teste-AF-HUB/downloads/';
+        const base = 'https://gabriel050413.github.io/Teste-AF-HUB/downloads/';
         modal('Atualize o programa do PC', `<p>Este MotionFrame do PC é uma versão anterior que ainda não lê pastas do Google Drive (a leitura fica dentro do programa, a atualização automática só troca o editor).</p>
           <p><a class="btn primary" href="${base}MotionFrame-leve.exe" target="_blank" rel="noopener">Baixar MotionFrame leve (.exe novo)</a></p>
           <p class="muted small">Enquanto isso: links de <b>arquivos</b> do Drive funcionam (cole um por linha), ou compacte a pasta em .zip.</p>`, [{ label: 'Fechar', value: null }]);
@@ -2574,7 +2576,7 @@ const home = new HomeScreen({
       const r = await modal('Novo: MotionFrame leve', `<p>Existe uma versão nova do programa do PC, o <b>MotionFrame leve</b>: menor, mais rápido e lê pastas do Google Drive (🔗 Importar de link).</p><p>Para não perder nada: <b>📦 Transferir tudo › Exportar</b> aqui, e no leve <b>Importar</b> — projetos, mídias e o acesso vão junto (sem token novo).</p>`,
         [{ label: 'Depois', value: null }, { label: 'Baixar o leve', value: 'dl' }, { label: '📦 Transferir agora', primary: true, value: 'tr' }]);
       if (r === 'tr') transferFlow();
-      else if (r === 'dl') window.open('https://ofd1.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
+      else if (r === 'dl') window.open('https://gabriel050413.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
     }, 2500);
   }
 })();

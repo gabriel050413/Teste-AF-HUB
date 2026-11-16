@@ -20,7 +20,7 @@ const PORT = 47830; // porta fixa = projetos, mídias e acesso ficam guardados e
 const ROOT = app.isPackaged ? path.join(process.resourcesPath, 'www') : path.join(__dirname, 'www');
 // atualização automática: arquivos novos do editor ficam em <dados do usuário>/www-live e têm prioridade sobre os do .exe
 const LIVE = path.join(app.getPath('userData'), 'www-live');
-const REMOTE = process.env.MF_UPDATE_URL || 'https://ofd1.github.io/Teste-AF-HUB/';
+const REMOTE = process.env.MF_UPDATE_URL || 'https://gabriel050413.github.io/Teste-AF-HUB/';
 const vnum = (v) => parseInt(String(v || '').replace(/\D/g, ''), 10) || 0;
 const readVer = (dir) => { try { return (fs.readFileSync(path.join(dir, 'js', 'projects.js'), 'utf8').match(/APP_VERSION = '(v\d+)'/) || [])[1] || null; } catch { return null; } };
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
