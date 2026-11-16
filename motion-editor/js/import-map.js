@@ -682,7 +682,7 @@ export const IMPORT_RULES = [
   { vendor: 'Sapphire', plugin: 'S_Shake', to: 'shake', test: /s_shake|s_camerashake/i,
     map: {
       amount: { n: ['amplitude', 'shake amp', 'amp'], conv: (v) => (v < 20 ? v * 100 : v) }, frequency: { n: ['frequency', 'shake freq', 'freq'], conv: (v) => (v > 60 ? Math.min(40, v / 250) : v) },
-      ampX: { n: ['x rand amp'] }, ampY: { n: ['y rand amp'] }, rotation: { n: ['tilt rand amp', 'rotate amp'] }, zoom: { n: ['z rand amp'], conv: (v) => v * 100 },
+      ampX: { n: ['x rand amp'] }, ampY: { n: ['y rand amp'] }, rotation: { n: ['tilt rand amp', 'rotate amp'] }, zoom: { n: ['z rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) } /* já vem em % quando X/Y Rand Amp vêm em % (ex.: 150) */,
       style: { i: 1, n: ['style'] }, centerBias: { n: ['center bias'] },
       stillness: { n: ['stillness'] }, twitchFreq: { n: ['twitch frequency'] }, drift: { n: ['drift'], conv: (v) => v * 0.3 }, seed: { n: ['seed'] },
       shutter: { n: ['mo blur length'] }, wrap: { n: ['wrap x'], conv: (v) => Math.min(3, Math.max(1, v)) },
@@ -692,11 +692,11 @@ export const IMPORT_RULES = [
   { vendor: 'Sapphire', plugin: 'S_DissolveShake', to: 'shake', match: ['S_DissolveShake'],
     map: {
       amount: { n: ['amplitude'], conv: (v) => (v < 20 ? v * 100 : v) }, frequency: { n: ['frequency'] },
-      ampX: { n: ['x rand amp'] }, ampY: { n: ['y rand amp'] }, rotation: { n: ['tilt rand amp'] }, zoom: { n: ['z rand amp'], conv: (v) => v * 100 },
+      ampX: { n: ['x rand amp'] }, ampY: { n: ['y rand amp'] }, rotation: { n: ['tilt rand amp'] }, zoom: { n: ['z rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) } /* já vem em % quando X/Y Rand Amp vêm em % (ex.: 150) */,
       seed: { n: ['seed'] }, shutter: { n: ['mo blur length'] }, wrap: { n: ['wrap x'], conv: (v) => Math.min(3, Math.max(1, v)) },
     },
     post: (p, raw) => { p.sapphire = true; p.style = 1; p.stillness = 0; p.drift = 0; if (!raw('motion blur')) p.shutter = 0; if (p.ampX === undefined) p.ampX = 100; if (p.ampY === undefined) p.ampY = 100; } },
-  { vendor: 'Sapphire', plugin: 'S_BlurMoCurves', to: 'blurMoCurves', test: /s_blurmocurves/i,
+  { vendor: 'Sapphire', plugin: 'S_BlurMoCurves', to: 'blurMoCurves', test: /s_blurmocurves/i, aeDefaults: { wrap: 1, wrapY: 1 }, // Wrap X/Y do Sapphire começam em "No" (bordas transparentes): espelhar invertia o texto
     map: { center: { n: ['center xy'] }, zDist: { n: ['z dist'] }, rotate: { n: ['rotate'] }, shiftX: { n: ['shift x'] }, shiftY: { n: ['shift y'] }, shutter: { n: ['shutter duration'] }, shutterShift: { i: 56, n: ['shutter shift'] }, bias: { i: 57, n: ['exposure bias'] }, brightness: { i: 58, n: ['brightness'] }, mode: { n: ['effect', 'mode'] }, wrap: { n: ['wrap x'], conv: (v) => Math.min(3, Math.max(1, v)) }, wrapY: { n: ['wrap y'], conv: (v) => Math.min(3, Math.max(1, v)) } } },
   // S_Sharpen: nitidez em faixas de detalhe + Sharpen Width (contraste local largo); Opacity pode passar de 1 (amplifica)
   { vendor: 'Sapphire', plugin: 'S_Sharpen', to: 'sSharpen', test: /s_sharpen/i,

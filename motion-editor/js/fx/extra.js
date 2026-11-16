@@ -99,7 +99,7 @@ const LGG = colorFrag('uniform vec3 u_lift, u_gamma, u_gain; uniform float u_sat
 const LOOKS = frag(`
 uniform float u_svl[7], u_svs[7]; uniform float u_svon;
 float curve7(float x, float c[7]) { x = clamp(x, 0.0, 1.0) * 6.0; float r = c[6]; for (int i = 0; i < 6; i++) { if (x >= float(i) && x < float(i + 1)) r = mix(c[i], c[i + 1], x - float(i)); } return r; }
-uniform float u_mtint; uniform float u_vasp; uniform float u_2s; uniform float u_exp, u_sat, u_hue, u_con, u_fade, u_mojo, u_cool, u_skin, u_punch, u_bleach, u_vig, u_vsize, u_strength, u_temp, u_tint, u_fdens;
+uniform float u_mtint; uniform float u_vasp; uniform float u_2s; uniform float u_exp, u_sat, u_hue, u_con, u_fade, u_mojo, u_cool, u_skin, u_punch, u_bleach, u_blov, u_blds, u_vig, u_vsize, u_strength, u_temp, u_tint, u_fdens;
 uniform vec3 u_filter, u_lift, u_gamma, u_gain, u_mixr, u_mixg, u_mixb; uniform float u_mixamt;
 uniform vec3 u_hsl[8];
 uniform vec2 u_curve[4]; uniform float u_ncurve;
@@ -236,12 +236,12 @@ void main() {
   // no Mojo II a pele fica protegida do Bleach: o fundo perde a cor, o rosto continua com tom de pele
   float skinB = smoothstep(26.0, 8.0, abs(mod(rgb2hsv(clamp(r, 0.0, 1.0)).x * 360.0 - 28.0 + 180.0, 360.0) - 180.0)) * smoothstep(0.08, 0.3, rgb2hsv(clamp(r, 0.0, 1.0)).y);
   // (o Bleach do Mojo II também tira cor da pele — no print do AE do Galego CC o rosto fica neutro)
-  r = mix(vec3(bl), r, 1.0 - 0.3 * u_bleach * (u_bleach > 0.0 ? 1.0 - 0.15 * max(skin, skinB) : 1.0));
+  r = mix(vec3(bl), r, 1.0 - u_blds * u_bleach * (u_bleach > 0.0 ? 1.0 - 0.15 * max(skin, skinB) : 1.0));
   // bleach bypass de verdade: a prata que fica no filme = cópia P&B em "overlay" → mais escuro e mais contraste
   if (u_bleach > 0.0) {
     vec3 L = vec3(luma(clamp(r, 0.0, 1.0)));
     vec3 ov = mix(2.0 * r * L, 1.0 - 2.0 * (1.0 - r) * (1.0 - L), step(0.5, L));
-    r = mix(r, ov, u_bleach * 0.55);
+    r = mix(r, ov, clamp(u_blov, 0.0, 1.0));
   }
   // contraste, saturação, curva, haze/fade
   // Contraste do Looks: curva de filme (S) em torno do pivô, não uma reta que estoura pretos/brancos
@@ -433,7 +433,7 @@ const EFFECTS = [
       let out = gl.pass(LOOKS, {
         u_tex: src, u_exp: p.exposure * TK('exp'), u_sat: 1 + (p.saturation / 100 - 1) * TK('sat'), u_hue: p.hue / 360, u_con: p.contrast / 100 * TK('con'), u_fade: p.fade / 100,
         u_svl: { f1: (p.satLum && p.satLum.length === 7 ? p.satLum : [0, 0, 0, 0, 0, 0, 0]) }, u_svs: { f1: (p.satSat && p.satSat.length === 7 ? p.satSat : [0, 0, 0, 0, 0, 0, 0]) }, u_svon: [...(p.satLum || []), ...(p.satSat || [])].some((x) => Math.abs(x) > 1e-4) ? 1 : 0,
-        u_mtint: Math.max(-1, Math.min(1, (p.mojoTint || 0) / 100)), u_2s: Math.max(0, Math.min(1, (p.twoStrip || 0) / 100)), u_mojo: p.mojo / 100 * TK('mojo'), u_cool: (p.mojoCool ?? 50) / 50, u_skin: (p.mojoSkin ?? 50) / 50, u_punch: (p.punch || 0) / 100, u_bleach: (p.bleach || 0) / 100,
+        u_mtint: Math.max(-1, Math.min(1, (p.mojoTint || 0) / 100)), u_2s: Math.max(0, Math.min(1, (p.twoStrip || 0) / 100)), u_mojo: p.mojo / 100 * TK('mojo'), u_cool: (p.mojoCool ?? 50) / 50, u_skin: (p.mojoSkin ?? 50) / 50, u_punch: (p.punch || 0) / 100, u_bleach: (p.bleach || 0) / 100, u_blov: Math.max(0, (p.bleach || 0) / 100) * 0.55 * (globalThis.__MF_TUNE?.blOv ?? 2.2), u_blds: 0.3 * (globalThis.__MF_TUNE?.blDs ?? 1), /* Bleach do Mojo: contraste prateado forte (pretos fundos), medido no print da Galego */
         u_temp: (p.temperature || 0) / 100 * TK('temp'), u_tint: (p.tint || 0) / 100 * TK('tnt'),
         u_vig: p.vignette / 100 * TK('vig'), u_vasp: TK('vasp'), u_vsize: p.vignetteSize / 100, u_strength: s,
         u_filter: rgb(p.filter), u_fdens: p.filterDensity / 100,
