@@ -1112,3 +1112,61 @@ body[data-elayout="blurrr"] .tl-name { border-color: #eee !important; }
 body[data-elayout="capcut"] .tl, body[data-elayout="capcut"] .tl-name, body[data-elayout="capcut"] .tl-head, body[data-elayout="capcut"] .tl-corner, body[data-elayout="capcut"] .tl-ruler-wrap { background: #000 !important; }
 body[data-elayout="nova"] .tl, body[data-elayout="nova"] .tl-name, body[data-elayout="nova"] .tl-head, body[data-elayout="nova"] .tl-corner, body[data-elayout="nova"] .tl-ruler-wrap { background: #0a0e16 !important; }
 body[data-elayout="alight"] .tl, body[data-elayout="alight"] .tl-name, body[data-elayout="alight"] .tl-head, body[data-elayout="alight"] .tl-corner, body[data-elayout="alight"] .tl-ruler-wrap { background: #1b1b1d !important; }
+
+/* ---------- navegador de efeitos por layout ---------- */
+.lfx .fx-search { width: 100%; margin: 6px 0 10px; }
+/* After Effects: painel Efeitos e predefinições (árvore) */
+.lfx-ae { font-size: 12.5px; color: #c8c8c8; }
+.lfx-ae-head { font-weight: 700; font-size: 12px; color: #e0e0e0; padding: 4px 2px; border-bottom: 1px solid #111; }
+.lfx-ae .fx-search { background: #1a1a1a; border: 1px solid #3a3a3a; border-radius: 3px; padding: 5px 8px; color: #ddd; font-size: 12px; }
+.lfx-tree { display: flex; flex-direction: column; }
+.lfx-folder { display: flex; gap: 6px; align-items: center; background: none; border: 0; color: #d0d0d0; padding: 4px 4px; text-align: left; font-size: 12.5px; cursor: pointer; border-radius: 2px; }
+.lfx-folder span { width: 12px; color: #8a8a8a; }
+.lfx-folder:hover, .lfx-item:hover { background: #2d8ceb33; }
+.lfx-item { display: flex; gap: 8px; align-items: center; background: none; border: 0; color: #c8c8c8; padding: 3px 4px 3px 26px; text-align: left; font-size: 12.5px; border-radius: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lfx-item i { font-style: normal; font-size: 9px; font-weight: 800; color: #9a7bd8; border: 1px solid #6b55a0; border-radius: 2px; padding: 0 2px; }
+/* Alight Motion: lista "Adicionar efeito" */
+.lfx-am-head { font-size: 17px; padding: 4px 0; }
+.lfx-am-sec { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: #8f8f96; font-weight: 700; }
+.lfx-am-row { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; border-bottom: 1px solid #2c2c30; padding: 9px 2px; text-align: left; color: #eee; }
+.lfx-am-row > span:last-child { display: flex; flex-direction: column; }
+.lfx-am-row small { color: #8f8f96; font-size: 11px; }
+.lfx-am-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 8px; color: #fff; flex: none; }
+.lfx-am-ic .ico { width: 20px; height: 20px; }
+/* CapCut / Blurrr / Nova: abas e grade de miniaturas */
+.lfx-m-title { font-weight: 800; font-size: 16px; margin: 2px 0; }
+.lfx-cc-top { display: flex; gap: 18px; padding: 2px 0 6px; }
+.lfx-cc-top button { background: none; border: 0; color: #8a8a8a; font-weight: 700; font-size: 14px; padding: 4px 0; }
+.lfx-cc-top button.on { color: #fff; }
+.lfx-tabs { display: flex; gap: 16px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 10px; }
+.lfx-tabs button { background: none; border: 0; color: #8a8a8a; font-size: 13px; padding: 4px 0; white-space: nowrap; border-bottom: 2px solid transparent; }
+.lfx-tabs button.on { color: #fff; border-bottom-color: #fff; }
+.lfx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 8px; }
+.lfx-tile { display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: 0; padding: 0; color: inherit; min-width: 0; }
+.lfx-th { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: 6px; color: #fff; border: 2px solid transparent; }
+.lfx-th .ico { width: 26px; height: 26px; opacity: .92; }
+.lfx-nm { font-size: 11px; color: #cfcfcf; text-align: center; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.lfx-tile.sel .lfx-th { border-color: #35d0e3; }
+.lfx-blurrr .lfx-tabs button { background: #f1f1f1; color: #555; border-radius: 999px; padding: 6px 12px; border: 0; }
+.lfx-blurrr .lfx-tabs button.on { background: #cdee4f; color: #111; }
+.lfx-blurrr .lfx-grid { grid-template-columns: repeat(3, 1fr); gap: 14px 10px; }
+.lfx-blurrr .lfx-th { border-radius: 16px; }
+.lfx-blurrr .lfx-nm { color: #333; }
+.lfx-blurrr .lfx-tile.sel .lfx-th { border-color: #a9cf22; }
+.lfx-nova .lfx-grid { grid-template-columns: repeat(3, 1fr); }
+.lfx-nova .lfx-th { border-radius: 12px; }
+.lfx-nova .lfx-tabs button.on { color: #22d97a; border-bottom-color: #22d97a; }
+.lfx-nova .lfx-tile.sel .lfx-th { border-color: #22d97a; }
+body[data-elayout="blurrr"] .sheet, body[data-elayout="blurrr"] .sheet-head { background: #fff; color: #111; }
+body[data-elayout="blurrr"] .fx-search { background: #f1f1f1; color: #111; border: 0; }
+/* timeline por layout */
+body[data-elayout="capcut"] .tl-row.sel .clip { box-shadow: 0 0 0 2px #fff inset; border-radius: 4px; }
+body[data-elayout="capcut"] .clip { border-radius: 4px; }
+body[data-elayout="nova"] .tl-row.sel .clip { box-shadow: 0 0 0 2px #22d97a inset; }
+body[data-elayout="nova"] .clip { border-radius: 6px; }
+body[data-elayout="blurrr"] .tl-row.sel .clip { box-shadow: 0 0 0 2px #a9cf22 inset; }
+body[data-elayout="blurrr"] .clip { border-radius: 8px; color: #111; }
+body[data-elayout="blurrr"] .clip .cn { color: #111; text-shadow: none; }
+body[data-elayout="alight"] .tl-row.sel .clip { box-shadow: 0 0 0 2px #9db8ff inset; }
+body[data-elayout="capcut"] .tl-cti, body[data-elayout="nova"] .tl-cti, body[data-elayout="blurrr"] .tl-cti { transition: none; }
+body[data-elayout="nova"] .tl-cti { --cti: #ff4d5e; }

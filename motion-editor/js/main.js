@@ -23,7 +23,7 @@ import { newProjectSheet } from './new-project.js';
 import { serializePreset, parsePresetJSON } from './presets.js';
 import { cloud } from './cloud.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
-import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop } from './editor-layouts.js';
+import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed } from './editor-layouts.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -538,14 +538,14 @@ function renderDock() {
       h.querySelector('.dock-x').addEventListener('click', () => closeDockPane(n));
       p.prepend(h);
     }
-    p.querySelector('.dock-title').textContent = TITLES[n] || n;
+    p.querySelector('.dock-title').textContent = paneTitle(n) || TITLES[n] || n;
     p.classList.toggle('dock-open', on && dock.open.includes(n));
     p.classList.toggle('dock-min', on && dock.min.includes(n));
     p.classList.toggle('dock-focus', on && sheetPane === n);
     if (on) p.style.order = String(dock.open.indexOf(n));
   });
   const bar = document.getElementById('dockBar');
-  bar.innerHTML = DOCK_BAR.map(([n, i, l]) => `<button data-dock="${n}" class="${dock.open.includes(n) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${l}">${ico(i)} ${l}</button>`).join('');
+  bar.innerHTML = DOCK_BAR.filter(([n]) => paneAllowed(n)).map(([n, i, l]) => `<button data-dock="${n}" class="${dock.open.includes(n) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${paneTitle(n) || l}">${ico(i)} ${paneTitle(n) || l}</button>`).join('');
   bar.querySelectorAll('[data-dock]').forEach((x) => x.addEventListener('click', () => {
     const n = x.dataset.dock;
     if (dock.open.includes(n)) closeDockPane(n); else openSheet(n);
@@ -593,7 +593,7 @@ function openSheet(name, backTo = null) {
   sheetPane = name;
   sheetBackTo = backTo;
   document.querySelectorAll('.sheet .pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === name));
-  sheetTitle.textContent = TITLES[name] || '';
+  sheetTitle.textContent = paneTitle(name) || TITLES[name] || '';
   sheet.classList.add('open');
   appEl.classList.toggle('docked', !desktop.matches);
   sheet.classList.toggle('has-back', !!backTo);
@@ -1575,7 +1575,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); }); },
+  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); renderDock(); }); },
   'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
@@ -2601,7 +2601,7 @@ const home = new HomeScreen({
     toast('Projeto criado. Adicione vídeo, texto ou presets na barra de baixo.', 'ok', 3500);
   },
   tool: async (id) => { await ensureSomeProject(); commands[id]?.(); },
-  interface: async () => { await cloud.init(); await interfaceDialog(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); home.render(); }); },
+  interface: async () => { await cloud.init(); await interfaceDialog(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); home.render(); }); },
   open: (id) => openProjectById(id),
   afterDelete: () => cleanUnusedMedia(),
   create: () => quickProjectFlow(),
