@@ -390,6 +390,9 @@ export class Timeline {
       const label = isSimpleUI() ? (step < 1 ? `${(+t.toFixed(2))}s` : `${Math.round(t)}s`) : step < 1 ? `${Math.floor(t + 1e-6)}:${String(Math.round(((t + 1e-6) % 1) * fps) % fps).padStart(2, '0')}f` : `${Math.round(t)}s`;
       x.fillText(label, px + 3, 11);
     }
+    // área de trabalho (B/N, como no AE): faixa azul na régua
+    const wa = this.store.project.workArea;
+    if (wa && wa.b > wa.a) { const ax = wa.a * this.pps - sl, bx = wa.b * this.pps - sl; x.fillStyle = 'rgba(61,123,255,0.28)'; x.fillRect(ax, 16, bx - ax, 8); x.fillStyle = '#3d7bff'; x.fillRect(ax, 16, 2, 8); x.fillRect(bx - 2, 16, 2, 8); }
     // área além do fim da composição
     const endX = duration * this.pps - sl;
     if (endX < vw) { x.fillStyle = 'rgba(0,0,0,0.35)'; x.fillRect(Math.max(0, endX), 0, vw, 24); }
