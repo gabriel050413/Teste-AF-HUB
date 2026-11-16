@@ -3,7 +3,8 @@ import { parseFFX, retimeFFX } from './ffx.js';
 import { parseCube, encodeCube, haldPixels, haldToCube, haldIsNeutral, HALD_SIZE } from './fx/lut.js';
 import { frameifyToPreset } from './frameify.js';
 import { upgradeGenericEffects, BUILTIN_PRESETS, rgxToParsed, ffxToPreset, applyPreset, layerToPreset, serializePreset, parsePresetJSON } from './presets.js';
-import { LAYER_FACTORIES } from './state.js';
+import { LAYER_FACTORIES, createProject } from './state.js';
+import { renderFrame } from './renderer.js';
 import { sourceTimeRaw, ensureGroupTime } from './timing.js';
 import { modal, toast, pickFiles, storage } from './ui.js';
 import { escapeHtml } from './util.js';
@@ -138,7 +139,7 @@ export class Library {
     const tr = Object.keys(p.transform || {}).length;
     const meta = p.lazy ? (p.file?.endsWith('.ffx') ? '.ffx' : 'preset') : [tr ? `${tr} anim.` : '', fx ? `${fx} fx` : '', p.duration ? `${p.duration.toFixed(2)}s` : ''].filter(Boolean).join(' · ');
     return `<div class="preset ${p.source}" data-id="${p.id}" role="button" tabindex="0">
-      <div class="preset-thumb">${p.thumb ? `<img src="${escapeHtml(p.thumb)}" alt="" loading="lazy">` : thumbFor(p)}</div>
+      <div class="preset-thumb" data-pv="${escapeHtml(p.id)}">${p.thumb ? `<img src="${escapeHtml(p.thumb)}" alt="" loading="lazy">` : PV.get(p.id) ? `<img src="${PV.get(p.id)}" alt="">` : thumbFor(p)}</div>
       ${p.duration ? `<em class="pframes">${Math.max(1, Math.round(p.duration * 30))}F</em>` : ''}
       <div class="preset-name">${escapeHtml(p.name)}</div>
       <div class="preset-meta">${meta || '&nbsp;'}</div>
@@ -150,7 +151,43 @@ export class Library {
     </div>`;
   }
 
+  /** Prévias reais: cada preset é aplicado numa cena de exemplo e renderizado (uma por vez, só as visíveis). */
+  queuePreviews() {
+    this.pvObs?.disconnect();
+    if (!('IntersectionObserver' in window)) return;
+    this.pvObs = new IntersectionObserver((ents) => {
+      for (const e of ents) if (e.isIntersecting) { this.pvObs.unobserve(e.target); const id = e.target.dataset.pv; if (!PV.has(id) && !PV_Q.includes(id)) PV_Q.push(id); }
+      this.pumpPreviews();
+    }, { root: null, rootMargin: '120px' });
+    this.root.querySelectorAll('.preset-thumb[data-pv]').forEach((el) => { if (!el.querySelector('img')) this.pvObs.observe(el); });
+  }
+  async pumpPreviews() {
+    if (this.pvBusy) return;
+    this.pvBusy = true;
+    try {
+      while (PV_Q.length) {
+        const id = PV_Q.shift();
+        const p0 = this.all().find((x) => x.id === id);
+        if (!p0 || PV.has(id)) continue;
+        const p = p0.lazy ? await this.resolveQuiet(p0) : p0;
+        const url = p ? presetPreview(p) : null;
+        if (!url) continue;
+        PV.set(id, url); savePV();
+        this.root.querySelectorAll(`.preset-thumb[data-pv="${CSS.escape(id)}"]`).forEach((el) => { el.innerHTML = `<img src="${url}" alt="">`; });
+        await new Promise((r) => setTimeout(r, 30)); // deixa a interface respirar entre uma prévia e outra
+      }
+    } finally { this.pvBusy = false; }
+  }
+  async resolveQuiet(p) {
+    try {
+      const res = await fetch(p.file); if (!res.ok) return null;
+      const preset = p.file.toLowerCase().endsWith('.ffx') ? ffxToPreset(parseFFX(await res.arrayBuffer(), { fps: 30, fileName: p.file.split('/').pop() })) : parsePresetJSON(await res.text())[0];
+      return preset;
+    } catch { return null; }
+  }
+
   bind() {
+    this.queuePreviews();
     const r = this.root;
     r.querySelectorAll('[data-act="import"]').forEach((b) => b.addEventListener('click', async () => {
       const files = await pickFiles('.ffx,.aep,.rgx,.cube,.png,.aex,.json,application/json,application/octet-stream');
@@ -493,4 +530,43 @@ function thumbFor(p) {
   else if (types.includes('generic') || p.source === 'free') style = 'ae';
   const label = p.source === 'ffx' || p.file?.endsWith('.ffx') ? 'AE' : p.source === 'free' ? 'FREE' : 'Aa';
   return `<span class="thumb-dot a-${anim} s-${style}">${label}</span>`;
+}
+
+// ---- prévias dos presets (cena de exemplo: céu, sol, chão e texto; CC e efeitos mudam as cores, animações mexem o texto)
+const PV_KEY = 'motionframe.presetPv';
+const PV = (() => { try { return new Map(Object.entries(JSON.parse(localStorage.getItem(PV_KEY) || '{}'))); } catch { return new Map(); } })();
+const PV_Q = [];
+let pvSaveT = 0;
+function savePV() {
+  clearTimeout(pvSaveT);
+  pvSaveT = setTimeout(() => {
+    try {
+      let e = [...PV.entries()];
+      if (e.length > 260) e = e.slice(e.length - 260); // guarda só as mais recentes
+      localStorage.setItem(PV_KEY, JSON.stringify(Object.fromEntries(e)));
+    } catch { /* sem espaço: ficam só nesta sessão */ }
+  }, 800);
+}
+function presetPreview(p) {
+  try {
+    const S = 128;
+    const P = createProject(S, S);
+    P.duration = Math.max(1, (p.duration || 0) + 0.2);
+    const sky = LAYER_FACTORIES.solid(P); sky.props.fill = '#3b82c4';
+    const sun = LAYER_FACTORIES.ellipse(P); Object.assign(sun.props, { width: 54, height: 54, fill: '#ffb03a', strokeWidth: 0 }); sun.transform.position.value = [86, 44];
+    const ground = LAYER_FACTORIES.rect(P); Object.assign(ground.props, { width: S * 1.2, height: 50, radius: 0, fill: '#2f9e57', strokeWidth: 0 }); ground.transform.position.value = [S / 2, S - 22];
+    const skin = LAYER_FACTORIES.ellipse(P); Object.assign(skin.props, { width: 34, height: 40, fill: '#e9b48a', strokeWidth: 0 }); skin.transform.position.value = [40, 70];
+    const txt = LAYER_FACTORIES.text(P); Object.assign(txt.props, { text: 'Aa', fontSize: 38, color: '#ffffff', fontWeight: 800 }); txt.transform.position.value = [S / 2, S / 2 + 10];
+    const animated = Object.keys(p.transform || {}).length > 0;
+    let target = txt;
+    const layers = [txt, skin, ground, sun, sky];
+    if (!animated) { target = LAYER_FACTORIES.adjustment(P); layers.unshift(target); }
+    for (const l of layers) { l.inPoint = 0; l.outPoint = P.duration; }
+    P.layers = layers;
+    applyPreset(target, p, 0, {});
+    const c = document.createElement('canvas'); c.width = S; c.height = S;
+    const t = animated ? Math.min(P.duration - 0.05, Math.max(0.05, (p.duration || 0.6) * 0.45)) : 0.3;
+    renderFrame(c.getContext('2d'), P, t, 1, { final: true });
+    return c.toDataURL('image/jpeg', 0.72);
+  } catch (e) { console.warn('prévia do preset', e); return null; }
 }

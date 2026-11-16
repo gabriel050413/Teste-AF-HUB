@@ -17,7 +17,7 @@ export function toast(msg, kind = 'info', ms = 3200) {
 export function modal(title, bodyHtml, buttons = [{ label: 'Fechar', value: null }], { wide = false, onMount } = {}) {
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
-    wrap.className = 'modal-wrap';
+    wrap.className = `modal-wrap ml-${document.body.dataset.elayout || 'studio'}`;
     wrap.innerHTML = `<div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">
       <header><h2></h2><button class="x" aria-label="Fechar">✕</button></header>
       <div class="modal-body">${bodyHtml}</div>

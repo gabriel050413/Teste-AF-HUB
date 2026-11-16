@@ -1,4 +1,5 @@
 // Exportação: MP4 quadro a quadro (WebCodecs + mp4-muxer, com áudio) e fallback em tempo real (MediaRecorder).
+import { ico } from './icons.js';
 import { renderFrame, resetRenderCaches } from './renderer.js';
 import { getGL, glLost, gpuSync } from './gl.js';
 import { prepare, pauseAll, setExporting } from './media.js';
@@ -337,29 +338,44 @@ export async function exportDialog(store) {
   const mbps = () => rate(scaleOf(), st.fps, st.q);
   const sizeMB = () => Math.max(1, Math.round((mbps() * P.duration) / 8 + (P.duration * 0.024)));
   const chips = (key, items) => `<div class="exp-chips" data-k="${key}">${items.map(([v, l]) => `<button data-v="${v}" class="${String(st[key]) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  const res = await modal('Exportar', `
-    <div class="exp-sheet">
-      <div class="exp-fmt">${chips('fmt', [['video', 'Vídeo'], ['png', 'Foto (quadro)'], ['project', 'Projeto']])}</div>
+  // cada layout tem o seu Exportar: CapCut e Alight usam réguas com marcas; Alight escolhe o formato em blocos grandes
+  const L = document.body.dataset.elayout || 'studio';
+  const SL = { res: RES.map(([r, l]) => [r, l]), fps: [24, 25, 30, 50, 60].map((f) => [f, String(f)]), q: [['low', 'Menor'], ['rec', 'Recomendada'], ['high', 'Maior']] };
+  const slider = (key) => { const it = SL[key], i = Math.max(0, it.findIndex(([v]) => String(v) === String(st[key]))); return `<div class="exp-sl" data-k="${key}"><input type="range" min="0" max="${it.length - 1}" step="1" value="${i}"><div class="exp-ticks">${it.map(([v, l]) => `<span data-v="${v}">${l}</span>`).join('')}</div></div>`; };
+  const ctl = (key, items) => (['capcut', 'alight', 'nova'].includes(L) ? slider(key) : chips(key, items));
+  const FMT = [['video', 'Vídeo', 'media'], ['png', 'Foto (quadro)', 'image'], ['project', 'Projeto', 'folder']];
+  const fmtHtml = L === 'alight' ? `<div class="exp-tiles" data-k="fmt">${FMT.map(([v, l, i]) => `<button data-v="${v}">${ico(i)}<span>${l}</span></button>`).join('')}</div>` : `<div class="exp-fmt">${chips('fmt', FMT.map(([v, l]) => [v, l]))}</div>`;
+  const LAB = { capcut: ['Resolução', 'Taxa de quadros', 'Taxa de bits'], blurrr: ['Resolução', 'FPS', 'Qualidade'], alight: ['Resolução', 'Taxa de quadros', 'Qualidade'] }[L] || ['Resolução', 'Quadros por segundo', 'Qualidade'];
+  const TITLE = { capcut: 'Exportar', blurrr: 'Exportar vídeo', alight: 'Exportar e compartilhar', ae: 'Fila de render' }[L] || 'Exportar';
+  const res = await modal(TITLE, `
+    <div class="exp-sheet exp-${L}">
+      ${fmtHtml}
       <div class="exp-video">
-        <div class="exp-row"><span>Resolução</span>${chips('res', RES.map(([r, l]) => [r, l + (r > short ? ' ✦' : '')]))}</div>
-        <div class="exp-row"><span>Quadros por segundo</span>${chips('fps', [24, 25, 30, 50, 60].map((f) => [f, String(f)]))}</div>
-        <div class="exp-row"><span>Qualidade</span>${chips('q', [['low', 'Menor'], ['rec', 'Recomendada'], ['high', 'Maior']])}</div>
+        <div class="exp-row"><span>${LAB[0]}</span>${ctl('res', RES.map(([r, l]) => [r, l + (r > short ? ' ✦' : '')]))}</div>
+        <div class="exp-row"><span>${LAB[1]}</span>${ctl('fps', SL.fps)}</div>
+        <div class="exp-row"><span>${LAB[2]}</span>${ctl('q', SL.q)}</div>
         <p class="muted small exp-info"></p>
-        <p class="muted small">✦ acima do tamanho do projeto: a imagem é ampliada (use o Topaz para ampliar com detalhe). Edits com shake/grão pedem qualidade Recomendada ou Maior.</p>
+        ${L === 'studio' || L === 'ae' ? '<p class="muted small">✦ acima do tamanho do projeto: a imagem é ampliada (use o Topaz para ampliar com detalhe). Edits com shake/grão pedem qualidade Recomendada ou Maior.</p>' : ''}
       </div>
     </div>`,
   [{ label: 'Cancelar', value: null }, { label: 'Exportar', primary: true, value: () => ({ ...st }) }], { onMount: (w) => {
     const info = w.querySelector('.exp-info');
     const upd = () => {
-      w.querySelectorAll('.exp-chips').forEach((g) => g.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(st[g.dataset.k]) === b.dataset.v)));
+      w.querySelectorAll('.exp-chips, .exp-tiles').forEach((g) => g.querySelectorAll('button').forEach((b) => b.classList.toggle('on', String(st[g.dataset.k]) === b.dataset.v)));
+      w.querySelectorAll('.exp-sl').forEach((g) => { const it = SL[g.dataset.k]; const i = it.findIndex(([v]) => String(v) === String(st[g.dataset.k])); g.querySelector('input').value = Math.max(0, i); g.querySelectorAll('.exp-ticks span').forEach((x, k) => x.classList.toggle('on', k === i)); });
       w.querySelector('.exp-video').style.display = st.fmt === 'video' ? '' : 'none';
       const W = even(P.width * scaleOf()), H = even(P.height * scaleOf());
-      info.textContent = `${W}×${H} · ${st.fps} fps · ${mbps()} Mbps · ≈ ${sizeMB()} MB (${P.duration.toFixed(1)} s)`;
+      info.textContent = L === 'capcut' ? `Tamanho estimado do arquivo: ${sizeMB()} MB · ${W}×${H}` : `${W}×${H} · ${st.fps} fps · ${mbps()} Mbps · ≈ ${sizeMB()} MB (${P.duration.toFixed(1)} s)`;
     };
-    w.querySelectorAll('.exp-chips').forEach((g) => g.addEventListener('click', (e) => {
+    w.querySelectorAll('.exp-chips, .exp-tiles').forEach((g) => g.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       st[g.dataset.k] = g.dataset.k === 'res' || g.dataset.k === 'fps' ? +b.dataset.v : b.dataset.v; upd();
     }));
+    w.querySelectorAll('.exp-sl').forEach((g) => {
+      const k = g.dataset.k;
+      g.querySelector('input').addEventListener('input', (e) => { st[k] = SL[k][+e.target.value][0]; upd(); });
+      g.querySelectorAll('.exp-ticks span').forEach((x, i) => x.addEventListener('click', () => { st[k] = SL[k][i][0]; upd(); }));
+    });
     upd();
   } });
   if (res) { try { localStorage.setItem('motionframe.exportPrefs', JSON.stringify({ res: res.res, fps: res.fps, q: res.q })); } catch { /* ok */ } }
