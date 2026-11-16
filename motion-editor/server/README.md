@@ -2,6 +2,17 @@
 
 Servidor leve (Node 22, sem dependências) com: contas, pontos, mercado de presets, feed de edits, chat em tempo real, loja de pontos, encomendas (bounties) e backup de projetos na nuvem.
 
+## Publicar com 1 clique (Render)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gabriel050413/Teste-AF-HUB)
+
+1. Clique no botão, entre no Render com a conta do GitHub e confirme o blueprint (`render.yaml` na raiz do repositório).
+2. Quando pedir `ANTHROPIC_API_KEY`, cole a chave da IA (crie em console.anthropic.com › API Keys) ou deixe vazio para usar o gerador automático de paletas.
+3. Copie o endereço do serviço (ex.: `https://motionframe-cloud.onrender.com`) e, no GitHub: Settings › Secrets and variables › Actions › Variables › `MF_CLOUD_URL` = esse endereço. O próximo deploy do site cria o `cloud.json` e o app conecta sozinho.
+4. A `ADMIN_KEY` gerada fica nas variáveis do serviço no Render (use para dar pontos: `POST /api/admin/grant`).
+
+O blueprint usa o plano Starter com disco de 5 GB (o banco e os vídeos ficam em `/data`). No plano grátis o servidor funciona, mas apaga os dados quando reinicia.
+
 ## Rodar
 
     cd motion-editor

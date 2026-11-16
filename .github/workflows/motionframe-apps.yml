@@ -117,6 +117,9 @@ jobs:
   # Publica o APK e o .exe novos no site (downloads/). Os apps instalados antes da v1.6.2 têm o endereço de atualização
   # errado embutido e nunca acham versão nova: é preciso baixar estes UMA vez; depois eles se atualizam sozinhos.
   publish-downloads:
+    concurrency:
+      group: gh-pages-push
+      cancel-in-progress: false
     name: Publica APK e EXE no site (downloads/)
     needs: [windows-tauri, android]
     if: ${{ always() && (needs.windows-tauri.result == 'success' || needs.android.result == 'success') }}
