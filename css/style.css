@@ -784,3 +784,72 @@ body.ui-simple .tp-tools [data-cmd="select-all-keys"], body.ui-simple .tp-tools 
 .howto ol { margin: 6px 0 8px 18px; padding: 0; }
 .howto li { margin: 3px 0; }
 .rec-time { font-size: 20px; font-weight: 700; text-align: center; margin: 12px 0; }
+
+/* ---- MotionFrame Cloud: comunidade, feed, mercado, chat, perfil ---- */
+.home { padding-bottom: calc(64px + var(--safe-b)); }
+.cloud { position: fixed; inset: 0; z-index: 45; background: #141414; display: flex; flex-direction: column; padding-top: var(--safe-t); color: #eee; }
+.cloud[hidden] { display: none; }
+.c-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; font-size: 18px; font-weight: 800; }
+.c-body { flex: 1; overflow: auto; padding: 4px 14px 90px; max-width: 760px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.c-nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: space-around; background: #1b1b1fee; backdrop-filter: blur(10px); border-top: 1px solid #2a2a30; padding: 6px 4px calc(6px + var(--safe-b)); }
+.c-nav button { flex: 1; background: none; border: 0; color: #9a9aa4; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; padding: 4px 0; }
+.c-nav button span { font-size: 20px; line-height: 1; }
+.c-nav button.on { color: var(--accent, #4aa3ff); }
+.pt { color: #ffd166; }
+.c-dot { background: #ff4d6d; color: #fff; border-radius: 10px; font-size: 11px; font-style: normal; padding: 1px 6px; }
+.c-card { background: #1e1e24; border: 1px solid #2a2a30; border-radius: 14px; padding: 14px; margin: 10px 0; }
+.c-card h3 { margin: 0 0 6px; }
+.c-auth { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+.c-in { width: 100%; box-sizing: border-box; background: #121216; color: #eee; border: 1px solid #33333b; border-radius: 10px; padding: 11px 12px; font-size: 15px; font-family: inherit; }
+.c-btn { background: #2a2a32; color: #eee; border: 0; border-radius: 10px; padding: 10px 14px; font-size: 14px; white-space: nowrap; }
+.c-btn.primary { background: var(--accent, #2f81f7); color: #fff; font-weight: 700; }
+.c-btn.danger, .danger.c-link { color: #ff6b81; }
+.c-btn[disabled] { opacity: .45; }
+.c-link { background: none; border: 0; color: var(--accent, #4aa3ff); font-size: 13px; padding: 6px; text-align: center; }
+.c-row { display: flex; gap: 8px; align-items: center; margin: 8px 0; }
+.c-row .c-in { flex: 1; }
+.c-empty { text-align: center; color: #888; padding: 40px 10px; }
+.c-seg, .c-chips { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0; scrollbar-width: none; }
+.c-seg button, .c-chips button { background: #22222a; color: #bbb; border: 0; border-radius: 16px; padding: 7px 13px; font-size: 13px; white-space: nowrap; }
+.c-seg button.on, .c-chips button.on { background: #fff; color: #111; font-weight: 700; }
+.c-seg .c-post { margin-left: auto; border-radius: 16px; }
+.c-chk { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #bbb; }
+.cv { display: inline-grid; place-items: center; border-radius: 50%; background: #333a4a; overflow: hidden; font-weight: 800; flex: none; color: #fff; }
+.cv img { width: 100%; height: 100%; object-fit: cover; }
+.cv.fr-neon { box-shadow: 0 0 0 2px #0f0, 0 0 10px #0f0; }
+.cv.fr-glitch { box-shadow: -2px 0 0 2px #f0f, 2px 0 0 2px #0ff; }
+.c-post-card { background: #1b1b20; border: 1px solid #2a2a30; border-radius: 14px; padding: 12px; margin: 12px 0; }
+.c-post-card > header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.c-media { border-radius: 10px; overflow: hidden; background: #000; }
+.c-media video, .c-media img { display: block; width: 100%; max-height: 62vh; object-fit: contain; }
+.c-post-card h4 { margin: 10px 0 2px; }
+.c-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+.c-actions button:not(.c-btn) { background: #26262e; border: 0; color: #ddd; border-radius: 16px; padding: 7px 12px; font-size: 13px; }
+.c-actions button.on { color: #ff4d6d; }
+.c-actions .c-btn { margin-left: auto; }
+.c-cm { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; font-size: 13px; }
+.c-h { margin: 16px 0 8px; font-size: 14px; }
+.c-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.c-hscroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+.c-hscroll .c-listing { min-width: 150px; }
+.c-listing { background: #1b1b20; border: 1px solid #2a2a30; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 4px; text-align: left; color: #eee; font-size: 13px; }
+.c-prev { aspect-ratio: 16/10; background: #23232b; border-radius: 8px; display: grid; place-items: center; overflow: hidden; font-size: 28px; position: relative; }
+.c-prev img { width: 100%; height: 100%; object-fit: cover; }
+.c-prev i { position: absolute; top: 4px; right: 6px; font-style: normal; }
+.c-prev.big { margin-bottom: 10px; }
+.c-price { color: #ffd166; font-weight: 800; }
+.c-price.free { color: #7bd88f; }
+.c-me { display: flex; gap: 14px; align-items: center; }
+.c-item { background: #1b1b20; border: 1px solid #2a2a30; border-radius: 12px; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.c-item .ic { font-size: 26px; }
+.c-chat { display: flex; align-items: center; gap: 10px; width: 100%; background: #1b1b20; border: 0; border-radius: 12px; padding: 10px; margin: 6px 0; color: #eee; text-align: left; }
+.c-chat > div { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.c-thread { display: flex; flex-direction: column; height: calc(100vh - 170px); }
+.c-msgs { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+.c-msg { max-width: 78%; background: #24242c; border-radius: 14px; padding: 8px 12px; align-self: flex-start; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.c-msg.me { align-self: flex-end; background: var(--accent, #2f81f7); }
+.c-msg small { opacity: .6; font-size: 10px; }
+.c-msg img, .c-msg video { max-width: 100%; border-radius: 8px; }
+.c-av { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9a9aa4; }
+.c-av .cv { font-size: 32px; }
+body.at-cloud .toasts { z-index: 80; }
