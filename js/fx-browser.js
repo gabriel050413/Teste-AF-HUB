@@ -18,6 +18,12 @@ const MINE = 'Meus plugins';
 // Nomes das pastas do painel "Efeitos e predefinições" do After Effects para as categorias do app
 const AE_FOLDER = { 'Luz e brilho': 'Estilizar › Brilho', Movimento: 'Distorção › Movimento', Tempo: 'Tempo', Desfoque: 'Desfoque e nitidez', Estilizar: 'Estilizar', Distorção: 'Distorção', Cor: 'Correção de cores', '3D': 'Perspectiva', Transições: 'Transição', 'Fundos animados': 'Gerar', 'Looks · Subject': 'Red Giant Looks', 'Looks · Matte': 'Red Giant Looks', 'Looks · Lens': 'Red Giant Looks', 'Looks · Camera': 'Red Giant Looks', 'Looks · Post': 'Red Giant Looks' };
 // Categorias do Alight Motion (lista "Adicionar efeito")
+const AM_GRID = [
+  ['Cor e luz', 'sun', ['Cor', 'Luz e brilho', 'Looks · Post']], ['Desenho e borda', 'edit', ['Estilizar']], ['Desfoque', 'blur', ['Desfoque', 'Looks · Lens']],
+  ['Distorção e deformação', 'distort', ['Distorção']], ['Procedural', 'wave', ['Fundos animados', 'Gerar']], ['3D', 'cube', ['3D', 'Looks · Camera']],
+  ['Mover e transformar', 'move', ['Movimento', 'Tempo']], ['Repetir', 'dup', ['Transições']], ['Matte, máscara e chave', 'matte', ['Chave', 'Looks · Matte']],
+  ['Opacidade e visibilidade', 'drop', ['Looks · Subject']], ['Texto', 'text', ['Texto']], ['Outros', 'more', ['Utilidades']],
+];
 const AM_CAT = { 'Luz e brilho': 'Cor e luz', Movimento: 'Movimento', Tempo: 'Tempo', Desfoque: 'Desfoque', Estilizar: 'Estilo', Distorção: 'Distorção e deformação', Cor: 'Ajustes de cor', '3D': 'Perspectiva', Transições: 'Transições', 'Fundos animados': 'Gradiente e preenchimento' };
 // Abas no topo dos efeitos do CapCut / Blurrr / Nova
 const MOBILE_TABS = [['Em alta', null], ['Básico', ['Cor', 'Desfoque']], ['Festa', ['Luz e brilho', 'Fundos animados']], ['Retrô', ['Estilizar']], ['Lente', ['3D', 'Distorção']], ['Movimento', ['Movimento', 'Tempo']], ['Transição', ['Transições']], ['Looks', ['Looks · Subject', 'Looks · Matte', 'Looks · Lens', 'Looks · Camera', 'Looks · Post']]];
@@ -113,11 +119,21 @@ export class FxBrowser {
         ${[...groups.keys()].sort((a, b) => a.localeCompare(b, 'pt')).map((g) => { const open = q || this.aeOpen.has(g); return `<div class="lfx-folder ${open ? 'open' : ''}" data-aeg="${esc(g)}"><span>${open ? '▾' : '▸'}</span> ${esc(g)}</div>${open ? groups.get(g).sort((a, b) => a.label.localeCompare(b.label, 'pt')).map((e) => `<button class="lfx-item" data-type="${e.type}"><i>fx</i>${esc(e.label)}</button>`).join('') : ''}`; }).join('')}
         <button class="lfx-folder" data-cat="${MINE}"><span>▸</span> Plug-ins de terceiros (.aex)</button></div></div>`;
     } else if (lay === 'alight') {
-      const groups = new Map();
-      for (const e of all) { const g = AM_CAT[e.category] || 'Mais efeitos'; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(e); }
-      html = `<div class="lfx lfx-am"><div class="lfx-am-head"><b>Adicionar efeito</b></div>
-        <input type="search" class="fx-search" placeholder="Pesquisar efeitos" value="${esc(this.q)}">
-        ${[...groups.entries()].map(([g, list]) => `<div class="lfx-am-sec">${esc(g)}</div>${list.map((e) => `<button class="lfx-am-row" data-type="${e.type}"><span class="lfx-am-ic" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span><b>${esc(e.label)}</b>${e.plugin ? `<small>${esc(e.plugin.split(' / ')[0])}</small>` : ''}</span></button>`).join('')}`).join('')}</div>`;
+      // Alight Motion: "Adicionar efeito" com destaques no topo e grade de categorias; a categoria abre miniaturas 3×N
+      const catOf = (e) => AM_GRID.find(([, , cats]) => cats.includes(e.category))?.[0] || 'Outros';
+      if (q) {
+        html = `<div class="lfx lfx-am"><div class="lfx-am-bar"><b>Adicionar efeito</b></div><input type="search" class="fx-search" placeholder="Pesquisar efeitos" value="${esc(this.q)}">
+          ${all.map((e) => `<button class="lfx-am-row" data-type="${e.type}"><span class="lfx-am-ic" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span><b>${esc(e.label)}</b><small>${esc(catOf(e))}</small></span></button>`).join('') || '<div class="empty-note">Nenhum efeito.</div>'}</div>`;
+      } else if (this.amCat) {
+        const list = all.filter((e) => catOf(e) === this.amCat);
+        html = `<div class="lfx lfx-am"><div class="lfx-am-bar"><button class="lfx-am-back" data-amcat="">‹</button><b>${esc(this.amCat)}</b></div>
+          <div class="lfx-am-grid">${list.map((e) => `<button class="lfx-am-tile" data-type="${e.type}"><span class="lfx-am-th" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span>${esc(e.label.replace(/\s*\(.*?\)/g, ''))}</span></button>`).join('')}</div></div>`;
+      } else {
+        const feat = ['motionTile', 'keylight', 'lkPinch'].map((t) => all.find((e) => e.type === t)).filter(Boolean);
+        html = `<div class="lfx lfx-am"><div class="lfx-am-bar"><b>Adicionar efeito</b></div><input type="search" class="fx-search" placeholder="Pesquisar efeitos" value="">
+          <div class="lfx-am-feat">${feat.map((e) => `<button class="lfx-am-tile" data-type="${e.type}"><span class="lfx-am-th" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span>${esc(e.label.replace(/\s*\(.*?\)/g, ''))}</span></button>`).join('')}</div>
+          <div class="lfx-am-cats">${AM_GRID.map(([name, icon]) => { const n = all.filter((e) => catOf(e) === name).length; return n ? `<button class="lfx-am-cat" data-amcat="${esc(name)}" style="--h:${(name.length * 47) % 360}">${ico(icon)}<span>${esc(name)}</span><small>${n}</small></button>` : ''; }).join('')}</div></div>`;
+      }
     } else {
       const tab = this.mtab || 'Em alta';
       const cats = MOBILE_TABS.find(([t]) => t === tab)?.[1];
@@ -133,6 +149,7 @@ export class FxBrowser {
     const s = this.root.querySelector('.fx-search');
     s?.addEventListener('input', () => { this.q = s.value; this.render(); const n = this.root.querySelector('.fx-search'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
     this.root.querySelectorAll('[data-type]').forEach((b) => b.addEventListener('click', () => { this.root.querySelectorAll('.lfx-tile.sel').forEach((x) => x.classList.remove('sel')); b.classList.add('sel'); this.onPick(b.dataset.type); }));
+    this.root.querySelectorAll('[data-amcat]').forEach((b) => b.addEventListener('click', () => { this.amCat = b.dataset.amcat || null; this.render(); this.root.scrollTop = 0; }));
     this.root.querySelectorAll('[data-mtab]').forEach((b) => b.addEventListener('click', () => { this.mtab = b.dataset.mtab; this.q = ''; this.render(); }));
     this.root.querySelectorAll('[data-aeg]').forEach((b) => b.addEventListener('click', () => { const g = b.dataset.aeg; if (this.aeOpen.has(g)) this.aeOpen.delete(g); else this.aeOpen.add(g); this.render(); }));
     this.root.querySelector(`[data-cat="${MINE}"]`)?.addEventListener('click', () => { this.cat = MINE; this.forceStd = true; this.render(); });

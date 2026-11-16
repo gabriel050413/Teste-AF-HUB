@@ -98,7 +98,7 @@ const NOTE = { ae: 'Precisa de tela grande' };
 
 /** Nome do layout atual (para o botão da barra do editor). */
 export function layoutName(st = getSettings()) { return st.custom?.name || 'MotionFrame'; }
-export function refreshLayoutChip() { const c = document.getElementById('layoutChip'); if (c) c.innerHTML = `${ico('layout')}<span>${esc(layoutName())}</span>`; }
+export function refreshLayoutChip() { const c = document.getElementById('layoutChip'); if (c) c.title = `Trocar layout (atual: ${layoutName()})`; if (c && !c.classList.contains('lay-btn')) c.innerHTML = `${ico('layout')}<span>${esc(layoutName())}</span>`; }
 
 /** Lista de layouts (popover do botão da barra), como no app de referência. */
 export async function layoutPopover(cloud, onChange) {
