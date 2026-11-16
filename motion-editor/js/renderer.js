@@ -146,7 +146,7 @@ function drawContent(ctx, layer, w, h, extra) {
       break;
     }
     case 'adjustment':
-      if (extra?.snapshot) ctx.drawImage(extra.snapshot, 0, 0, w, h);
+      if (extra?.snapshot) ctx.drawImage((extra.snapshotAt && extra.ct != null && Math.abs(extra.ct - extra.baseT) > 1e-6 ? extra.snapshotAt(extra.ct) : null) || extra.snapshot, 0, 0, w, h);
       break;
     default:
   }
@@ -504,7 +504,7 @@ function renderLayerImage(layer, t, scale0, extra) {
     }
     cx.translate(pad, pad);
     cx.scale(scale, scale);
-    drawContent(cx, layer, w, h, { ...extra, videoSource: source, lt });
+    drawContent(cx, layer, w, h, { ...extra, videoSource: source, lt, ct: t });
     if (layer.masks?.length) applyMasks(cx, layer, lt, scale, pad, W, H);
     return canvas;
   };
@@ -997,7 +997,7 @@ function drawListItem(ctx, layers, i, t, scale, fps, onAdjust) {
   {
     const l = layers[i];
     if (!l.visible || l.type === 'audio' || l.type === 'null' || l.type === 'camera' || t < l.inPoint || t >= l.outPoint) return;
-    if (l.type === 'adjustment') { if (onAdjust) onAdjust(l); return; }
+    if (l.type === 'adjustment') { if (onAdjust) onAdjust(l, layers, i); return; }
     if (l.trackMatte && layers[i - 1]) { renderWithMatte(ctx, l, layers[i - 1], t, scale, fps); return; }
     ctx.save();
     renderLayer(ctx, l, t, scale, null, fps);
@@ -1024,7 +1024,7 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
   ctx.fillStyle = proj.background;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   indexLayers(proj.layers);
-  drawLayerList(ctx, proj.layers, t, scale, proj.fps, (l) => {
+  drawLayerList(ctx, proj.layers, t, scale, proj.fps, (l, list, idx) => {
     const op = layerTransform(l, t).opacity;
     const blank = () => {
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
@@ -1048,7 +1048,17 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
     sx.drawImage(ctx.canvas, 0, 0);
     blank();
     if (op < 1) { ctx.globalAlpha = 1 - op; ctx.drawImage(snapshotCanvas, 0, 0); ctx.globalAlpha = 1; }
-    renderLayer(ctx, l, t, scale, { snapshot: snapshotCanvas }, proj.fps);
+    // efeitos de tempo (eco, fatias, motion blur…) numa camada de ajuste precisam do que está ABAIXO dela em outros instantes
+    const cache = new Map();
+    const snapshotAt = (tt) => {
+      if (cache.has(tt)) return cache.get(tt);
+      const c = makeCanvas(W, H); const cx = c.getContext('2d');
+      cx.fillStyle = proj.background; cx.fillRect(0, 0, W, H);
+      drawLayerList(cx, list.slice(idx + 1), Math.max(0, tt), scale, proj.fps);
+      cache.set(tt, c); return c;
+    };
+    renderLayer(ctx, l, t, scale, { snapshot: snapshotCanvas, snapshotAt, baseT: t }, proj.fps);
+    for (const c of cache.values()) releaseCanvas(c);
   });
   ctx.restore();
   trimCanvases();

@@ -160,6 +160,7 @@ export class HomeScreen {
           <button data-h="importProject"><span>📂</span>Abrir projeto</button>
           <button data-h="importLink"><span>🔗</span>Importar de link</button>
           <button data-h="presets"><span>★</span>Meus presets</button>
+          <button data-h="interface"><span>🎨</span>Interface e layouts</button>
         </div>
         <details class="home-more"><summary>Mais opções</summary><div class="home-actions">
           <button data-h="transfer"><span>📦</span>Transferir tudo (projetos, mídias, acesso)</button>

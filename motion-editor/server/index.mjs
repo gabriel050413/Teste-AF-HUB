@@ -18,6 +18,8 @@ const app = createApp({
   maxUploadMB: Number(env.MAX_UPLOAD_MB || 40),
   corsOrigin: env.CORS_ORIGIN || '*',
   sessionSecret: env.SESSION_SECRET || undefined,
+  aiCost: Number(env.AI_UI_COST || 25),          // pontos por interface gerada pela IA
+  anthropicKey: env.ANTHROPIC_API_KEY || '',     // sem chave: gerador procedural
   staticDir: env.STATIC_DIR ? path.resolve(env.STATIC_DIR) : '',
 });
 

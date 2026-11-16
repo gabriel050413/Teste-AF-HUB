@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openDb, addPoints, HttpError } from './db.mjs';
 import { verifyAccessToken, hashPassword, checkPassword, signSession, readSession, rateLimiter, DEFAULT_PUBLIC_KEY } from './auth.mjs';
+import { generateTheme } from './ai-ui.mjs';
 import { STORE, STORE_BY_ID, DAY, FREE_CLOUD_SLOTS, DAILY_BONUS } from './store.mjs';
 
 export const VERSION = '1.0.0';
@@ -21,7 +22,7 @@ const str = (v, max = 200) => String(v ?? '').trim().slice(0, max);
 export function createApp(opts = {}) {
   const cfg = {
     dbPath: ':memory:', publicKey: DEFAULT_PUBLIC_KEY, defaultPoints: 100, feePct: 0, adminKey: '', maxUploadMB: 40, corsOrigin: '*', staticDir: '',
-    version: VERSION, authMax: 15, writeMax: 120, ...opts,
+    version: VERSION, authMax: 15, writeMax: 120, aiCost: 25, anthropicKey: '', fetchImpl: fetch, ...opts,
   };
   const db = openDb(cfg.dbPath);
   db.run(`CREATE TABLE IF NOT EXISTS cloud_projects (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, name TEXT NOT NULL, mime TEXT, size INTEGER NOT NULL, data BLOB NOT NULL, updated INTEGER NOT NULL, UNIQUE (user_id, name))`);
@@ -234,9 +235,9 @@ export function createApp(opts = {}) {
   });
   route('POST', '/api/store/consume', ({ user, body }) => {
     const item = str(body.item, 30);
-    need(['export_clean', 'ai_use'].includes(item), 400, 'Item inválido.');
+    need(['ai_use'].includes(item), 400, 'Item inválido.');
     const r = db.run('UPDATE inventory SET qty = qty - 1 WHERE user_id = ? AND item = ? AND qty > 0', user.id, item);
-    need(r.changes > 0, 402, item === 'export_clean' ? 'Sem exportações limpas. Compre um pacote na loja de pontos.' : 'Sem usos de IA. Compre um pacote na loja de pontos.');
+    need(r.changes > 0, 402, 'Sem usos de IA. Compre um pacote na loja de pontos.');
     return { ok: true, left: db.get('SELECT qty FROM inventory WHERE user_id = ? AND item = ?', user.id, item).qty };
   });
 
@@ -592,6 +593,23 @@ export function createApp(opts = {}) {
   // ---------- notificações ----------
   route('GET', '/api/notifications', ({ user }) => ({ notifications: db.all('SELECT id, type, text, data, created, read FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 50', user.id).map((n) => ({ ...n, data: JSON.parse(n.data || '{}') })) }));
   route('POST', '/api/notifications/read', ({ user }) => { db.run('UPDATE notifications SET read = 1 WHERE user_id = ?', user.id); return { ok: true }; });
+
+  // ---------- IA de interfaces (gasta pontos) ----------
+  route('POST', '/api/ai/interface', async ({ user, body }) => {
+    limitWrite(`w:${user.id}`);
+    const prompt = str(body.prompt, 300);
+    need(prompt.length >= 3, 400, 'Descreva a interface que você quer (ex.: “roxo neon estilo cyberpunk”).');
+    const cost = cfg.aiCost;
+    const balance = db.tx(() => {
+      const used = db.run('UPDATE inventory SET qty = qty - 1 WHERE user_id = ? AND item = ? AND qty > 0', user.id, 'ai_use').changes > 0;
+      return used ? userById(user.id).points : addPoints(db, user.id, -cost, 'IA de interface', null);
+    });
+    try {
+      const r = await generateTheme(prompt, { apiKey: cfg.anthropicKey, fetchImpl: cfg.fetchImpl });
+      return { theme: r.theme, engine: r.engine, cost, balance };
+    } catch (e) { addPoints(db, user.id, cost, 'Estorno: IA de interface', null); throw e; }
+  });
+  route('GET', '/api/ai/interface', () => ({ cost: cfg.aiCost, engine: cfg.anthropicKey ? 'claude' : 'procedural' }));
 
   // ---------- administração (só com a chave do dono) ----------
   route('POST', '/api/admin/grant', ({ req, body }) => {

@@ -202,9 +202,9 @@ test('loja de pontos: cosméticos equipáveis, exportação limpa consumível, n
   assert.equal((await api('POST', '/api/store/buy', { id: 'badge_gold' }, u.session)).status, 200);
   assert.equal((await api('GET', '/api/me', undefined, u.session)).body.user.badge, 'gold');
   assert.equal((await api('POST', '/api/store/buy', { id: 'badge_gold' }, u.session)).status, 409);
-  assert.equal((await api('POST', '/api/store/consume', { item: 'export_clean' }, u.session)).status, 402);
-  await api('POST', '/api/store/buy', { id: 'export_clean_5' }, u.session);
-  assert.equal((await api('POST', '/api/store/consume', { item: 'export_clean' }, u.session)).body.left, 4);
+  assert.equal((await api('POST', '/api/store/consume', { item: 'ai_use' }, u.session)).status, 402);
+  await api('POST', '/api/store/buy', { id: 'ai_pack_5' }, u.session);
+  assert.equal((await api('POST', '/api/store/consume', { item: 'ai_use' }, u.session)).body.left, 4);
   // nuvem: 2 vagas grátis
   const put = (name) => fetch(`${base}/api/cloud/${encodeURIComponent(name)}`, { method: 'PUT', headers: { authorization: `Bearer ${u.session}`, 'content-type': 'application/json' }, body: '{"p":1}' });
   assert.equal((await put('proj A')).status, 200);
@@ -248,4 +248,17 @@ test('limite de tentativas: login e cadastro não aceitam força bruta', async (
   for (let i = 0; i < 5; i++) codes.push((await fetch(b3 + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login: 'x', password: 'y' }) })).status);
   assert.deepEqual(codes, [401, 401, 401, 429, 429]);
   await a3.close();
+});
+
+test('IA de interface: gasta pontos, devolve tema válido e estorna se faltar saldo', async () => {
+  const u = await signup({ points: 30 });
+  const r = await api('POST', '/api/ai/interface', { prompt: 'roxo neon cyberpunk redondo' }, u.session);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.balance, 5);
+  assert.match(r.body.theme.accent, /^#[0-9a-f]{6}$/);
+  assert.ok(['procedural', 'claude'].includes(r.body.engine));
+  const r2 = await api('POST', '/api/ai/interface', { prompt: 'verde floresta' }, u.session);
+  assert.equal(r2.status, 402);
+  assert.equal((await api('GET', '/api/me', undefined, u.session)).body.user.points, 5);
+  assert.equal((await api('POST', '/api/ai/interface', { prompt: 'x' }, u.session)).status, 400);
 });

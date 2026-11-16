@@ -853,3 +853,14 @@ body.ui-simple .tp-tools [data-cmd="select-all-keys"], body.ui-simple .tp-tools 
 .c-av { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9a9aa4; }
 .c-av .cv { font-size: 32px; }
 body.at-cloud .toasts { z-index: 80; }
+
+/* ---- layouts (js/layouts.js) ---- */
+.lay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 8px 0; }
+.lay-card { display: flex; flex-direction: column; gap: 6px; align-items: center; padding: 8px; border-radius: 10px; background: var(--panel-2); border: 2px solid transparent; font-size: 12px; }
+.lay-card.on { border-color: var(--accent); }
+.lay-sw { display: flex; gap: 4px; padding: 6px; border-radius: 8px; border: 1px solid; width: 100%; height: 38px; }
+.lay-sw i { flex: 1; border-radius: 4px; }
+body[data-layout="capcut"] .toolbar, body[data-layout="capcut"] #toolbar { padding-bottom: 6px; }
+body[data-layout="blurrr"] .modal, body[data-layout="blurrr"] .home-top, body[data-layout="blurrr"] .c-nav { backdrop-filter: blur(18px) saturate(1.4); }
+body[data-layout="motion"] button.primary { text-transform: uppercase; letter-spacing: .4px; font-size: 12px; }
+body[data-layout="capcut"] button.primary, body[data-layout="blurrr"] button.primary { border-radius: 999px; }
