@@ -37,15 +37,16 @@ import { getGL } from './gl.js';
 import { TrackerPanel } from './tracker-panel.js';
 import { calibrateFromImage, CALIB_LABEL } from './calibrate.js';
 import { parseAEP, aepToProject, mainComps } from './aep.js';
+import { isAiFile, aiToPngFile, aiToLayerFiles } from './ai-import.js';
 import { xmlToProject } from './xml-import.js';
 import { TransitionsPanel } from './transitions-panel.js';
-import { checkForUpdate, showUpdateBanner } from './updater.js';
+import { checkForUpdate, autoUpdate } from './updater.js';
 import { loadCustomEffects, ensureRecipesFromProject, importRecipe, customRecipes } from './custom-fx.js';
 applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · efeitos criados pelo usuário (Efeitos › Meus efeitos) antes de abrir qualquer projeto
 import { ico, iconize } from './icons.js';
 import { translateDOM, getLang, setLang } from './i18n.js';
 import { EFFECTS } from './effects.js';
-import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont } from './fonts.js';
+import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont, isSFPro, SF_SCALE, SF_SHIFT_Y } from './fonts.js';
 
 const store = new Store();
 const AUTOSAVE_KEY = 'motionframe.autosave.v2';
@@ -758,8 +759,10 @@ window.addEventListener('custom-fx', async (e) => {
   }
 });
 // versão nova publicada: avisa (agora e a cada 30 min)
-setTimeout(() => checkForUpdate({ onNew: showUpdateBanner }), 4000);
-setInterval(() => checkForUpdate({ onNew: showUpdateBanner }), 30 * 60 * 1000);
+setTimeout(() => checkForUpdate({ onNew: autoUpdate }), 4000);
+setInterval(() => checkForUpdate({ onNew: autoUpdate }), 10 * 60 * 1000);
+let lastUpd = 0; // ao voltar para o app (aba/PWA em segundo plano) confere de novo, no máximo 1× por minuto
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - lastUpd > 60000) { lastUpd = Date.now(); checkForUpdate({ onNew: autoUpdate }); } });
 window.addEventListener('app-updated', () => toast('Versão nova do MotionFrame instalada. Volte para a tela inicial (⌂) para usar.', 'ok', 8000));
 if (dock.open.includes('composer')) setTimeout(() => composer.startPreview(), 300);
 
@@ -1036,12 +1039,28 @@ async function maybeProxy(f) {
   } finally { wrap.remove(); keepScreenOn(false); }
 }
 
+/** .ai (Illustrator) → uma imagem por camada, de baixo para cima; outros arquivos passam direto. */
+async function expandAi(files) {
+  const out = [];
+  for (const f of files) {
+    if (!(await isAiFile(f))) { out.push(f); continue; }
+    try { const ls = await aiToLayerFiles(f); out.push(...ls); toast(`“${f.name}”: ${ls.length} camada(s) do Illustrator importada(s).`, 'info', 3500); }
+    catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); }
+  }
+  return out;
+}
+
 async function importMedia(files) {
   ensurePersistentStorage();
+  files = await expandAi(files);
   let seqT = null; // vários clipes de uma vez: um depois do outro (como no CapCut)
   for (let f of files) {
     const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
     if (isVideo && /\.(mp4|mov|m4v)$/i.test(f.name)) f = await maybeProxy(f);
+    if (!isVideo && await isAiFile(f)) { // .ai do Illustrator é PDF: vira PNG com transparência (pdf.js)
+      try { f = await aiToPngFile(f); toast(`“${f.name}” importado como imagem (página 1 do .ai).`, 'info', 3000); }
+      catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); continue; }
+    }
     const isAudio = f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name);
     const isImage = f.type.startsWith('image/');
     if (!isVideo && !isAudio && !isImage) continue;
@@ -1542,7 +1561,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
+  'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
     // modo simples: as ferramentas avançadas aparecem numa grade (como o "Mais" dos apps de celular)
@@ -1567,7 +1586,7 @@ const commands = {
   add: () => openSheet('add'),
   'add-text': () => addLayer('text'),
   'add-adjustment': () => { addLayer('adjustment'); openSheet('browser', 'effects'); },
-  'add-media': async () => importMedia(await pickFiles('video/*,image/*')),
+  'add-media': async () => importMedia(await pickFiles('video/*,image/*,.ai')),
   'add-audio': async () => importMedia(await pickFiles('audio/*,.mp3,.wav,.m4a,.aac,.ogg')),
   'import-ffx': async () => {
     const files = await pickFiles('.ffx,.rgx,.cube,.json,application/octet-stream');
@@ -1923,7 +1942,7 @@ async function downloadLink(url, onProg) {
       const desk = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
       if (desk) {
         // programa de PC antigo (Electron / leve anterior): sem a ponte /__fetch — oferece o .exe novo
-        const base = 'https://ofd1.github.io/Teste-AF-HUB/downloads/';
+        const base = 'https://gabriel050413.github.io/Teste-AF-HUB/downloads/';
         modal('Atualize o programa do PC', `<p>Este MotionFrame do PC é uma versão anterior que ainda não lê pastas do Google Drive (a leitura fica dentro do programa, a atualização automática só troca o editor).</p>
           <p><a class="btn primary" href="${base}MotionFrame-leve.exe" target="_blank" rel="noopener">Baixar MotionFrame leve (.exe novo)</a></p>
           <p class="muted small">Enquanto isso: links de <b>arquivos</b> do Drive funcionam (cole um por linha), ou compacte a pasta em .zip.</p>`, [{ label: 'Fechar', value: null }]);
@@ -2125,6 +2144,7 @@ async function resolveProjectFonts() {
     const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
     if (!first || fams.includes(first.toLowerCase()) || /^(inter|system-ui|sans-serif|serif|monospace|impact|arial|georgia)$/i.test(first)) continue;
     const g = await resolveGoogleFont(first);
+    if (g && isSFPro(first)) { l.props.fontScale = SF_SCALE; l.props.fontShiftY = SF_SHIFT_Y; } // SF Pro → Inter: mesma largura e linha de base do After
     if (g && g !== first) { l.props.fontFamily = `"${g}", ${l.props.fontFamily}`; n++; }
     else if (g) n++;
   }
@@ -2153,7 +2173,7 @@ async function routeFiles(files) {
   const aex = files.filter((f) => /\.aex$/i.test(f.name));
   const mfjson = files.filter((f) => /\.motionframe\.json$/i.test(f.name));
   const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name) && !mfjson.includes(f));
-  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()]);
+  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()] || /\.ai$/i.test(f.name));
   // vários projetos no pacote/pasta: pergunta qual abrir (os presets, fontes e mídias entram de qualquer jeito)
   const projs = [...mfjson, ...aep, ...xml];
   if (!pack && projs.length > 1) {
@@ -2427,7 +2447,20 @@ async function importFontsFlow(files) {
 /** Troca os espaços reservados das mídias do .aep pelos arquivos escolhidos (casando pelo nome do arquivo). */
 const AUD_RE = /\.(mp3|wav|aiff?|m4a|aac|ogg|flac)$/i;
 async function relinkAEMedia({ substitute = false, files = null } = {}) {
-  if (!files) files = await pickFiles('video/*,image/*,audio/*');
+  if (!files) files = await pickFiles('video/*,image/*,audio/*,.ai');
+  if (!files.length) return;
+  // .ai (PDF do Illustrator) entra como PNG da página 1; o nome continua igual (Clock.ai → Clock.png)
+  // cada camada do .ai vira uma imagem; a camada do projeto com o mesmo nome (Tehran, New York, bar, oval…) recebe a sua
+  const aiLayers = new Map();
+  const nk = (x) => String(x || '').toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+  const conv = await Promise.all(files.map(async (f) => {
+    try {
+      if (!(await isAiFile(f))) return f;
+      try { for (const lf of await aiToLayerFiles(f)) if (lf.aiLayer) aiLayers.set(`${nk(f.name)}|${nk(lf.aiLayer)}`, lf); } catch { /* sem camadas: usa a página inteira */ }
+      return await aiToPngFile(f); // página inteira (reserva para camadas sem par)
+    } catch (e) { toast(`Não deu para abrir “${f.name}”: ${e?.message || e}`, 'error', 6000); return null; }
+  }));
+  files = conv.filter(Boolean);
   if (!files.length) return;
   const used = new Set();
   const saved = new Map();
@@ -2438,7 +2471,9 @@ async function relinkAEMedia({ substitute = false, files = null } = {}) {
   const holders = flatLayers(store.project.layers).filter((l) => l.props?.aeMedia);
   for (const l of holders) {
     const ae = l.props.aeMedia;
-    let f = byName.get(ae.file.toLowerCase()) || byName.get(norm(ae.file)) || (holders.length === 1 && files.length === 1 ? files[0] : null);
+    const cleanName = l.name.replace(/^⚠ /, '');
+    let f = /\.ai$/i.test(ae.file) ? (aiLayers.get(`${nk(ae.file)}|${nk(cleanName)}`) || aiLayers.get(`${nk(ae.file)}|${nk(cleanName.replace(/\s+\d+$/, ''))}`) || null) : null;
+    f = f || byName.get(ae.file.toLowerCase()) || byName.get(norm(ae.file)) || (holders.length === 1 && files.length === 1 ? files[0] : null);
     // substituir: os que não casaram pelo nome recebem os outros arquivos escolhidos, em ordem (sem repetir enquanto der)
     let swapped = false;
     if (!f && substitute && ae.kind !== 'audio' && !AUD_RE.test(ae.file)) {
@@ -2541,7 +2576,7 @@ const home = new HomeScreen({
       const r = await modal('Novo: MotionFrame leve', `<p>Existe uma versão nova do programa do PC, o <b>MotionFrame leve</b>: menor, mais rápido e lê pastas do Google Drive (🔗 Importar de link).</p><p>Para não perder nada: <b>📦 Transferir tudo › Exportar</b> aqui, e no leve <b>Importar</b> — projetos, mídias e o acesso vão junto (sem token novo).</p>`,
         [{ label: 'Depois', value: null }, { label: 'Baixar o leve', value: 'dl' }, { label: '📦 Transferir agora', primary: true, value: 'tr' }]);
       if (r === 'tr') transferFlow();
-      else if (r === 'dl') window.open('https://ofd1.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
+      else if (r === 'dl') window.open('https://gabriel050413.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
     }, 2500);
   }
 })();

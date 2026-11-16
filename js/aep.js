@@ -105,6 +105,7 @@ function readLayer(r, c) {
     guide: !!(b37 & 0x02),
     nullLayer: !!(b38 & 0x80), solo: !!(b38 & 0x08), threeD: !!(b38 & 0x04), adjustment: !!(b38 & 0x02),
     shy: !!(b39 & 0x40), effectsOn: !!(b39 & 0x04), audio: !!(b39 & 0x02), enabled: !!(b39 & 0x01),
+    motionBlur: !!(b39 & 0x80), // interruptor de motion blur da camada (ligado nos textos/formas do render de referência)
     sourceId: r.u32(o + 40),
     blend: c.size > 100 ? r.u8(o + 99) : 0,
     layerType: c.size > 131 ? r.u8(o + 131) : 0, // 0 mídia/sólido/comp, 1 luz, 2 câmera, 3 texto, 4 forma
@@ -192,17 +193,57 @@ function propTree(r, cs, fps) {
   return out;
 }
 
+/**
+ * Paint do After (efeito "ADBE Paint"): cada traço é um "Paint Atom" com o caminho dos pontos do mouse (om-s), cor ARGB,
+ * diâmetro, dureza e deslocamento. Devolve [{ pts, color:[r,g,b] 0..1, opacity, diameter, hardness, offset }] ou null.
+ */
+function readPaint(r, cs, fps) {
+  const atoms = [];
+  const find = (list) => {
+    let mn = null;
+    for (const c of list || []) {
+      if (c.id === 'tdmn') { mn = r.cstr(c.offset, c.size); continue; }
+      if (c.id !== 'LIST') continue;
+      const ccs = kids(c);
+      if (mn === 'ADBE Paint Atom' && c.listType === 'tdgp') atoms.push(ccs);
+      else if (c.listType === 'tdgp' || c.listType === 'sspc') find(ccs);
+      mn = null;
+    }
+  };
+  find(cs);
+  const out = [];
+  for (const ccs of atoms) {
+    const tree = propTree(r, ccs, fps);
+    const g = (nodes, mn) => (nodes || []).find((n) => n.mn === mn);
+    const sh = g(tree, 'ADBE Paint Shape')?.path?.shapes?.[0];
+    if (!sh?.pts?.length) continue;
+    const props = g(tree, 'ADBE Paint Properties')?.children || [];
+    const val = (n) => n?.prop?.value;
+    const col = val(g(props, 'ADBE Paint Color')) || [255, 255, 255, 255]; // ARGB 0..255
+    const pos = val(g(g(tree, 'ADBE Paint Transform')?.children, 'ADBE Paint Position')) || [0, 0];
+    out.push({ pts: sh.pts, color: [(col[1] ?? 255) / 255, (col[2] ?? 255) / 255, (col[3] ?? 255) / 255], opacity: ((col[0] ?? 255) / 255) * 100, diameter: val(g(props, 'ADBE Paint Diameter'))?.[0] ?? 10, hardness: val(g(props, 'ADBE Paint Hardness'))?.[0] ?? 100, offset: [pos[0] || 0, pos[1] || 0] });
+  }
+  return out.length ? out : null;
+}
+
 /** Abre um .aep e devolve { comps, footage, warnings }. Os efeitos de cada camada são lidos sob demanda. */
 export function parseAEP(buffer) {
+  const head = new Uint8Array(buffer instanceof ArrayBuffer ? buffer : buffer.buffer, buffer.byteOffset || 0, 16);
+  const headTxt = String.fromCharCode(...head);
+  if (/^\s*(<\?xml|<)/.test(headTxt)) throw new Error('Este é um .aepx (XML). No After Effects use Arquivo › Salvar como › Salvar uma cópia… e escolha o formato .aep.');
+  if (!/^RIF[FX]/.test(headTxt)) throw new Error('Este arquivo não é um projeto do After Effects (.aep): o cabeçalho não bate.');
   const r = new RiffReader(buffer);
   const root = r.parse();
   if (root.listType !== 'Egg!') throw new Error('Não é um projeto do After Effects (.aep).');
+  const warnings = [];
+  if (root.truncated) warnings.push('O arquivo parece cortado (download incompleto): o que deu para ler foi importado.');
   const items = [];
   walkItems(r, root.children, items);
   const byId = new Map(items.map((i) => [i.id, i]));
   const comps = items.filter((i) => i.type === 'comp');
   for (const comp of comps) {
     for (const l of comp.layers) {
+      try {
       const src = byId.get(l.sourceId);
       l.source = src ? { id: src.id, type: src.type, kind: src.kind, name: src.name } : null;
       // efeitos + transformação (keyframes em quadros × time scale da composição, relativos ao início da camada)
@@ -211,6 +252,7 @@ export function parseAEP(buffer) {
       for (const e of fx.effects) if (!e.name || /^[-_/0\s]+$/.test(e.name)) e.name = e.matchName;
       l.effects = fx.effects;
       l.properties = fx.properties;
+      if (fx.effects.some((e) => e.matchName === 'ADBE Paint')) l.paint = readPaint(r, l._chunks, (comp.fps || 30) * (comp.timeScale || 1));
       const fps = (comp.fps || 30) * (comp.timeScale || 1);
       const tree = propTree(r, l._chunks, fps);
       l.shapes = tree.find((n) => n.mn === 'ADBE Root Vectors Group')?.children || null;
@@ -219,12 +261,16 @@ export function parseAEP(buffer) {
       l.textMore = (tree.find((n) => n.mn === 'ADBE Text Properties')?.children || []).find((n) => n.mn === 'ADBE Text More Options') || null;
       const btdk = findDeep(l._chunks, (c) => c.id === 'LIST' && c.listType === 'btdk');
       if (btdk) { try { l.text = textFromCOS(parseCOS(r.bytes.subarray(btdk.offset + 4, btdk.offset + btdk.size))); } catch { /* texto ilegível */ } }
+      } catch (e) { // camada ilegível: entra sem efeitos/propriedades e o aviso aparece no relatório
+        l.effects = l.effects || []; l.properties = l.properties || {}; l.shapes = l.shapes || null; l.masks = l.masks || []; l.textAnimators = l.textAnimators || []; l.parseError = String(e?.message || e);
+        warnings.push(`Camada “${l.name || l.id}” em “${comp.name}”: leitura parcial (${l.parseError}).`);
+      }
       delete l._chunks;
     }
     // composições usadas dentro de outras (pré-composições)
     comp.usedIn = comps.filter((c) => c !== comp && c.layers.some((l) => l.sourceId === comp.id)).map((c) => c.id);
   }
-  return { comps, items, byId, footage: items.filter((i) => i.type === 'footage') };
+  return { comps, items, byId, footage: items.filter((i) => i.type === 'footage'), warnings };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -314,7 +360,14 @@ function convTextAnimators(list, t0) {
         selectors.push({ type: 'wiggly', mode: fixed('ADBE Text Selector Mode', 3), max: num('ADBE Text Wiggly Max Amount', 100) || num('ADBE Text Selector Max Amount', 100), min: num('ADBE Text Wiggly Min Amount', -100),
           freq: num('ADBE Text Temporal Freq', 2), correlation: num('ADBE Text Character Correlation', 50), tphase: num('ADBE Text Temporal Phase', 0), sphase: num('ADBE Text Spatial Phase', 0), based: fixed('ADBE Text Range Type2', 1) });
       } else if (sNode.mn === 'ADBE Text Expressible Selector') {
-        selectors.push({ type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) }); // padrão do AE: Interseção
+        // padrão do AE: Interseção. Expressões do tipo "delay/freq/amplitude/decay" (oscilação amortecida por caractere,
+        // a entrada clássica de texto) viram parâmetros; o resto continua sem efeito (o código não é executado).
+        const ex = q('ADBE Text Expressible Amount')?.prop?.expression || '';
+        const pick = (nm) => { const m = new RegExp(`${nm}\\s*=\\s*([-\\d.]+)`).exec(ex); return m ? +m[1] : null; };
+        const base = { type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) };
+        const delay = pick('delay'), freq = pick('freq'), amp = pick('amplitude'), decay = pick('decay');
+        if (delay != null && freq != null && amp != null && decay != null && /Math\.exp\(/.test(ex)) selectors.push({ ...base, delay, freq, amp, decay, t0ae: t0, k: AE_TIME_SCALE });
+        else selectors.push(base);
       } else {
         selectors.push({ type: 'range', start: num('ADBE Text Percent Start', 0), end: num('ADBE Text Percent End', 100), offset: num('ADBE Text Percent Offset', 0),
           amount: num('ADBE Text Selector Max Amount', 100), shape: fixed('ADBE Text Range Shape', 1), smooth: num('ADBE Text Selector Smoothness', 100),
@@ -378,6 +431,7 @@ function convCamera(l, comp, proj, offset) {
 function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
   const out = [];
   for (const l of comp.layers) {
+    try {
     if (l.camera) continue; // câmeras de vista internas do AE (Front, Left, Top…): não fazem parte do render
     if (l.layerType === 2) { // câmera do AE → câmera 3D do MotionFrame
       const cam = convCamera(l, comp, proj, offset);
@@ -406,6 +460,14 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       layer.props.aeBaseline = true; // âncora na linha de base, como no AE
       const anims = convTextAnimators(l.textAnimators || [], offset + l.startTime);
       if (anims.length) layer.props.animators = anims;
+    } else if (l.paint?.length) {
+      // Paint do After: os traços (fração do sólido, origem no canto) viram um caminho de pontos com contorno redondo
+      layer = LAYER_FACTORIES.shape(proj, l.paint.map((st) => {
+        const cx = W / 2, cy = H / 2, P = st.pts.map(([x, y]) => [(x + st.offset[0]) * W - cx, (y + st.offset[1]) * H - cy]); // os pontos do Paint vêm em fração (0..1) do sólido
+        const bez = []; for (const q of P) bez.push(q, q, q); // vértice, alça de saída, alça de entrada (retas: o traço já é denso)
+        return { t: 'group', items: [{ t: 'path', path: { shapes: [{ closed: false, pts: bez }], times: [] } }, { t: 'stroke', color: anim(st.color), opacity: anim(st.opacity), width: anim(st.diameter), cap: 2, join: 2 }], tr: {} };
+      }));
+      layer.props.width = W; layer.props.height = H;
     } else if (l.layerType === 4) {
       layer = LAYER_FACTORIES.shape(proj, convShapes(l.shapes || [], offset + l.startTime));
       layer.props.width = comp.width; layer.props.height = comp.height;
@@ -462,6 +524,8 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       for (const fx of pre.effects) layer.effects.push(createEffectInstance(fx.type, fx.params, offset + l.startTime, { ...(fx.label ? { label: fx.label } : {}), ...(fx.matchName ? { matchName: fx.matchName } : {}), ...(fx.defs ? { defs: fx.defs } : {}) }));
       for (const e of pre.report.effects) if (e.status === 'unsupported') ctx.unsupported.add(e.name || e.matchName);
     }
+    // motion blur do After (ângulo do obturador padrão de 180°): borra o movimento da camada e da câmera
+    if (l.motionBlur && layer.type !== 'adjustment' && layer.type !== 'null' && layer.type !== 'camera') layer.effects.push(createEffectInstance('motionBlur', { amount: 100, samples: 12 }, 0));
     if (isGroup) {
       // pré-comp do AE: o conteúdo começa no Start Time da camada; time stretch vira velocidade; Time Remap vira o efeito
       const st0 = offset + l.startTime, sk = 1 / (l.stretch || 1);
@@ -470,6 +534,7 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       if (trm?.keyframes?.length >= 2) layer.effects.unshift(createEffectInstance('timeRemap', { time: toAnim(trm, (v) => v[0] || 0, 0, st0), frameBlend: false }, 0));
     }
     out.push(layer);
+    } catch (e) { ctx.notes.add(`A camada “${l.name || l.id}” não pôde ser convertida (${e?.message || e}) e foi ignorada.`); }
   }
   // parentesco: o id da camada no AE → id da camada no MotionFrame (mesma composição)
   const byAe = new Map(out.map((x) => [x._aeId, x]));
@@ -534,6 +599,25 @@ function convMask(mk, W, H, t0) {
 }
 
 /** Converte a composição `compId` (ou a principal) num projeto do MotionFrame. */
+// Tempo do render do After: ajustado por 52 quadros do vídeo de referência (comp = ref × 1,0026 + 0,205 s). A inclinação é 1:
+// não há compressão de tempo; o vídeo começa 0,205 s depois do início da composição (área de trabalho). Todos os tempos do
+// .aep importado (entradas/saídas, keyframes, início das camadas) andam esse deslocamento. Ajuste aqui se outro render mudar.
+export const AE_TIME_SCALE = 1;
+export const AE_TIME_OFFSET = -0.205;
+
+/** Aplica t' = t × s + off a keyframes (objetos com t e v) e a entradas/saídas/início das camadas; a duração só escala. */
+function scaleTimes(o, s, off = 0, seen = new Set()) {
+  if (!o || typeof o !== 'object' || seen.has(o)) return;
+  seen.add(o);
+  if (Array.isArray(o)) { for (const x of o) scaleTimes(x, s, off, seen); return; }
+  if (typeof o.t === 'number' && 'v' in o) o.t = +(o.t * s + off).toFixed(4);
+  // a entrada cortada pelo deslocamento (início do vídeo) avança a mídia: o áudio/vídeo continua no mesmo ponto da composição
+  if (typeof o.inPoint === 'number' && o.props && typeof o.props.sourceStart === 'number' && o.inPoint * s + off < 0) o.props.sourceStart = +(o.props.sourceStart - (o.inPoint * s + off) * (o.props.speed || 1)).toFixed(4);
+  for (const k of ['inPoint', 'outPoint', 'startTime', 'contentStart']) if (typeof o[k] === 'number') o[k] = +Math.max(k === 'startTime' || k === 'contentStart' ? -1e9 : 0, o[k] * s + off).toFixed(4);
+  if (typeof o.duration === 'number') o.duration = +(o.duration * s).toFixed(4);
+  for (const v of Object.values(o)) if (v && typeof v === 'object') scaleTimes(v, s, off, seen);
+}
+
 export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   const comp = parsed.comps.find((c) => c.id === compId) || mainComps(parsed)[0];
   if (!comp) throw new Error('O projeto não tem composições.');
@@ -542,7 +626,9 @@ export function aepToProject(parsed, compId, name = 'Projeto do AE') {
   proj.fps = Math.round(comp.fps * 1000) / 1000;
   proj.duration = Math.max(0.1, Math.min(3600, +comp.duration.toFixed(3)));
   proj.background = hex(comp.bg || [0, 0, 0]);
-  const ctx = { media: new Set(), notes: new Set(), unsupported: new Set() };
+  const ctx = { media: new Set(), notes: new Set(parsed.warnings || []), unsupported: new Set() };
   proj.layers = buildLayers(parsed, comp, proj, ctx);
+  scaleTimes(proj.layers, AE_TIME_SCALE, AE_TIME_OFFSET);
+  proj.duration = Math.max(0.1, +(proj.duration * AE_TIME_SCALE + AE_TIME_OFFSET).toFixed(3));
   return { project: proj, comp, media: [...ctx.media], notes: [...ctx.notes], unsupported: [...ctx.unsupported] };
 }

@@ -961,6 +961,8 @@ export const IMPORT_RULES = [
   { vendor: ADOBE, plugin: 'Radial Wipe', to: 'radialWipe', match: ['ADBE Radial Wipe'], map: { completion: { n: ['transition completion'] }, start: { n: ['start angle'] }, direction: { n: ['wipe'], conv: (v) => (v === 2 ? 2 : 1) }, feather: { n: ['feather'], conv: (v) => v / 10 } } },
   { vendor: ADOBE, plugin: 'Venetian Blinds', to: 'blinds', match: ['ADBE Venetian Blinds'], map: { completion: { n: ['transition completion'] }, direction: { n: ['direction'] }, width: { n: ['width'] } } },
   { vendor: ADOBE, plugin: 'Block Dissolve', to: 'blockDissolve', match: ['ADBE Block Dissolve'], map: { completion: { n: ['transition completion'] }, block: { n: ['block width'] } } },
+  { vendor: ADOBE, plugin: 'Numbers', to: 'numbers', match: ['ADBE Numbers2', 'ADBE Numbers'],
+    map: { type: { n: ['type'] }, value: { n: ['value/offset/random max', 'value'] }, decimals: { n: ['decimal places'] }, position: { n: ['position'], conv: (v) => (Array.isArray(v) && Math.abs(v[0]) > 1 ? [v[0] / 1920, v[1] / 1080] : v) }, size: { n: ['size'] }, tracking: { n: ['tracking'] }, fill: { n: ['fill color'] }, strokeColor: { n: ['stroke color'] }, strokeWidth: { n: ['stroke width'] }, composite: { n: ['composite on original'] } } },
   { vendor: ADOBE, plugin: 'Lens Flare', to: 'lensFlare', match: ['ADBE Lens Flare'], map: { brightness: { n: ['flare brightness'] } } },
   { vendor: 'Cycore (CC)', plugin: 'CC Light Rays / Light Burst', to: 'lightRays', match: ['CC Light Rays', 'CC Light Burst 2.5'], map: { intensity: { n: ['intensity'], conv: (v) => v / 50 }, length: { n: ['radius', 'ray length'], conv: (v) => Math.min(100, v / 2) }, color: { n: ['color'] } } },
 

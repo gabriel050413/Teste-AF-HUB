@@ -55,8 +55,17 @@ function selectorAmounts(an, chars, t) {
       const mx = v(s.max, t, 100) / 100, mn = v(s.min, t, -100) / 100, f = v(s.freq, t, 2), cor = v(s.correlation, t, 50) / 100;
       const tp = v(s.tphase, t, 0) / 360, sp = v(s.sphase, t, 0) / 360;
       vals = chars.map((c) => { const u = c[key] ?? 0; const nz = noise1(t * f + tp + (1 - cor) * u * 7.31 + sp); return mn + (mx - mn) * (nz * 0.5 + 0.5); });
+    } else if (s.type === 'expr' && s.delay != null) {
+      // oscilação amortecida do After por caractere: t = (tempo AE − início) − atraso × índice (1-based);
+      // antes do atraso a quantidade é 100 %; depois, s = amp·cos(2π·freq·t) / e^(decay·t) (em %)
+      const tc = t / (s.k || 1); // t já é o tempo local da camada (desde a entrada), em segundos do app
+      vals = chars.map((c) => {
+        const ti = tc - s.delay * ((c.ci ?? 0) + 1);
+        if (ti < 0) return 1;
+        return (s.amp * Math.cos(s.freq * ti * 2 * Math.PI)) / Math.exp(s.decay * ti) / 100;
+      });
     } else if (s.type === 'expr') {
-      vals = chars.map(() => 0); // seletor de expressão: o código não é executado (segurança) → sem efeito
+      vals = chars.map(() => 0); // seletor de expressão sem parâmetros conhecidos: não é executado (segurança) → sem efeito
     } else {
       const off = v(s.offset, t, 0) / 100;
       let a = v(s.start, t, 0) / 100 + off, b = v(s.end, t, 100) / 100 + off;
@@ -68,7 +77,7 @@ function selectorAmounts(an, chars, t) {
         return shapeAmount(s.shape || 1, a, b, k / n, (k + 1) / n, v(s.smooth, t, 100)) * amt;
       });
     }
-    if (acc == null) acc = s.type === 'wiggly' && (s.mode || 3) === 3 ? vals.map(() => 1) : vals.map(() => 0);
+    if (acc == null) acc = (s.type === 'wiggly' || s.type === 'expr') && (s.mode || 3) === 3 ? vals.map(() => 1) : vals.map(() => 0);
     const mode = s.mode || (s.type === 'wiggly' || s.type === 'expr' ? 3 : 1); // expressão não executada: em Interseção zera o animador (texto em repouso), como o resultado final no AE
     acc = acc.map((x, i) => {
       const y = vals[i];

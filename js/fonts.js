@@ -184,6 +184,11 @@ export async function pickFont(current = '') {
  * → família do Google Fonts ("Dancing Script"). Procura na lista conhecida e, se não achar, pergunta ao Google Fonts
  * direto (css2). Devolve a família carregada ou null.
  */
+const FONT_ALIASES = { sfprodisplay: 'Inter', sfprotext: 'Inter', sfpro: 'Inter', sfprorounded: 'Inter', sfuidisplay: 'Inter', sfuitext: 'Inter', sfui: 'Inter', sanfrancisco: 'Inter', sf: 'Inter', bumbbled: 'Kaushan Script' };
+/** A Inter é ~10 % mais larga que a SF Pro Display (medido no render do After): o texto que usava SF Pro encolhe nessa proporção. */
+export const SF_SCALE = 0.9;
+export const SF_SHIFT_Y = -0.1; // em: sobe o texto (a Inter assenta mais baixo que a SF Pro)
+export const isSFPro = (name) => /^"?(sf ?pro|sf ?ui|san ?francisco|sf)([ _-]?(display|text|rounded))?([ _-]?(regular|bold|semibold|medium|light|black|heavy|thin|ultralight))?"?$/i.test(String(name || '').trim());
 const resolved = new Map();
 export async function resolveGoogleFont(name) {
   const raw = String(name || '').replace(/^"|"$/g, '').trim();
@@ -191,7 +196,9 @@ export async function resolveGoogleFont(name) {
   if (resolved.has(raw)) return resolved.get(raw);
   const key = (n) => n.toLowerCase().replace(/[-_ ]?(regular|bold|italic|medium|light|black|semibold|extrabold|thin|heavy|book|roman|condensed)\b/g, '').replace(/[^a-z0-9]/g, '');
   const k = key(raw);
-  let fam = GOOGLE_FONTS.find((f) => key(f) === k) || null;
+  // fontes que não são do Google: a SF Pro (Apple) vira a Inter (mesma família de desenho); fontes de pacote conhecidas ganham a mais parecida
+  const alias = FONT_ALIASES[k] || null;
+  let fam = alias || GOOGLE_FONTS.find((f) => key(f) === k) || null;
   if (!fam) {
     // "DancingScript-Regular" → "Dancing Script"; "Metal_Mania" → "Metal Mania"
     const guess = raw.replace(/[-_](Regular|Bold|Italic|Medium|Light|Black|SemiBold|ExtraBold|Thin|Heavy|Book|Roman)+$/i, '').replace(/[_-]+/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2').trim();

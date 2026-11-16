@@ -42,12 +42,23 @@ void main() {
 
 const NOISE = frag(`
 uniform float u_amount; uniform float u_seed; uniform float u_color; uniform float u_size2;
+// Noise do After: gaussiano (σ = quantidade) e cortado em 0 e 1. O corte desloca a média: o branco puro com 12,25 % vira ~243 e
+// o preto sobe (medido no render de referência).
+float erf1(float x) { float sg = sign(x); x = abs(x); float t = 1.0 / (1.0 + 0.3275911 * x);
+  return sg * (1.0 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * exp(-x * x)); }
+float clipShift(float v, float sg) { // média de clamp(v + N(0,σ)) − v
+  float zt = (1.0 - v) / sg, zb = v / sg;
+  float top = sg * (0.3989423 * exp(-0.5 * zt * zt) - zt * (1.0 - 0.5 * (1.0 + erf1(zt / 1.4142136))));
+  float bot = sg * (0.3989423 * exp(-0.5 * zb * zb) - zb * (1.0 - 0.5 * (1.0 + erf1(zb / 1.4142136))));
+  return bot - top; }
 void main() {
   vec4 s = texture2D(u_tex, v_uv);
   vec2 px = floor(v_uv * u_size / u_size2);
   float n = hash(px + u_seed) - 0.5;
   vec3 nn = u_color > 0.5 ? vec3(hash(px + u_seed + 1.3), hash(px + u_seed + 2.7), hash(px + u_seed + 4.1)) - 0.5 : vec3(n);
-  gl_FragColor = vec4(clamp(s.rgb + nn * u_amount * s.a, 0.0, 1.0), s.a);
+  float sg = max(u_amount, 1e-4); // σ do After = quantidade
+  vec3 sh = u_amount > 0.0005 ? vec3(clipShift(s.r, sg), clipShift(s.g, sg), clipShift(s.b, sg)) : vec3(0.0);
+  gl_FragColor = vec4(clamp(s.rgb + (nn * u_amount * 0.4 + sh) * s.a, 0.0, 1.0), s.a); // grão a 40 %: o render de referência (H.264) mostra ~4,7 de desvio, não ~12
 }`);
 
 const RGBSPLIT = frag(`
