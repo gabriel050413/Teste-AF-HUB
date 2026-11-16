@@ -501,7 +501,7 @@ function looksExpand(fx, raw) {
 export const IMPORT_RULES = [
   // Continuum (BCC) com os controles reais (doc da Boris FX + índices dos .ffx): vêm antes das regras genéricas
   { vendor: ADOBE, plugin: 'Audio Spectrum', to: 'audioSpectrum', match: ['ADBE AudSpect'],
-    map: { start: { n: ['start point'] }, end: { n: ['end point'] }, bands: { n: ['frequency bands'] }, maxHeight: { n: ['maximum height'] }, thickness: { n: ['thickness'] }, color: { n: ['inside color'] } } },
+    map: { start: { n: ['start point'] }, end: { n: ['end point'] }, bands: { n: ['frequency bands'] }, maxHeight: { n: ['maximum height'] }, thickness: { n: ['thickness'] }, color: { n: ['inside color'] }, startFreq: { n: ['start frequency'] }, endFreq: { n: ['end frequency'] } } },
   // áudio (OmarFX End Muffled Audio / Reverb)
   { vendor: ADOBE, plugin: 'Bass & Treble', to: 'audBassTreble', match: ['ADBE Aud BT'], map: { bass: { i: 1, n: ['bass'] }, treble: { i: 2, n: ['treble'] } } },
   { vendor: ADOBE, plugin: 'Reverb', to: 'audReverb', match: ['ADBE Aud Reverb'],
