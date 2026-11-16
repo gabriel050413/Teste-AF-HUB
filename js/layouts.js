@@ -21,7 +21,11 @@ const lighten = (hex, k) => { const n = parseInt(hex.slice(1, 7), 16); const f =
 const VARS = ['--bg', '--panel', '--panel-2', '--panel-3', '--line', '--text', '--muted', '--accent', '--accent-2', '--hot', '--radius'];
 
 /** Aplica o tema salvo (settings.custom) ao documento. Chamada pelo applyUIMode do app. */
+let lastCustom = null; // evita reaplicar o tema (recalcula o estilo da página inteira) quando nada mudou
 export function applyCustom(st = getSettings()) {
+  const key = JSON.stringify(st.custom || null);
+  if (key === lastCustom) return;
+  lastCustom = key;
   const b = document.body; let t = st.custom;
   if (t && t.layout === 'motion') t = { ...t, layout: 'alight' };
   for (const v of VARS) b.style.removeProperty(v);

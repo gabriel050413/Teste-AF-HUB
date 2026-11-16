@@ -32,7 +32,7 @@ export class Timeline {
         <div class="tl-scroll">
           <div class="tl-inner">
             <div class="tl-head">
-              <div class="tl-corner"><span class="tl-tc">0:00:00:00</span></div>
+              <div class="tl-corner"><span class="tl-tc">0:00:00:00</span><button class="tl-szb" title="Tamanho da timeline (altura, largura da coluna, zoom)" aria-label="Tamanho da timeline"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h16M4 16h16M8 4l-4 4 4 4M16 12l4 4-4 4"/></svg></button><i class="tl-nrz" title="Arraste para mudar a largura da coluna das camadas"></i></div>
               <div class="tl-ruler-wrap"><canvas class="tl-ruler"></canvas></div>
             </div>
             <div class="tl-rows"></div>
@@ -42,6 +42,15 @@ export class Timeline {
         <div class="tl-zoom"><button data-z="fit" aria-label="Ver o vídeo inteiro" title="Ver o vídeo inteiro">⤢</button><button data-z="-" aria-label="Afastar">−</button><button data-z="+" aria-label="Aproximar">＋</button></div>
       </div>`;
     this.scroll = root.querySelector('.tl-scroll');
+    try { this.namesW = +localStorage.getItem('motionframe.tlNamesW') || 0; } catch { this.namesW = 0; }
+    root.querySelector('.tl-szb').addEventListener('click', (e) => { e.stopPropagation(); this.sizePopover(); });
+    const nrz = root.querySelector('.tl-nrz');
+    nrz.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); e.preventDefault(); nrz.setPointerCapture(e.pointerId);
+      const x0 = e.clientX, w0 = this.names;
+      nrz.onpointermove = (ev) => this.setNamesW(w0 + ev.clientX - x0);
+      nrz.onpointerup = () => { nrz.onpointermove = null; };
+    });
     this.firmScroll();
     this.inner = root.querySelector('.tl-inner');
     this.rows = root.querySelector('.tl-rows');
@@ -73,7 +82,45 @@ export class Timeline {
     this.render();
   }
 
-  get names() { const L = document.body.dataset.elayout; if (isSimpleUI() && L === 'capcut') return 124; if (isSimpleUI() && L === 'alight') return 70; if (isSimpleUI() && L === 'blurrr') return 54; return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
+  setNamesW(w) {
+    this.namesW = Math.round(Math.max(40, Math.min(320, w)));
+    try { localStorage.setItem('motionframe.tlNamesW', String(this.namesW)); } catch { /* ok */ }
+    this.render();
+  }
+
+  /** Popover "Tamanho da timeline": altura do painel, largura da coluna das camadas e zoom (largura das faixas). */
+  sizePopover() {
+    document.querySelector('.tl-size-pop')?.remove();
+    const app = document.querySelector('.app'), tw = this.root.closest('.timeline-wrap') || this.root;
+    const pop = document.createElement('div');
+    pop.className = 'tl-size-pop';
+    const h = Math.round(tw.getBoundingClientRect().height);
+    pop.innerHTML = `<b>Tamanho da timeline</b>
+      <label>Altura <input type="range" data-s="h" min="120" max="${Math.round(innerHeight * 0.8)}" value="${h}"></label>
+      <label>Largura da coluna das camadas <input type="range" data-s="n" min="40" max="320" value="${this.names}"></label>
+      <label>Largura das faixas (zoom) <input type="range" data-s="z" min="0" max="100" value="${Math.round((Math.log(this.pps / 6) / Math.log(400 / 6)) * 100)}"></label>
+      <div class="tl-size-btns"><button data-s="reset">Padrão</button><button data-s="ok" class="primary">OK</button></div>`;
+    document.body.appendChild(pop);
+    const r = this.root.getBoundingClientRect();
+    pop.style.left = `${Math.max(8, Math.min(innerWidth - 300, r.left + 8))}px`;
+    pop.style.top = `${Math.max(8, r.top - 190)}px`;
+    pop.addEventListener('input', (e) => {
+      const k = e.target.dataset.s, v = +e.target.value;
+      if (k === 'h') { app.style.setProperty('--tl-h', `${v}px`); try { localStorage.setItem('motionframe.tlH', String(v)); } catch { /* ok */ } }
+      if (k === 'n') this.setNamesW(v);
+      if (k === 'z') { this.pps = 6 * Math.pow(400 / 6, v / 100); this.render(); }
+    });
+    const close = () => { pop.remove(); removeEventListener('pointerdown', out, true); };
+    const out = (e) => { if (!pop.contains(e.target)) close(); };
+    setTimeout(() => addEventListener('pointerdown', out, true), 0);
+    pop.addEventListener('click', (e) => {
+      const k = e.target.closest('button')?.dataset.s;
+      if (k === 'ok') close();
+      if (k === 'reset') { app.style.removeProperty('--tl-h'); this.namesW = 0; try { localStorage.removeItem('motionframe.tlH'); localStorage.removeItem('motionframe.tlNamesW'); } catch { /* ok */ } this.render(); close(); }
+    });
+  }
+
+  get names() { if (this.namesW) return this.namesW; const L = document.body.dataset.elayout; if (isSimpleUI() && L === 'capcut') return 124; if (isSimpleUI() && L === 'alight') return 70; if (isSimpleUI() && L === 'blurrr') return 54; return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
   tToX(t) { return t * this.pps; } // relativo à área de trilhas
   xToT(clientX) {
     const r = this.scroll.getBoundingClientRect();
@@ -409,6 +456,16 @@ export class Timeline {
     for (let i = 0; t0 + i * step <= t1 + 1e-6; i++) {
       const t = t0 + i * step;
       const px = Math.round(t * this.pps - sl) + 0.5;
+      const L = isSimpleUI() ? document.body.dataset.elayout : '';
+      if (L === 'capcut' || L === 'alight' || L === 'blurrr') {
+        // régua de cada app: CapCut "00:01 · 00:02", Alight/Blurrr só tracinhos finos com marcação maior a cada passo
+        const mm = (v) => `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
+        if (L === 'capcut') { x.fillStyle = '#8a8a8a'; x.fillText(step < 1 ? `${Math.round(t * fps)}f` : mm(t), px - 12, 15); x.beginPath(); x.arc(px + step * this.pps / 2, 11, 1.2, 0, 7); x.fill(); continue; }
+        x.strokeStyle = L === 'blurrr' ? '#9a9a9a' : '#6a6f80';
+        x.beginPath(); x.moveTo(px, 8); x.lineTo(px, 24); x.stroke();
+        for (let k = 1; k < 5; k++) { const sx = px + (k * step * this.pps) / 5; x.beginPath(); x.moveTo(sx, 17); x.lineTo(sx, 24); x.stroke(); }
+        continue;
+      }
       x.beginPath(); x.moveTo(px, 14); x.lineTo(px, 24); x.stroke();
       const label = isSimpleUI() ? (step < 1 ? `${(+t.toFixed(2))}s` : `${Math.round(t)}s`) : step < 1 ? `${Math.floor(t + 1e-6)}:${String(Math.round(((t + 1e-6) % 1) * fps) % fps).padStart(2, '0')}f` : `${Math.round(t)}s`;
       x.fillText(label, px + 3, 11);
@@ -485,6 +542,7 @@ export class Timeline {
     const fps = store.project.fps;
     const frame = (t) => Math.round(t * fps) / fps;
     const additive = e.shiftKey || e.ctrlKey || e.metaKey || !!this.hooks.multiSelect?.();
+    if (act === 'clip' && layer.type === 'text' && !additive && this.hooks.textTap?.(layer)) { e.preventDefault(); return; }
 
     if (act === 'expand' || act === 'eye' || act === 'name') {
       // um toque na coluna de nomes (sem arrastar) seleciona/abre — arrastar continua rolando

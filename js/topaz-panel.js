@@ -43,7 +43,7 @@ export class TopazPanel {
     this.root = root;
     this.store = store;
     this.strength = 60; this.mode = 1; this.jitter = false; this.busy = false;
-    store.on((kind) => { if (!['time', 'preview', 'keyspreview'].includes(kind) && !this.dragging) this.render(); });
+    store.on((kind) => { if (!['time', 'preview', 'keyspreview'].includes(kind) && !this.dragging) { if (!this.root?.offsetParent && this.root) { this.dirty = true; return; } this.render(); } });
     this.render();
   }
 
@@ -52,6 +52,7 @@ export class TopazPanel {
 
   render() {
     if (!this.root.isConnected) return;
+    this.dirty = false;
     const l = this.layer;
     if (!l) { this.root.innerHTML = '<div class="empty-note">Selecione um <b>clipe de vídeo</b> para usar o Topaz (melhorar, câmera lenta, estabilizar).</div>'; return; }
     const tz = this.fx('topaz');

@@ -26,6 +26,7 @@ import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from '
 import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
 import { startTour, maybeStartTour } from './tour.js';
 import { FRAG_TITLE } from './inspector.js';
+import { initPcLayouts, applyPcLayout, pcOpenLeft, pcActive, pcLeftPanes } from './pc-layouts.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -471,6 +472,7 @@ overlay.addEventListener('pointerdown', (e) => {
     const [x, y] = toComp(e);
     let layer = store.layer();
     const hit = hitTest(viewProject(), store.time, x, y);
+    if (hit?.type === 'text' && isDoubleTap(hit.id)) { pointers.delete(e.pointerId); gesture = null; editTextInline(hit); return; }
     if (hit && (!layer || hit.id !== layer.id)) { store.select(hit.id); layer = hit; }
     if (!layer || layer.type === 'audio' || layer.type === 'adjustment') { gesture = null; return; }
     gesture = { layer, toComp, start: [x, y], pos: valueAt(layer.transform.position, store.time), moved: false };
@@ -511,6 +513,34 @@ const endPointer = (e) => {
 };
 overlay.addEventListener('pointerup', (e) => { if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
 overlay.addEventListener('pointercancel', endPointer);
+
+// ---- editar texto com toque duplo (na prévia ou no clipe da timeline), como em todos os editores
+let lastTap = { id: null, t: 0 };
+function isDoubleTap(id) {
+  const now = performance.now(), dbl = lastTap.id === id && now - lastTap.t < 400;
+  lastTap = dbl ? { id: null, t: 0 } : { id, t: now };
+  return dbl;
+}
+function editTextInline(layer) {
+  if (!layer || layer.type !== 'text') return;
+  setPlaying(false);
+  if (store.selectedLayerId !== layer.id) store.select(layer.id);
+  document.querySelector('.txt-edit')?.remove();
+  const before = layer.props.text ?? '';
+  const box = document.createElement('div');
+  box.className = 'txt-edit';
+  box.innerHTML = `<div class="txt-edit-in"><textarea rows="2" spellcheck="false" aria-label="Texto"></textarea><button class="tx-x" aria-label="Cancelar">${ico('close')}</button><button class="tx-ok" aria-label="Concluir">${ico('check')}</button></div>`;
+  document.body.appendChild(box);
+  const ta = box.querySelector('textarea');
+  ta.value = before;
+  const done = (ok) => { if (!ok) layer.props.text = before; box.remove(); if (ok && layer.props.text !== before) store.commit(); else store.emit('preview'); };
+  ta.addEventListener('input', () => { layer.props.text = ta.value; store.emit('preview'); });
+  ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') done(false); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) done(true); });
+  box.querySelector('.tx-ok').addEventListener('click', () => done(true));
+  box.querySelector('.tx-x').addEventListener('click', () => done(false));
+  box.addEventListener('pointerdown', (e) => { if (e.target === box) done(true); });
+  setTimeout(() => { ta.focus(); ta.select(); }, 30);
+}
 
 // ---- desenho livre / vetorial (como no Alight Motion): cada traço vira um caminho numa camada de formas
 let drawMode = null; // { layer, vector, stroke, pts }
@@ -600,9 +630,13 @@ function renderDock() {
     if (on) p.style.order = String(dock.open.indexOf(n));
   });
   const bar = document.getElementById('dockBar');
-  bar.innerHTML = DOCK_BAR.filter(([n]) => paneAllowed(n)).map(([n, i, l]) => `<button data-dock="${n}" class="${dock.open.includes(n) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${paneTitle(n) || l}">${ico(i)} ${paneTitle(n) || l}</button>`).join('');
+  const pc = pcActive(), leftP = pcLeftPanes();
+  if (pc && on && (!sheetPane || leftP.includes(sheetPane))) { sheetPane = dock.open.find((x) => !leftP.includes(x)) || 'props'; if (!dock.open.includes(sheetPane)) dock.open.unshift(sheetPane); document.querySelectorAll('.sheet .pane').forEach((p) => { p.classList.toggle('dock-focus', p.dataset.pane === sheetPane); p.classList.toggle('dock-open', dock.open.includes(p.dataset.pane)); }); }
+  bar.classList.toggle('pc-tabs', !!pc);
+  bar.innerHTML = DOCK_BAR.filter(([n]) => paneAllowed(n) && !leftP.includes(n)).map(([n, i, l]) => `<button data-dock="${n}" class="${(pc ? sheetPane === n : dock.open.includes(n)) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${paneTitle(n) || l}">${ico(i)} ${paneTitle(n) || l}</button>`).join('');
   bar.querySelectorAll('[data-dock]').forEach((x) => x.addEventListener('click', () => {
     const n = x.dataset.dock;
+    if (pcActive()) { openSheet(n); return; } // PC dos layouts: abas (uma por vez), como o painel de detalhes do CapCut Desktop
     if (dock.open.includes(n)) closeDockPane(n); else openSheet(n);
   }));
 }
@@ -639,8 +673,10 @@ function openProps(focus) {
   propsFocusNext = focus || null; openSheet('props');
 }
 function openSheet(name, backTo = null) {
+  requestAnimationFrame(() => { for (const x of [propsInspector, effectsInspector, keyTools, topazPanel]) if (x?.dirty && x.root?.offsetParent) x.render(); });
   if (name === 'props' && propsInspector) { const f = propsFocusNext; propsFocusNext = null; if (propsInspector.focus !== f) { propsInspector.focus = f; propsInspector.render(); } }
   if (name === 'composer') setTimeout(() => composer.startPreview(), 0); // o Composer só monta (e anima) quando aberto
+  if (desktop.matches && pcOpenLeft(name)) { if (name === 'trans') transPanel?.render?.(); return; } // PC (CapCut/Blurrr/Nova): biblioteca na coluna da esquerda
   if (desktop.matches) {
     // PC: abre (ou traz de volta) o painel no canto, sem fechar os outros
     if (!dock.open.includes(name)) dock.open.unshift(name);
@@ -702,6 +738,7 @@ const timeline = new Timeline(document.getElementById('timeline'), store, {
   onKeyTap: () => { if (sheetPane !== 'keys') openSheet('keys'); },
   onAdd: () => commands.add?.(),
   cmd: (c) => commands[c]?.(),
+  textTap: (layer) => { if (!isDoubleTap(layer.id)) return false; editTextInline(layer); return true; },
 });
 const effectsInspector = new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
   browse: () => openSheet('browser', 'effects'),
@@ -757,7 +794,7 @@ const fxBrowser = new FxBrowser(document.getElementById('fxBrowser'), (type, ext
   toast(`${extra?.label || getEffectDef(type).label} adicionado em ${layer.name}`, 'ok', 2000);
 });
 keyTools = new KeyTools(document.getElementById('keyTools'), store);
-new TopazPanel(document.getElementById('topazPanel'), store);
+const topazPanel = new TopazPanel(document.getElementById('topazPanel'), store);
 const composer = new ComposerPanel(document.getElementById('composerPanel'), store, { onApplied: () => { if (!desktop.matches) closeSheet(); } });
 window.addEventListener('open-composer', () => openSheet('composer'));
 const transPanel = new TransitionsPanel(document.getElementById('transPanel'), store, {
@@ -969,6 +1006,9 @@ function applyUIMode() {
   applyCustom(st);
   let pname = '', sel = null; try { pname = store.project?.name || ''; sel = store.layer(); } catch { /* store ainda não existe (início) */ }
   applyEditorLayout(st.custom?.layout === 'motion' ? 'alight' : st.custom?.layout || 'studio', pname, sel);
+  const hadPc = pcActive();
+  applyPcLayout(editorLayout());
+  if (hadPc !== pcActive() && typeof renderDock === 'function') try { renderDock(); } catch { /* início */ }
   refreshLayoutChip();
 }
 let toolbarMore = false; // modo simples: "Mais" mostra as ferramentas avançadas
@@ -1020,8 +1060,11 @@ function renderToolbar() {
   const ltop = lay ? layoutToolTop(layer) : null;
   toolbar.classList.toggle('has-ltop', !!ltop);
   toolbar.classList.toggle('sel', !!lay && !!(layer || many > 1));
-  toolbar.innerHTML = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span>${cls === 'new' ? '<em class="tnew">NOVO</em>' : ''}</button>`)).join('');
-  toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+  const tbHtml = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span>${cls === 'new' ? '<em class="tnew">NOVO</em>' : ''}</button>`)).join('');
+  if (toolbar._html !== tbHtml) { // só remonta a barra quando ela muda de verdade
+    toolbar._html = tbHtml; toolbar.innerHTML = tbHtml;
+    toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+  }
   // faixa de ajuda: diz o que está selecionado e o próximo passo
   hintBar.hidden = !getSettings().showTips;
   if (!store.project.layers.length) hintBar.innerHTML = 'Comece tocando em <b>Vídeo / Foto</b> para importar seu clipe.';
@@ -1814,6 +1857,7 @@ const commands = {
 };
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
 initEditorLayouts(commands);
+initPcLayouts(commands);
 
 // ------------------------------------------------------------------ atalhos de teclado (os do After Effects)
 export const SHORTCUTS = [

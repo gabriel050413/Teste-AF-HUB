@@ -16,7 +16,7 @@ export class KeyTools {
     this.multi = false;
     this.anchor = 'first';
     this.base = null;
-    store.on((kind) => { if (!['time', 'preview', 'keyspreview'].includes(kind)) this.render(); });
+    store.on((kind) => { if (!['time', 'preview', 'keyspreview'].includes(kind)) { if (!this.root?.offsetParent && this.root) { this.dirty = true; return; } this.render(); } });
     this.render();
   }
 
@@ -33,6 +33,7 @@ export class KeyTools {
 
   render() {
     if (!this.root.isConnected) return;
+    this.dirty = false;
     const { store } = this;
     const sel = store.selectedKeys;
     const range = selectionRange(sel);
