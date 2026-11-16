@@ -107,3 +107,25 @@ export function layoutToolTop(layer) {
   const T = TOOLS[current];
   return layer && T?.layerTop ? T.layerTop : null;
 }
+
+// ---- painéis que existem em cada app e o nome que eles têm lá ----
+const PANES = {
+  capcut: { props: 'Editar', effects: 'Efeitos aplicados', browser: 'Efeitos', presets: 'Filtros', trans: 'Transições', keys: 'Keyframes', add: 'Adicionar' },
+  blurrr: { props: 'Ajustar', effects: 'Efeitos aplicados', browser: 'Efeitos', presets: 'Presets', trans: 'Transições', keys: 'Keyframes e curvas', composer: 'Animação', add: 'Adicionar' },
+  nova: { props: 'Movimentação e transformação', effects: 'Efeitos', browser: 'Biblioteca de efeitos', presets: 'Presets', trans: 'Transições', keys: 'Animar', composer: 'Animar', topaz: 'Melhorar qualidade', add: 'Adicionar' },
+  alight: { props: 'Mover e transformar', effects: 'Efeitos', browser: 'Adicionar efeito', presets: 'Elementos', keys: 'Keyframes', add: 'Adicionar camada' },
+  ae: { props: 'Linha do tempo · Transformar', effects: 'Controles de efeitos', browser: 'Efeitos e predefinições', presets: 'Predefinições de animação', trans: 'Transições', keys: 'Editor de gráfico', composer: 'Composer', topaz: 'Topaz Video AI', tracker: 'Rastreador', add: 'Nova camada' },
+};
+/** Nome do painel no layout atual (ou null = nome padrão do MotionFrame). */
+export const paneTitle = (n) => PANES[current]?.[n] || null;
+/** O painel existe no app do layout atual? (painéis que o app não tem somem da barra de painéis) */
+export const paneAllowed = (n) => !PANES[current] || n in PANES[current];
+
+// ---- cores dos clipes na timeline (como cada app pinta vídeo, texto, áudio, efeito…) ----
+const CLIP = {
+  capcut: { text: '#c9973f', audio: '#1fae78', adjustment: '#7b61ff', rect: '#e0638f', ellipse: '#e0638f', shape: '#e0638f', solid: '#3a3a3a', group: '#5a4bd1', video: '#2b2b2b', image: '#2b2b2b' },
+  nova: { text: '#6d4bdc', audio: '#1fb980', adjustment: '#8d6bff', rect: '#6d4bdc', ellipse: '#6d4bdc', shape: '#6d4bdc', solid: '#3b4660', group: '#4b5d86', video: '#1d2536', image: '#1d2536' },
+  blurrr: { text: '#ffcf4a', audio: '#8fd36b', adjustment: '#cdee4f', rect: '#ff9b6b', ellipse: '#ff9b6b', shape: '#ff9b6b', solid: '#dcdcdc', group: '#b9b9ff', video: '#e6e6e6', image: '#e6e6e6' },
+  alight: { text: '#e2577f', audio: '#3fb37a', adjustment: '#c9a227', rect: '#e08a2f', ellipse: '#e08a2f', shape: '#e08a2f', solid: '#6d6f78', group: '#7d63d2', video: '#4a7fd6', image: '#4a7fd6' },
+};
+export const layoutClipColor = (type) => CLIP[current]?.[type] || null;

@@ -14,6 +14,24 @@ const ICON = {
 };
 const MINE = 'Meus plugins';
 
+// ---- estilo do navegador de efeitos de cada layout (o MotionFrame/After Effects mantêm plugins e efeitos próprios) ----
+// Nomes das pastas do painel "Efeitos e predefinições" do After Effects para as categorias do app
+const AE_FOLDER = { 'Luz e brilho': 'Estilizar › Brilho', Movimento: 'Distorção › Movimento', Tempo: 'Tempo', Desfoque: 'Desfoque e nitidez', Estilizar: 'Estilizar', Distorção: 'Distorção', Cor: 'Correção de cores', '3D': 'Perspectiva', Transições: 'Transição', 'Fundos animados': 'Gerar', 'Looks · Subject': 'Red Giant Looks', 'Looks · Matte': 'Red Giant Looks', 'Looks · Lens': 'Red Giant Looks', 'Looks · Camera': 'Red Giant Looks', 'Looks · Post': 'Red Giant Looks' };
+// Categorias do Alight Motion (lista "Adicionar efeito")
+const AM_CAT = { 'Luz e brilho': 'Cor e luz', Movimento: 'Movimento', Tempo: 'Tempo', Desfoque: 'Desfoque', Estilizar: 'Estilo', Distorção: 'Distorção e deformação', Cor: 'Ajustes de cor', '3D': 'Perspectiva', Transições: 'Transições', 'Fundos animados': 'Gradiente e preenchimento' };
+// Abas no topo dos efeitos do CapCut / Blurrr / Nova
+const MOBILE_TABS = [['Em alta', null], ['Básico', ['Cor', 'Desfoque']], ['Festa', ['Luz e brilho', 'Fundos animados']], ['Retrô', ['Estilizar']], ['Lente', ['3D', 'Distorção']], ['Movimento', ['Movimento', 'Tempo']], ['Transição', ['Transições']], ['Looks', ['Looks · Subject', 'Looks · Matte', 'Looks · Lens', 'Looks · Camera', 'Looks · Post']]];
+const HUE = { 'Luz e brilho': 45, Movimento: 200, Tempo: 260, Desfoque: 215, Estilizar: 320, Distorção: 290, Cor: 25, '3D': 180, Transições: 150, 'Fundos animados': 340 };
+const hashN = (str) => { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
+// miniatura: cor da categoria variando por efeito + forma (raios, ondas, grade…) — cada efeito fica com cara própria
+const thumbStyle = (e) => {
+  const n = hashN(e.type), h = ((HUE[e.category] ?? n % 360) + (n % 50) - 25 + 360) % 360, a = 120 + (n % 120);
+  const pat = [`radial-gradient(circle at ${20 + (n % 60)}% ${25 + (n >> 3) % 50}%,hsl(${h} 90% 70% / .9),transparent 55%)`, `repeating-linear-gradient(${n % 180}deg,hsl(${h} 80% 60% / .25) 0 6px,transparent 6px 14px)`, `conic-gradient(from ${n % 360}deg,hsl(${h} 80% 55% / .6),transparent 40%,hsl(${(h + 60) % 360} 80% 55% / .5) 70%,transparent)`][n % 3];
+  return `background:${pat},linear-gradient(${a}deg,hsl(${h} 65% 38%),hsl(${(h + 45) % 360} 70% 16%))`;
+};
+const FX_ICON = [[/glow|bril|light|luz|flare|shine|starg/i, 'sun'], [/shake|tremor|wiggle|twitch/i, 'wave'], [/blur|desfoq/i, 'blur'], [/glitch|rgb|chrom|vhs|datamosh/i, 'distort'], [/zoom|scale|escala/i, 'max'], [/tempo|time|echo|eco|twixtor|speed|veloc/i, 'speed'], [/color|cor|cc|tint|lut|look|grade/i, 'color'], [/3d|cube|camera/i, 'cube'], [/wipe|transi/i, 'transition'], [/noise|grain|ruído|film/i, 'sparkle']];
+const fxIcon = (e) => FX_ICON.find(([re]) => re.test(`${e.type} ${e.label}`))?.[1] || ICON[e.category] || 'effects';
+
 /** Escolhe arquivos .aex ou uma pasta inteira (o navegador lista tudo o que há dentro). */
 function pickAex(folder) {
   return new Promise((resolve) => {
@@ -79,7 +97,51 @@ export class FxBrowser {
     }).join('');
   }
 
+  /** Navegador no estilo do layout escolhido (CapCut, Blurrr, Nova, Alight Motion ou After Effects). */
+  renderLayout(lay) {
+    const q = this.q.trim().toLowerCase();
+    const all = EFFECTS.filter((e) => !e.audio && fxMatch(e, this.q));
+    const esc = escapeHtml;
+    let html;
+    if (lay === 'ae') {
+      const groups = new Map();
+      for (const e of all) { const g = AE_FOLDER[e.category] || e.category || 'Outros'; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(e); }
+      this.aeOpen = this.aeOpen || new Set();
+      html = `<div class="lfx lfx-ae"><div class="lfx-ae-head">Efeitos e predefinições</div>
+        <input type="search" class="fx-search" placeholder="Pesquisar" value="${esc(this.q)}">
+        <div class="lfx-tree"><div class="lfx-folder"><span>▸</span> * Predefinições de animação</div>
+        ${[...groups.keys()].sort((a, b) => a.localeCompare(b, 'pt')).map((g) => { const open = q || this.aeOpen.has(g); return `<div class="lfx-folder ${open ? 'open' : ''}" data-aeg="${esc(g)}"><span>${open ? '▾' : '▸'}</span> ${esc(g)}</div>${open ? groups.get(g).sort((a, b) => a.label.localeCompare(b.label, 'pt')).map((e) => `<button class="lfx-item" data-type="${e.type}"><i>fx</i>${esc(e.label)}</button>`).join('') : ''}`; }).join('')}
+        <button class="lfx-folder" data-cat="${MINE}"><span>▸</span> Plug-ins de terceiros (.aex)</button></div></div>`;
+    } else if (lay === 'alight') {
+      const groups = new Map();
+      for (const e of all) { const g = AM_CAT[e.category] || 'Mais efeitos'; if (!groups.has(g)) groups.set(g, []); groups.get(g).push(e); }
+      html = `<div class="lfx lfx-am"><div class="lfx-am-head"><b>Adicionar efeito</b></div>
+        <input type="search" class="fx-search" placeholder="Pesquisar efeitos" value="${esc(this.q)}">
+        ${[...groups.entries()].map(([g, list]) => `<div class="lfx-am-sec">${esc(g)}</div>${list.map((e) => `<button class="lfx-am-row" data-type="${e.type}"><span class="lfx-am-ic" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span><b>${esc(e.label)}</b>${e.plugin ? `<small>${esc(e.plugin.split(' / ')[0])}</small>` : ''}</span></button>`).join('')}`).join('')}</div>`;
+    } else {
+      const tab = this.mtab || 'Em alta';
+      const cats = MOBILE_TABS.find(([t]) => t === tab)?.[1];
+      const list = q ? all : cats ? all.filter((e) => cats.includes(e.category)) : all.filter((e) => /glow|shake|blur|zoom|glitch|flash|rgb|lens|vhs|chrom|light|strobe|ccc|twixtor|velocity/i.test(`${e.type} ${e.label}`)).slice(0, 48);
+      const title = lay === 'capcut' ? 'Efeitos de vídeo' : 'Efeitos';
+      html = `<div class="lfx lfx-m lfx-${lay}">
+        ${lay === 'capcut' ? `<div class="lfx-cc-top"><button class="on">Efeitos de vídeo</button><button data-mtab="Movimento">Efeitos de corpo</button></div>` : `<div class="lfx-m-title">${title}</div>`}
+        <input type="search" class="fx-search" placeholder="Pesquisar efeitos" value="${esc(this.q)}">
+        <div class="lfx-tabs">${MOBILE_TABS.map(([t]) => `<button class="${t === tab && !q ? 'on' : ''}" data-mtab="${t}">${t}</button>`).join('')}</div>
+        <div class="lfx-grid">${list.map((e) => `<button class="lfx-tile" data-type="${e.type}"><span class="lfx-th" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span class="lfx-nm">${esc(e.label.replace(/\s*\(.*?\)/g, ''))}</span></button>`).join('') || '<div class="empty-note">Nenhum efeito.</div>'}</div></div>`;
+    }
+    this.root.innerHTML = html;
+    const s = this.root.querySelector('.fx-search');
+    s?.addEventListener('input', () => { this.q = s.value; this.render(); const n = this.root.querySelector('.fx-search'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); });
+    this.root.querySelectorAll('[data-type]').forEach((b) => b.addEventListener('click', () => { this.root.querySelectorAll('.lfx-tile.sel').forEach((x) => x.classList.remove('sel')); b.classList.add('sel'); this.onPick(b.dataset.type); }));
+    this.root.querySelectorAll('[data-mtab]').forEach((b) => b.addEventListener('click', () => { this.mtab = b.dataset.mtab; this.q = ''; this.render(); }));
+    this.root.querySelectorAll('[data-aeg]').forEach((b) => b.addEventListener('click', () => { const g = b.dataset.aeg; if (this.aeOpen.has(g)) this.aeOpen.delete(g); else this.aeOpen.add(g); this.render(); }));
+    this.root.querySelector(`[data-cat="${MINE}"]`)?.addEventListener('click', () => { this.cat = MINE; this.forceStd = true; this.render(); });
+  }
+
   render() {
+    const lay = document.body.dataset.elayout;
+    if (lay && lay !== 'studio' && this.cat !== MINE && !this.forceStd) return this.renderLayout(lay);
+    this.forceStd = false;
     const mine = allPlugins();
     const q = this.q.trim().toLowerCase();
     const plugHits = (p) => !q || `${p.name} ${p.matchName} ${p.category} ${p.file}`.toLowerCase().includes(q);

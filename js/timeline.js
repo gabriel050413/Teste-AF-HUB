@@ -12,6 +12,7 @@ const TRANSFORM_LABELS = { position: 'Posição', scale: 'Escala', rotation: 'Ro
 const ICONS = { camera: '🎥', null: '✛', text: 'T', rect: '▭', ellipse: '◯', solid: '■', image: '▣', video: '▶', audio: '♪', adjustment: '◐' };
 // cores de rótulo no estilo AE
 // interface simples: cores por tipo, fáceis de reconhecer (vídeo azul, texto rosa, áudio verde, efeito amarelo…)
+import { layoutClipColor } from './editor-layouts.js';
 const TYPE_COLOR = { video: '#2f7fe0', image: '#5b6ee8', text: '#d14fb4', rect: '#e08a2f', ellipse: '#e08a2f', shape: '#e08a2f', solid: '#7a7f8c', audio: '#2fae6b', adjustment: '#d6b22e', group: '#8a63d2', camera: '#8a8f99', null: '#8a8f99' };
 const TYPE_ICON = { video: '▶', image: '▣', text: 'T', rect: '◆', ellipse: '●', shape: '✦', solid: '■', audio: '♪', adjustment: '✺', group: '⊞', camera: '🎥', null: '✛' };
 const TYPE_NAME = { video: 'Vídeo', image: 'Foto', text: 'Texto', rect: 'Forma', ellipse: 'Forma', shape: 'Forma', solid: 'Cor', audio: 'Áudio', adjustment: 'Ajuste', group: 'Grupo', camera: 'Câmera', null: 'Controle' };
@@ -259,7 +260,7 @@ export class Timeline {
     const width = Math.max(4, (layer.outPoint - layer.inPoint) * this.pps);
     const thumb = this.thumbFor(layer);
     const simple = isSimpleUI();
-    const color = (simple ? TYPE_COLOR[layer.type] : LABELS[layer.type]) || '#888';
+    const color = layoutClipColor(layer.type) || (simple ? TYPE_COLOR[layer.type] : LABELS[layer.type]) || '#888';
     const dur = layer.outPoint - layer.inPoint;
     const label = layer.type === 'text' && layer.props.text && simple ? String(layer.props.text).replace(/\s+/g, ' ').slice(0, 40) : layer.name;
     const times = new Map();
@@ -359,7 +360,12 @@ export class Timeline {
     const x = this.names + this.tToX(time);
     this.cti.style.transform = `translateX(${x}px)`;
     this.tc.textContent = isSimpleUI() ? formatSimple(time) : `0:${formatTime(time, fps)}`;
-    if (follow && this.store.playing) {
+    // CapCut / Nova / Blurrr: a agulha fica parada no meio e a timeline anda por baixo dela
+    const centered = /^(capcut|nova|blurrr)$/.test(document.body.dataset.elayout || '');
+    if (centered && (this.store.playing || follow)) {
+      const vw = this.scroll.clientWidth - this.names;
+      this.scroll.scrollLeft = Math.max(0, this.tToX(time) - vw / 2);
+    } else if (follow && this.store.playing) {
       const left = this.scroll.scrollLeft + this.names, right = this.scroll.scrollLeft + this.scroll.clientWidth - 10;
       if (x > right || x < left) this.scroll.scrollLeft = Math.max(0, x - this.names - 20);
     }
