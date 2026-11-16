@@ -473,8 +473,13 @@ function buildLayers(parsed, comp, proj, ctx, offset = 0, depth = 0) {
       layer.props.width = comp.width; layer.props.height = comp.height;
     }
     else if (src?.type === 'comp') {
-      if (depth > 6) continue;
-      const kidsLayers = buildLayers(parsed, src, proj, ctx, offset + l.startTime, depth + 1);
+      // pré-comps aninhadas: edits costumam ter 8–12 níveis (o limite antigo de 6 apagava as asas do Wings Outro);
+      // a pilha evita laço infinito se uma comp aparecer dentro dela mesma
+      ctx.stack = ctx.stack || [];
+      if (depth > 24 || ctx.stack.includes(src.id)) continue;
+      ctx.stack.push(src.id);
+      let kidsLayers;
+      try { kidsLayers = buildLayers(parsed, src, proj, ctx, offset + l.startTime, depth + 1); } finally { ctx.stack.pop(); }
       layer = LAYER_FACTORIES.group(proj, kidsLayers);
       layer.name = l.name || src.name;
       // a pré-comp tem o PRÓPRIO tamanho (ex.: 1920×1080 dentro de uma comp 1080×1080): antes virava um grupo do

@@ -113,7 +113,7 @@ export default [
   {
     type: 'exposure', label: 'Exposição', category: 'Cor',
     params: [num('exposure', 'Exposição', 0, -5, 5, 0.05), num('offset', 'Offset', 0, -0.5, 0.5, 0.005), num('gamma', 'Gama', 1, 0.1, 5, 0.01)],
-    render: fx(EXPOSURE, (p) => ({ u_exp: p.exposure, u_off: p.offset, u_gamma: p.gamma })),
+    render: fx(EXPOSURE, (p) => ({ u_exp: p.exposure * (globalThis.__MF_TUNE?.expK ?? 0.8), /* Exposure do AE (8 bits, luz linear): ~0,8 do valor na nossa conversão — medido no print da Rafa (14,9→13,3) */ u_off: p.offset, u_gamma: p.gamma })),
   },
   {
     type: 'brightnessContrast', label: 'Brilho e contraste', category: 'Cor',
