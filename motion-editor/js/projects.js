@@ -7,8 +7,8 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v162';
-export const APP_LABEL = 'v1.6.2';
+export const APP_VERSION = 'v170';
+export const APP_LABEL = 'v1.7.0';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -179,7 +179,8 @@ export class HomeScreen {
             </div>
             <button class="icon proj-more" data-h="more" data-id="${p.id}" aria-label="Opções">⋯</button>
           </div>`).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋ Novo projeto</b> para começar.</div>'}
-      </div>`;
+      </div>
+      <nav class="c-nav home-nav">${[['', '⌂', 'Início'], ['feed', '▶', 'Feed'], ['market', '★', 'Presets'], ['chat', '✉', 'Chat'], ['me', '☺', 'Perfil']].map(([t, ic, lb]) => `<button class="${t ? '' : 'on'}" ${t ? `data-h="cloud" data-id="${t}"` : ''}><span>${ic}</span>${lb}</button>`).join('')}</nav>`;
     this.el.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => this.action(b.dataset.h, b.dataset.id)));
     this.checkRecoverable();
   }

@@ -78,6 +78,9 @@ export async function currentAccess() {
 
 export function logout() { ls.del(K_TOK); idb('put', K_TOK, ''); }
 
+/** Token de acesso guardado neste aparelho (a conta na nuvem é criada com ele; o servidor confere a assinatura de novo). */
+export async function currentToken() { return ls.get(K_TOK) || (await idb('get', K_TOK)) || ''; }
+
 /** Tela "Acessar app": mostra o código do aparelho e pede o token. Resolve quando o acesso é liberado. */
 export function accessScreen(code, reason) {
   return new Promise((resolve) => {

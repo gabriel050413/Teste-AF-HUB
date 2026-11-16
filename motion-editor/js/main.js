@@ -18,6 +18,9 @@ import { setModelListener } from './model3d.js';
 import { Timeline } from './timeline.js';
 import { Inspector } from './inspector.js';
 import { Library } from './library.js';
+import { CloudUI } from './cloud-ui.js';
+import { serializePreset, parsePresetJSON } from './presets.js';
+import { cloud } from './cloud.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -2522,7 +2525,16 @@ async function goHome() {
   home.show();
 }
 
+const cloudUI = new CloudUI({
+  userPresets: () => library.user || [],
+  serializePreset,
+  installPreset: (payload) => { const list = parsePresetJSON(payload); for (const p of list) { p.category = 'Meus presets'; library.addToLibrary(p); } library.render(); return list.length; },
+  currentProject: () => (store.project?.layers?.length ? store.project : null),
+  openProjectData: async (d) => { if (!Array.isArray(d.layers) || !d.width) throw new Error('Projeto inválido.'); d.id = uid('prj'); saveProjectData(d, null); await openProjectById(d.id); toast('Projeto aberto. Reimporte as mídias que faltarem.', 'ok', 4000); },
+  thumb: () => { try { const c = document.createElement('canvas'); const k = 360 / Math.max(view.width, view.height); c.width = Math.round(view.width * k); c.height = Math.round(view.height * k); c.getContext('2d').drawImage(view, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.7); } catch { return undefined; } },
+});
 const home = new HomeScreen({
+  cloud: (tab) => cloudUI.open(tab || 'feed'),
   open: (id) => openProjectById(id),
   afterDelete: () => cleanUnusedMedia(),
   create: () => quickProjectFlow(),
@@ -2582,4 +2594,4 @@ const home = new HomeScreen({
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.
-window.motionframe = { store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };
+window.motionframe = { cloud, cloudUI, store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };

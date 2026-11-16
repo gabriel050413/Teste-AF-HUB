@@ -27,6 +27,7 @@ type payload struct {
 	N string `json:"n"`           // nome da pessoa
 	E int64  `json:"e,omitempty"` // validade (unix), 0 = sem validade
 	I int64  `json:"i"`           // emitido em (unix)
+	P *int64 `json:"p,omitempty"` // pontos iniciais da conta (ausente = o padrão do servidor)
 }
 
 func normCode(s string) string {
@@ -35,8 +36,8 @@ func normCode(s string) string {
 	return strings.TrimPrefix(s, "MF")
 }
 
-func makeToken(key *ecdsa.PrivateKey, code, name string, days int) (string, error) {
-	p := payload{D: code, N: name, I: time.Now().Unix()}
+func makeToken(key *ecdsa.PrivateKey, code, name string, days int, points *int64) (string, error) {
+	p := payload{D: code, N: name, I: time.Now().Unix(), P: points}
 	if days > 0 {
 		p.E = time.Now().Add(time.Duration(days) * 24 * time.Hour).Unix()
 	}
@@ -83,7 +84,15 @@ func main() {
 		}
 		name := ask("Nome da pessoa: ")
 		days, _ := strconv.Atoi(ask("Validade em dias (0 = sem validade): "))
-		tok, err := makeToken(key, code, name, days)
+		var points *int64
+		if ps := ask("Pontos iniciais da conta (Enter = padrão do servidor): "); ps != "" {
+			if v, err := strconv.ParseInt(ps, 10, 64); err == nil && v >= 0 && v <= 1000000 {
+				points = &v
+			} else {
+				fmt.Println("Pontos inválidos (use um número de 0 a 1000000). Usando o padrão do servidor.")
+			}
+		}
+		tok, err := makeToken(key, code, name, days, points)
 		if err != nil {
 			fmt.Println("Erro:", err)
 			continue
@@ -91,7 +100,11 @@ func main() {
 		fmt.Println("\nTOKEN (mande para a pessoa):")
 		fmt.Println(tok)
 		if f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600); err == nil {
-			fmt.Fprintf(f, "%s\t%s\tMF-%s\tvalidade %d dias\t%s\n", time.Now().Format("2006-01-02 15:04"), name, code, days, tok)
+			pts := "padrão"
+			if points != nil {
+				pts = strconv.FormatInt(*points, 10)
+			}
+			fmt.Fprintf(f, "%s\t%s\tMF-%s\tvalidade %d dias\t%s pontos\t%s\n", time.Now().Format("2006-01-02 15:04"), name, code, days, pts, tok)
 			f.Close()
 			fmt.Println("(salvo também em tokens-gerados.txt)")
 		}
