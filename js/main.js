@@ -314,7 +314,8 @@ function loop(now) {
     // quadros em vez de ficar lenta e dessincronizar do som
     if (Math.abs(store.time - playClock.last) > 0.02) { playClock.t0 = store.time; playClock.wall0 = now; playAudio(store.project, store.time); } // alguém mudou o tempo (scrub)
     let t = playClock.t0 + (now - playClock.wall0) / 1000;
-    if (t >= store.project.duration) { t = 0; playClock.t0 = 0; playClock.wall0 = now; playAudio(store.project, 0); }
+    const wa = store.project.workArea, wA = wa && wa.b > wa.a ? wa.a : 0, wB = wa && wa.b > wa.a ? Math.min(wa.b, store.project.duration) : store.project.duration;
+    if (t >= wB || (wa && t < wA - 0.05 && playClock.t0 >= wA)) { t = wA; playClock.t0 = wA; playClock.wall0 = now; playAudio(store.project, wA); } // repete a área de trabalho
     store.time = t; playClock.last = t;
     store.emit('time');
   }
@@ -1687,7 +1688,7 @@ export const SHORTCUTS = [
   ['Geral', [['Espaço / 0 (numérico)', 'Tocar / pausar'], ['Ctrl+Z / Ctrl+Shift+Z', 'Desfazer / refazer'], ['Ctrl+S', 'Salvar projeto'], ['Ctrl+N', 'Nova composição'], ['Ctrl+K', 'Configurações da composição'], ['Ctrl+I', 'Importar vídeo/foto'], ['Ctrl+M', 'Exportar (fila de render)'], ['~ (til)', 'Ampliar o preview'], ['?', 'Esta lista de atalhos']]],
   ['Camadas', [['Ctrl+Y', 'Novo sólido'], ['Ctrl+Alt+Y', 'Nova camada de ajuste'], ['Ctrl+Alt+Shift+Y', 'Novo Null'], ['Ctrl+Alt+Shift+T', 'Novo texto'], ['Ctrl+Alt+Shift+C', 'Nova câmera 3D'], ['Ctrl+D', 'Duplicar'], ['Ctrl+Shift+D', 'Dividir camada no playhead'], ['Ctrl+Shift+C', 'Pré-compor (1 ou mais camadas)'], ['Ctrl+C / Ctrl+X / Ctrl+V', 'Copiar / recortar / colar camadas'], ['Delete', 'Excluir'], ['Ctrl+A', 'Selecionar todas as camadas'], ['Ctrl+Shift+A / F2', 'Tirar a seleção'], ['Ctrl+↑ / Ctrl+↓', 'Selecionar camada de cima / de baixo'], ['Ctrl+] / Ctrl+[', 'Subir / descer a camada'], ['Ctrl+Shift+] / Ctrl+Shift+[', 'Trazer para o topo / mandar para o fundo'], ['Ctrl+L', 'Travar / destravar'], ['Ctrl+Alt+F', 'Ajustar à composição'], ['Ctrl+Alt+R', 'Inverter no tempo (reverse)'], ['Ctrl+Alt+T', 'Ativar Time Remap'], ['Ctrl+Shift+E', 'Remover todos os efeitos']]],
   ['Tempo', [['← / →  ou  Page Up / Page Down', 'Voltar / avançar 1 quadro'], ['Shift + ← / →', '10 quadros'], ['Home / End', 'Início / fim da composição'], ['I / O', 'Ir para a entrada / saída da camada'], ['[ / ]', 'Mover a camada para começar / terminar no playhead'], ['Alt+[ / Alt+]', 'Cortar entrada / saída no playhead'], ['J / K', 'Keyframe anterior / próximo'], ['M ou *', 'Marcador'], ['= / -', 'Zoom da timeline']]],
-  ['Extras (After Effects)', [['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
+  ['Extras (After Effects)', [['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['B / N', 'Início / fim da área de trabalho (a reprodução repete nela)'], ['Ctrl+Alt+B', 'Remover a área de trabalho'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
   ['Propriedades e keyframes', [['P / S / R / T / A', 'Mostrar Posição / Escala / Rotação / Opacidade / Ancoragem'], ['U', 'Keyframes da camada'], ['E', 'Efeitos da camada'], ['Alt+Shift+P / S / R / T / A', 'Keyframe em Posição / Escala / Rotação / Opacidade / Ancoragem'], ['Shift+K', 'Keyframe em todas as transformações'], ['F9', 'Easy Ease nos keyframes selecionados'], ['Shift+F9 / Ctrl+Shift+F9', 'Easy Ease In / Out'], ['Ctrl+Alt+A', 'Selecionar todos os keyframes'], ['Esc', 'Tirar seleção de keyframes']]],
 ];
 export function showShortcuts() {
@@ -1875,6 +1876,7 @@ document.addEventListener('keydown', async (e) => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
   const mod = e.ctrlKey || e.metaKey, alt = e.altKey, sh = e.shiftKey, code = e.code;
   const go = (fn) => { e.preventDefault(); fn(); };
+  if (mod && alt && code === 'KeyB') return go(() => { delete store.project.workArea; store.commit(); timeline.drawRuler(); toast('Área de trabalho removida.', 'ok', 1200); });
   if (alt && sh && code === 'KeyJ') return go(async () => { // ir para o tempo
     const v = await modal('Ir para o tempo', '<input type="text" data-f="t" placeholder="segundos ou 0:05.12" style="width:100%" autofocus>', [{ label: 'Cancelar', value: null }, { label: 'Ir', primary: true, value: (w) => w.querySelector('[data-f="t"]').value }]);
     if (v == null) return;
@@ -1898,6 +1900,11 @@ document.addEventListener('keydown', async (e) => {
       if (v) { l.name = v; store.commit('structure'); }
     });
   }
+  if (code === 'KeyB' || code === 'KeyN') return go(() => { // início/fim da área de trabalho (como no AE)
+    const p = store.project; const wa = p.workArea || { a: 0, b: p.duration };
+    if (code === 'KeyB') wa.a = Math.min(store.time, wa.b - frame()); else wa.b = Math.max(store.time, wa.a + frame());
+    p.workArea = wa; store.commit(); timeline.drawRuler(); toast(`Área de trabalho: ${wa.a.toFixed(2)}s → ${wa.b.toFixed(2)}s`, 'ok', 1200);
+  });
   if (code === 'KeyL' && !sh) return go(() => commands.sound());
   if (sh && PROP_KEYS[e.key.toLowerCase()]) return go(() => revealProp(PROP_KEYS[e.key.toLowerCase()])); // Shift+P/S/R/T/A: soma à lista
   if (code === 'KeyY' && !sh) return go(() => { const l = store.layer(); if (l?.transform?.anchor) revealProp('anchor'); });

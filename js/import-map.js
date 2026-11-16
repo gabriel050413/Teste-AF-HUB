@@ -563,7 +563,22 @@ export const IMPORT_RULES = [
   { vendor: 'RE:Vision', plugin: 'Twixtor', to: 'twixtor', test: /twixtor/i,
     map: { speed: { i: 5, n: ['speed %', 'speed'] }, frameBlend: { i: 1, n: ['frame interp', 'frame interpolation'], conv: (v) => v >= 2, inv: (b) => (b ? 3 : 1) } } }, // Frame Interp: 1 Nearest, 2 Blend, 3 Motion Weighted Blend
   { vendor: 'Red Giant', plugin: 'Magic Bullet Looks', to: 'looks', test: /^MB Look|magic ?bullet ?looks/i, expand: looksExpand },
-  { vendor: 'Red Giant', plugin: 'Magic Bullet Colorista / Mojo', to: 'colorGrade', test: /colorista|\bmojo\b/i },
+  // Mojo II avulso (manual da Maxon): Mojo, Mojo Tint, Punch It, Bleach It, Fade It, Skin Squeeze, Cool/Warm, Exposure
+  { vendor: 'Red Giant', plugin: 'Magic Bullet Mojo II', to: 'lkMojo', test: /\bmojo\b/i,
+    expand: (fx, raw) => {
+      const v = (n, d) => { const x = raw(n); return Number.isFinite(x) ? x : d; };
+      return [{ type: 'lkMojo', label: fx.name || 'Mojo II', params: { str: v('strength', 100), mojo: v('mojo', 50), cool: v('mojo', 50), skin: v('skin squeeze', 50), punch: v('punch it', 0), bleach: v('bleach it', 0), fade: v('fade it', 0), mtint: v('mojo tint', 0), exposure: v('exposure', 0), temp: v('cool/warm', 0) } }];
+    } },
+  // Colorista (IV/V) avulso: sliders principais (Exposure, Contrast −10..10, Temperature, Tint, Saturation) → Color Grade
+  { vendor: 'Red Giant', plugin: 'Magic Bullet Colorista', to: 'colorGrade', test: /colorista/i,
+    expand: (fx, raw) => {
+      const v = (n, d = 0) => { const x = raw(n); return Number.isFinite(x) ? x : d; };
+      const sat = v('saturation', 100);
+      return [{ type: 'colorGrade', label: fx.name || 'Colorista', params: {
+        exposure: Math.max(-4, Math.min(4, v('exposure') * (Math.abs(v('exposure')) > 4 ? 0.4 : 1))), contrast: Math.max(-100, Math.min(100, v('contrast') * 10)),
+        temperature: Math.max(-100, Math.min(100, v('temperature'))), tint: Math.max(-100, Math.min(100, v('tint'))),
+        saturation: Math.max(-100, Math.min(100, sat > 2 ? sat - 100 : (sat - 1) * 100)), highlights: v('highlights'), shadows: v('shadows') } }];
+    } },
   // Topaz Video AI (plugin do AE, categoria "Topaz Video AI"): efeitos "Enhance" e "Frame Interpolation".
   // Layout lido do próprio plugin: AI Model (Select Model|Proteus|Iris|Nyx|Artemis|Themis|Dione Robust|Dione Robust Dehalo),
   // Input Quality (LQ|MQ|HQ ou LQ|MQ), Output Resolution (Original|2x|4x ou Original|2x), Parameters (Auto|Relative to auto|
@@ -895,6 +910,18 @@ export const IMPORT_RULES = [
   { vendor: 'Sapphire', plugin: 'S_TimeSlice', to: 'sTimeSlice', match: ['S_TimeSlice'], test: /s_timeslice/i },
   { vendor: 'Sapphire / BCC', plugin: 'Time Slice', to: 'timeSlice', test: /time ?slice|slit ?scan/i },
   { vendor: ADOBE, plugin: 'Warp', to: 'warp', match: ['ADBE WRPMESH'], map: { style: { i: 1 }, axis: { i: 2 }, bend: { i: 3 }, hDist: { i: 4 }, vDist: { i: 5 } } },
+  { vendor: ADOBE, plugin: 'Color Balance', to: 'colorBalance', match: ['ADBE Color Balance 2'],
+    map: { shR: { i: 1, n: ['shadow red balance'] }, shG: { i: 2, n: ['shadow green balance'] }, shB: { i: 3, n: ['shadow blue balance'] }, miR: { i: 4, n: ['midtone red balance'] }, miG: { i: 5, n: ['midtone green balance'] }, miB: { i: 6, n: ['midtone blue balance'] },
+      hiR: { i: 7, n: ['highlight red balance'] }, hiG: { i: 8, n: ['highlight green balance'] }, hiB: { i: 9, n: ['highlight blue balance'] }, keep: { i: 10, n: ['preserve luminosity'] } } },
+  { vendor: ADOBE, plugin: 'Channel Mixer', to: 'channelMixer', match: ['ADBE CHANNEL MIXER', 'ADBE Channel Mixer'],
+    map: { rr: { i: 1, n: ['red-red'] }, rg: { i: 2, n: ['red-green'] }, rb: { i: 3, n: ['red-blue'] }, rc: { i: 4, n: ['red-const'] }, gr: { i: 5, n: ['green-red'] }, gg: { i: 6, n: ['green-green'] }, gb: { i: 7, n: ['green-blue'] }, gc: { i: 8, n: ['green-const'] },
+      br: { i: 9, n: ['blue-red'] }, bg: { i: 10, n: ['blue-green'] }, bb: { i: 11, n: ['blue-blue'] }, bc: { i: 12, n: ['blue-const'] }, mono: { i: 13, n: ['monochrome'] } } },
+  { vendor: ADOBE, plugin: 'Leave Color', to: 'leaveColor', match: ['ADBE Leave Color'],
+    map: { amount: { i: 1, n: ['amount to decolor'] }, color: { i: 2, n: ['color to leave'] }, tolerance: { i: 3, n: ['tolerance'] }, softness: { i: 4, n: ['edge softness'] }, rgb: { i: 5, n: ['match colors'], conv: (v) => v === 1 } } },
+  { vendor: ADOBE, plugin: 'Shadow/Highlight', to: 'shadowHighlight', match: ['ADBE Shadow/Highlight', 'ADBE Shadow Highlight'],
+    map: { shadow: { n: ['shadow amount'] }, highlight: { n: ['highlight amount'] }, color: { n: ['color correction'] } } },
+  { vendor: ADOBE, plugin: 'Gamma/Pedestal/Gain', to: 'gammaPedGain', match: ['ADBE Gamma/Pedestal/Gain', 'ADBE Gamma Pedestal Gain'],
+    map: { blackStretch: { n: ['black stretch'] }, rGamma: { n: ['red gamma'] }, rPed: { n: ['red pedestal'] }, rGain: { n: ['red gain'] }, gGamma: { n: ['green gamma'] }, gPed: { n: ['green pedestal'] }, gGain: { n: ['green gain'] }, bGamma: { n: ['blue gamma'] }, bPed: { n: ['blue pedestal'] }, bGain: { n: ['blue gain'] } } },
   { vendor: ADOBE, plugin: 'Photo Filter', to: 'photoFilter', match: ['ADBE Photo Filter'], map: { color: { n: ['color'] }, density: { n: ['density'] }, preserve: { n: ['preserve luminosity'] } } },
   { vendor: ADOBE, plugin: 'Gaussian / Fast / Box Blur', to: 'blur', match: ['ADBE Gaussian Blur 2', 'ADBE Gaussian Blur', 'ADBE Fast Blur', 'ADBE Box Blur2', 'ADBE Box Blur', 'ADBE Camera Lens Blur', 'ADBE Compound Blur'],
     map: { radius: { i: 1, n: ['blurriness', 'blur radius', 'radius'] }, dims: { i: 2, n: ['blur dimensions'] } } },
