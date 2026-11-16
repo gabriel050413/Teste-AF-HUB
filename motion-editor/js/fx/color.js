@@ -22,15 +22,39 @@ const BC = colorFrag('uniform float u_b, u_bn, u_c;', `
     r = (1.0 / (1.0 + exp(-k * (r - p))) - s0) / (s1 - s0);
   } else if (u_c < 0.0) r = mix(r, vec3(0.5), -u_c * 0.5);`);
 
-const HUESAT = colorFrag('uniform float u_h, u_s, u_l, u_colorize; uniform vec3 u_ccol;', `
+// Hue/Saturation (= Photoshop): Master + as 6 faixas de cor do "Channel Range" (Vermelhos, Amarelos, Verdes, Cianos,
+// Azuis, Magentas), cada uma com rampas em graus [r1 r2 r3 r4] e ajustes de matiz/saturação/luminosidade.
+const HUESAT = colorFrag('uniform float u_h, u_s, u_l, u_colorize, u_hasR; uniform vec3 u_ccol; uniform float u_rr[24]; uniform vec3 u_ra[6];', `
   vec3 h = rgb2hsv(r);
-  h.x = fract(h.x + u_h);
+  float dh = u_h, ds = u_s - 1.0, dl = u_l;
+  if (u_hasR > 0.5) {
+    float hd = h.x * 360.0;
+    for (int i = 0; i < 6; i++) {
+      float r1 = u_rr[i * 4], r2 = u_rr[i * 4 + 1], r3 = u_rr[i * 4 + 2], r4 = u_rr[i * 4 + 3];
+      float x = mod(hd - r1 + 720.0, 360.0), ra = mod(r2 - r1 + 720.0, 360.0), rb = mod(r3 - r1 + 720.0, 360.0), rc = mod(r4 - r1 + 720.0, 360.0);
+      float w = x < ra ? x / max(ra, 1e-3) : x <= rb ? 1.0 : x < rc ? 1.0 - (x - rb) / max(rc - rb, 1e-3) : 0.0;
+      w *= smoothstep(0.0, 0.08, h.y); // cinzas não têm matiz: as faixas não mexem neles
+      dh += w * u_ra[i].x / 360.0; ds += w * u_ra[i].y / 100.0; dl += w * u_ra[i].z / 100.0;
+    }
+  }
+  h.x = fract(h.x + dh);
   r = hsv2rgb(h);
-  // Saturação como no AE (HLS): tira/põe cor em torno da luminosidade (máx+mín)/2, sem clarear a imagem
-  float hl = (max(r.r, max(r.g, r.b)) + min(r.r, min(r.g, r.b))) * 0.5;
-  r = clamp(mix(vec3(hl), r, u_s), 0.0, 1.0);
+  // Saturação como no AE/Photoshop (HLS): tira/põe cor em torno da luminosidade (máx+mín)/2, sem clarear a imagem
+  float mx = max(r.r, max(r.g, r.b)), mn = min(r.r, min(r.g, r.b));
+  float hl = (mx + mn) * 0.5;
+  if (ds > 0.0) {
+    // saturação positiva não é linear: alpha = 1/(1−sat) − 1 (ou até a cor ficar 100% saturada em HSL),
+    // então +50 dobra o croma e +100 leva qualquer cor à saturação máxima
+    float sat = min(ds, 0.999);
+    float d = mx - mn;
+    float sH = d <= 1e-5 ? 0.0 : d / max(1e-5, 1.0 - abs(mx + mn - 1.0));
+    float a = (sat + sH >= 1.0) ? max(sH, 1e-3) : 1.0 - sat;
+    a = 1.0 / a - 1.0;
+    r = clamp(r + (r - vec3(hl)) * a, 0.0, 1.0);
+  } else r = clamp(mix(vec3(hl), r, 1.0 + max(ds, -1.0)), 0.0, 1.0);
   if (u_colorize > 0.5) r = hsv2rgb(vec3(rgb2hsv(u_ccol).x, rgb2hsv(u_ccol).y * u_s, luma(c.rgb)));
-  r = u_l >= 0.0 ? mix(r, vec3(1.0), u_l) : r * (1.0 + u_l);`);
+  dl = clamp(dl, -1.0, 1.0);
+  r = dl >= 0.0 ? mix(r, vec3(1.0), dl) : r * (1.0 + dl);`);
 
 const LEVELS = colorFrag('uniform float u_ib, u_iw, u_g, u_ob, u_ow;', `
   r = clamp((r - u_ib) / max(u_iw - u_ib, 0.001), 0.0, 1.0);
@@ -98,8 +122,15 @@ export default [
   },
   {
     type: 'hueSat', label: 'Matiz / Saturação', category: 'Cor',
-    params: [ang('hue', 'Matiz', 0), num('saturation', 'Saturação', 0, -100, 100), num('lightness', 'Luminosidade', 0, -100, 100), bool('colorize', 'Colorir'), col('colorizeColor', 'Cor (colorir)', [1, 0.3, 0.2, 1])],
-    render: fx(HUESAT, (p) => ({ u_h: p.hue / 360, u_s: 1 + p.saturation / 100, u_l: p.lightness / 100, u_colorize: p.colorize, u_ccol: rgb(p.colorizeColor) })),
+    params: [ang('hue', 'Matiz', 0), num('saturation', 'Saturação', 0, -100, 100), num('lightness', 'Luminosidade', 0, -100, 100), bool('colorize', 'Colorir'), col('colorizeColor', 'Cor (colorir)', [1, 0.3, 0.2, 1]), { key: 'ranges', label: 'Faixas de cor (do AE)', kind: 'hidden', default: null }],
+    render: fx(HUESAT, (p) => {
+      // faixas de cor (Channel Range do AE): 6 × [r1, r2, r3, r4, matiz, saturação, luminosidade]
+      const R = Array.isArray(p.ranges) && p.ranges.length >= 42 ? p.ranges : null;
+      const rr = new Array(24).fill(0), ra = new Array(18).fill(0);
+      if (R) for (let i = 0; i < 6; i++) { for (let k = 0; k < 4; k++) rr[i * 4 + k] = +R[i * 7 + k] || 0; for (let k = 0; k < 3; k++) ra[i * 3 + k] = +R[i * 7 + 4 + k] || 0; }
+      const has = !!R && ra.some((v) => v !== 0);
+      return { u_h: p.hue / 360, u_s: 1 + p.saturation / 100, u_l: p.lightness / 100, u_colorize: p.colorize, u_ccol: rgb(p.colorizeColor), u_hasR: has ? 1 : 0, u_rr: { f1: rr }, u_ra: { vec3: ra } };
+    }),
   },
   {
     type: 'levels', label: 'Níveis (Levels)', category: 'Cor',

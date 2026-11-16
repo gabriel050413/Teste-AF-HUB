@@ -851,6 +851,8 @@ export const IMPORT_RULES = [
       if (!p.hue) p.hue = cr[0];
       if (!p.saturation) p.saturation = cr[1];
       if (!p.lightness) p.lightness = cr[2];
+      // faixas de cor (Vermelhos…Magentas): 6 × [r1 r2 r3 r4 matiz saturação luminosidade]
+      if (cr.length >= 45 && cr.slice(3, 45).some((v, i) => i % 7 >= 4 && v !== 0)) p.ranges = cr.slice(3, 45);
     } },
   { vendor: ADOBE, plugin: 'Color Balance (HLS)', to: 'hueSat', match: ['ADBE Color Balance (HLS)'], map: { hue: { i: 1, n: ['hue'] }, lightness: { i: 2, n: ['lightness'] }, saturation: { i: 3, n: ['saturation'] } } },
   { vendor: ADOBE, plugin: 'Motion Tile', to: 'motionTile', match: ['ADBE Tile'], map: { outW: { i: 4, n: ['output width'] }, outH: { i: 5, n: ['output height'] }, mirror: { i: 6, n: ['mirror edges'] } } },
