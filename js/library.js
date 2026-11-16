@@ -66,6 +66,24 @@ export class Library {
     } catch { /* sem IndexedDB: fica no localStorage */ }
   }
 
+  /** Exclui todos os presets do usuário (importados e salvos), com duas confirmações. Os do app e do pacote FREE ficam. */
+  async deleteAll() {
+    const n = this.user.length;
+    if (!n) { toast('Você não tem presets importados ou salvos.', 'info'); return; }
+    const a = await modal('Excluir todos os presets?', `<p>Isso vai apagar <b>${n} preset(s)</b> que você importou (.ffx, .json, .cube…) ou salvou neste aparelho.</p><p class="muted small">Os presets que vêm com o app e o pacote FREE continuam. Os efeitos já aplicados nos seus projetos não mudam.</p>`,
+      [{ label: 'Cancelar', value: false }, { label: 'Continuar', danger: true, value: true }]);
+    if (!a) return;
+    const b = await modal('Tem certeza mesmo?', `<p><b>Não dá para desfazer.</b> Os ${n} preset(s) serão apagados para sempre deste aparelho.</p><p>Toque em <b>Excluir tudo</b> para confirmar.</p>`,
+      [{ label: 'Cancelar', value: false }, { label: 'Excluir tudo', danger: true, primary: true, value: true }]);
+    if (!b) return;
+    this.user = [];
+    await this.save(true);
+    try { localStorage.removeItem(STORE_KEY); } catch { /* ok */ }
+    this.cat = 'Todos';
+    this.render();
+    toast(`${n} preset(s) excluídos.`, 'ok');
+  }
+
   async save(quiet = false) {
     // relatório enxuto (sem a lista de parâmetros brutos de cada efeito) para ocupar pouco espaço
     const slim = this.user.map((p) => (p.report ? { ...p, report: { ...p.report, effects: (p.report.effects || []).map(({ params, ...e }) => e), matchNames: undefined } } : p));
@@ -109,7 +127,7 @@ export class Library {
         ${items.length ? '' : '<div class="empty-note">Nenhum preset aqui ainda. Importe .ffx ou salve uma camada.</div>'}
         <div class="lib-more">
           ${L === 'blurrr' ? '' : '<button data-act="import">⤒ Importar</button><button data-act="save-layer">★ Salvar camada</button>'}
-          <button data-act="capture">◐ Capturar CC do AE</button><button data-act="aex">⤒ Plugins .aex</button>
+          <button data-act="capture">◐ Capturar CC do AE</button><button data-act="aex">⤒ Plugins .aex</button>${this.user.length ? `<button data-act="delall" class="danger">🗑 Excluir todos (${this.user.length})</button>` : ''}
           <label class="fit-toggle ${this.fit ? 'on' : ''}"><span class="switch"><input type="checkbox" data-act="fit" ${this.fit ? 'checked' : ''}><i></i></span><span>Sincronizar com a duração da camada</span></label>
         </div></div>`;
       this.bind();
@@ -121,6 +139,7 @@ export class Library {
         <button data-act="save-layer">★ Salvar camada como preset</button>
         <button data-act="capture">◐ Capturar CC do After Effects (Looks, Colorista…)</button>
         <button data-act="aex">⤒ Importar plugins (.aex)</button>
+        ${this.user.length ? `<button data-act="delall" class="danger">🗑 Excluir todos os meus presets (${this.user.length})</button>` : ''}
       </div>
       <label class="fit-toggle ${this.fit ? 'on' : ''}">
         <span class="switch"><input type="checkbox" data-act="fit" ${this.fit ? 'checked' : ''}><i></i></span>
@@ -194,6 +213,7 @@ export class Library {
       if (files.length) this.importFiles(files);
     }));
     r.querySelectorAll('[data-act="save-layer"]').forEach((b) => b.addEventListener('click', () => this.saveLayer()));
+    r.querySelectorAll('[data-act="delall"]').forEach((b) => b.addEventListener('click', () => this.deleteAll()));
     r.querySelector('[data-act="capture"]').addEventListener('click', () => this.captureAE());
     r.querySelector('[data-act="aex"]').addEventListener('click', async () => { const f = await pickFiles('.aex,.plugin,application/octet-stream', true); if (f.length) (this.hooks.importAex ? this.hooks.importAex(f) : this.scanPlugins(f)); });
     r.querySelector('[data-act="fit"]').addEventListener('change', (e) => { this.fit = e.target.checked; storage.set('motionframe.presetFit', this.fit); this.render(); });
