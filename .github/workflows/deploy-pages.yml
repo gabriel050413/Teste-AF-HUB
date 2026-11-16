@@ -28,7 +28,7 @@ jobs:
           node-version: 22
       - name: Monta o site (www + version.json + app-update.zip)
         run: node tools/build-presets.mjs && node tools/build-www.mjs && node tools/make-update.mjs
-      - name: Aponta o app para o MotionFrame Cloud (opcional: variável MF_CLOUD_URL do repositório)
+      - name: "Aponta o app para o MotionFrame Cloud (opcional, variável MF_CLOUD_URL)"
         env:
           MF_CLOUD_URL: ${{ vars.MF_CLOUD_URL }}
         run: |
