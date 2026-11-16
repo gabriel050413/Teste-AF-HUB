@@ -1678,3 +1678,124 @@ body[data-elayout="capcut"] .toast { background: #2a2a2a; border: 0; border-radi
 body[data-elayout="blurrr"] .toast { background: #222; border: 0; border-radius: 14px; color: #fff; }
 body[data-elayout="alight"] .toast { background: #2b2f3b; border: 0; border-radius: 8px; color: #fff; }
 body[data-elayout="capcut"] .toast.ok, body[data-elayout="blurrr"] .toast.ok, body[data-elayout="alight"] .toast.ok { border: 0; }
+/* v1.9.7: coluna da esquerda do PC mostra só o painel escolhido (os painéis do dock não vazam pra ela) */
+@media (min-width: 1100px) {
+  body[data-pc] .app .lpanel .lp-body > .pane { display: none !important; border: 0 !important; background: none !important; }
+  body[data-pc] .app .lpanel .lp-body > .pane.lp-on { display: block !important; }
+  body[data-pc] .app .lpanel .lp-body > .pane > :not(.dock-head) { max-height: none !important; padding: 0 !important; overflow: visible !important; }
+  body[data-pc] .lpanel .lib-m .lib-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 10px 8px; }
+  body[data-pc] .lpanel .lfx-grid { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+  body[data-pc] .lpanel .tr-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+  body[data-pc] .lpanel .cmp-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  body[data-pc] .lpanel .lib-more { font-size: 12px; }
+}
+.dragging { cursor: grabbing; user-select: none; }
+.dragging * { pointer-events: none; }
+.preset-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ===================== v1.9.7: janelas, Exportar, abas de propriedades, transições e animações por app ===================== */
+/* janelas (modal) */
+.ml-capcut .modal { background: #1f1f1f; border: 0; border-radius: 12px; color: #eee; }
+.ml-capcut .modal header, .ml-capcut .modal footer { border: 0; }
+.ml-capcut .modal footer button { border: 0; border-radius: 8px; background: #2f2f2f; color: #eee; padding: 9px 18px; }
+.ml-capcut .modal footer button.primary { background: #23c4dc; color: #001418; font-weight: 600; }
+.ml-blurrr .modal { background: #fff; border: 0; border-radius: 24px; color: #111; }
+.ml-blurrr .modal header { border: 0; justify-content: center; position: relative; }
+.ml-blurrr .modal header .x { position: absolute; left: 12px; width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid #ddd; background: #fff; }
+.ml-blurrr .modal h2 { font-size: 17px; }
+.ml-blurrr .modal footer { border: 0; }
+.ml-blurrr .modal footer button { flex: 1; border: 0; border-radius: 999px; background: #f1f1f1; color: #333; padding: 12px; font-weight: 600; }
+.ml-blurrr .modal footer button.primary { background: #d6f53c; color: #111; }
+.ml-alight .modal { background: #262a35; border: 0; border-radius: 14px; color: #eee; }
+.ml-alight .modal header { border: 0; flex-direction: row-reverse; justify-content: flex-end; gap: 8px; }
+.ml-alight .modal header .x { background: none; border: 0; font-size: 20px; }
+.ml-alight .modal footer { border: 0; }
+.ml-alight .modal footer button { border: 0; border-radius: 8px; background: #323746; color: #ddd; }
+.ml-alight .modal footer button.primary { background: #2fd38a; color: #05231a; font-weight: 700; }
+.ml-nova .modal { background: #0d121c; border: 1px solid #1a2233; }
+.ml-nova .modal footer button.primary { background: #22d97a; border-color: #22d97a; color: #04210f; }
+@media (max-width: 1099px) {
+  /* no celular, CapCut/Blurrr/Alight abrem as janelas como folha de baixo */
+  :is(.ml-capcut, .ml-blurrr, .ml-alight, .ml-nova).modal-wrap { place-items: end center; padding: 0; }
+  :is(.ml-capcut, .ml-blurrr, .ml-alight, .ml-nova) .modal { width: 100%; max-height: 88dvh; border-radius: 18px 18px 0 0; padding-bottom: var(--safe-b); }
+  .ml-blurrr .modal { border-radius: 26px 26px 0 0; }
+}
+/* Exportar: réguas com marcas (CapCut/Alight/Nova) e blocos de formato (Alight) */
+.exp-sl { display: flex; flex-direction: column; gap: 4px; }
+.exp-sl input { width: 100%; }
+.exp-ticks { display: flex; justify-content: space-between; font-size: 11.5px; color: #8a8a8a; }
+.exp-ticks span { cursor: pointer; flex: 1; text-align: center; }
+.exp-ticks span:first-child { text-align: left; } .exp-ticks span:last-child { text-align: right; }
+.exp-ticks span.on { color: #fff; font-weight: 700; }
+.exp-capcut .exp-row > span { color: #fff; font-size: 14px; }
+.exp-capcut .exp-sl input { accent-color: #fff; }
+.exp-capcut .exp-ticks span.on { color: #23c4dc; }
+.exp-capcut .exp-chips button.on { background: #23c4dc; border-color: #23c4dc; color: #001418; }
+.exp-capcut .exp-info { color: #9a9a9a !important; }
+.exp-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.exp-tiles button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 6px; border: 2px solid transparent; border-radius: 12px; background: #323746; color: #ddd; }
+.exp-tiles button .ico { width: 28px; height: 28px; }
+.exp-tiles button.on { border-color: #2fd38a; color: #fff; }
+.exp-alight .exp-sl input { accent-color: #2fd38a; }
+.exp-alight .exp-ticks span.on { color: #2fd38a; }
+.exp-blurrr .exp-row > span { color: #333; font-weight: 600; }
+.exp-blurrr .exp-chips button { background: #f1f1f1; border: 0; border-radius: 999px; color: #444; }
+.exp-blurrr .exp-chips button.on { background: #d6f53c; color: #111; }
+.exp-blurrr .exp-info { color: #555 !important; }
+.exp-nova .exp-ticks span.on { color: #22d97a; }
+/* abas das propriedades */
+.ptabs { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 10px; margin-bottom: 4px; border-bottom: 1px solid #ffffff12; }
+.ptabs button { flex: none; background: none; border: 0; border-radius: 0; padding: 4px 0 6px; font-size: 14px; color: #8a8a8a; border-bottom: 2px solid transparent; }
+.ptabs button.on { color: #fff; font-weight: 600; }
+.ptabs-capcut button.on { border-bottom-color: #23c4dc; }
+.ptabs-blurrr { border-color: #eee; }
+.ptabs-blurrr button { font-style: italic; font-size: 15px; }
+.ptabs-blurrr button.on { color: #111; border-bottom-color: #d6f53c; }
+.ptabs-alight button { background: #2b2f3b; border-radius: 8px; padding: 6px 12px; border: 0; color: #aab; }
+.ptabs-alight { gap: 6px; border: 0; }
+.ptabs-alight button.on { background: #2fd38a; color: #05231a; }
+.ptabs-nova button.on { border-bottom-color: #22d97a; }
+.frag-sub { margin: 14px 0 4px; font-size: 12px; color: #8a8a8a; text-transform: uppercase; letter-spacing: .5px; }
+/* abas no lugar das "pílulas" nos painéis dos apps */
+body:is([data-elayout="capcut"], [data-elayout="nova"]) :is(.sheet, .lpanel) .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 16px; padding-bottom: 8px; }
+body:is([data-elayout="capcut"], [data-elayout="nova"]) :is(.sheet, .lpanel) .chips .chip { flex: none; background: none; border: 0; border-radius: 0; padding: 4px 0; color: #8a8a8a; border-bottom: 2px solid transparent; }
+body[data-elayout="capcut"] :is(.sheet, .lpanel) .chips .chip.on { color: #fff; border-bottom-color: #fff; background: none; }
+body[data-elayout="nova"] :is(.sheet, .lpanel) .chips .chip.on { color: #22d97a; border-bottom-color: #22d97a; background: none; }
+body[data-elayout="alight"] :is(.sheet, .lpanel) .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+body[data-elayout="alight"] :is(.sheet, .lpanel) .chips .chip { flex: none; background: #2b2f3b; border: 0; color: #aab; }
+body[data-elayout="alight"] :is(.sheet, .lpanel) .chips .chip.on { background: #2fd38a; color: #05231a; }
+body[data-elayout="blurrr"] :is(.sheet, .lpanel) .chips { display: flex; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+/* Transições e Animações (Composer): grade em cima, duração e aplicar numa barra embaixo; sem a prévia grande do MotionFrame */
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-panel,
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .composer { display: flex; flex-direction: column; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-panel .chips, .composer .chips) { order: 1; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-grid, .cmp-grid) { order: 2; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-top, .cmp-bar) { order: 3; position: sticky; bottom: 0; z-index: 2; margin-top: 10px; padding: 10px 0 4px; background: var(--panel); }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-big, .cmp-preview, .composer > p.muted) { display: none !important; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .composer .fx-search { order: 0; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-top { display: block; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-info .muted { display: none; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-info { display: flex; flex-direction: column; gap: 6px; }
+body[data-elayout="capcut"] :is(.tr-top, .cmp-bar) { background: #141414; }
+body[data-elayout="capcut"] .tr-grid, body[data-elayout="capcut"] .cmp-grid { grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+body[data-elayout="capcut"] .tr-tile, body[data-elayout="capcut"] .cmp-tile { background: none; border: 0; padding: 0; }
+body[data-elayout="capcut"] .tr-tile.on canvas, body[data-elayout="capcut"] .cmp-tile.on canvas { outline: 2px solid #23c4dc; }
+body[data-elayout="capcut"] .tr-panel button.primary, body[data-elayout="capcut"] .composer button.primary { background: #23c4dc; border-color: #23c4dc; color: #001418; }
+body[data-elayout="blurrr"] :is(.tr-top, .cmp-bar) { background: #fff; }
+body[data-elayout="blurrr"] :is(.tr-tile, .cmp-tile) { background: #f4f4f4; border: 0; border-radius: 14px; color: #333; }
+body[data-elayout="blurrr"] :is(.tr-panel, .composer) button.primary { background: #d6f53c; border-color: #d6f53c; color: #111; border-radius: 999px; }
+body[data-elayout="alight"] :is(.tr-top, .cmp-bar) { background: #22252f; }
+body[data-elayout="alight"] :is(.tr-tile, .cmp-tile) { background: #2b2f3b; border: 0; border-radius: 10px; }
+body[data-elayout="alight"] :is(.tr-panel, .composer) button.primary { background: #2fd38a; border-color: #2fd38a; color: #05231a; }
+body[data-elayout="nova"] :is(.tr-panel, .composer) button.primary { background: #22d97a; border-color: #22d97a; color: #04210f; }
+/* PC dos layouts: mais simples (menos texto, controles compactos) */
+@media (min-width: 1100px) {
+  body[data-pc] .sheet .prop-row { min-height: 30px; margin: 2px 0; }
+  body[data-pc] .sheet .fx-clip { gap: 4px; }
+  body[data-pc] .sheet .fx-clip button { font-size: 11.5px; padding: 5px 8px; }
+  body[data-pc] .sheet .note, body[data-pc] .sheet .desc, body[data-pc] .sheet .plugin-note { display: none; }
+  body[data-pc] .lib-more button { font-size: 11px; padding: 5px 8px; }
+  body[data-pc] .ptabs button { font-size: 13px; }
+  body[data-pc] .modal .exp-sheet { gap: 10px; }
+}
+@media (min-width: 1100px) { body[data-pc] .app .lpanel .lp-body > .pane > :not(.dock-head) { display: block !important; } }

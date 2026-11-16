@@ -281,6 +281,18 @@ export class Inspector {
       html += this.section('transform', layer.threeD ? 'Transformar (3D)' : 'Transformar', parts.transform);
     }
     if (this.focus) return this.fragHtml(layer, this.focus, parts);
+    // layouts de app: o painel completo vira abas (como "Básico · Máscara · …" do CapCut), sem a lista do MotionFrame
+    const L = lay(), av = layer.type === 'video' || layer.type === 'audio';
+    const TABS = {
+      capcut: [['basic', 'Básico'], ['fill', layer.type === 'text' ? 'Texto' : 'Estilo'], ['mask', 'Máscara'], ['border', 'Borda'], ...(av ? [['sound', 'Áudio']] : [])],
+      blurrr: [['move', 'Transformar'], ['fill', 'Estilo'], ['blend', 'Mesclagem'], ['mask', 'Máscara'], ...(av ? [['sound', 'Volume']] : [])],
+      alight: [['move', 'Mover'], ['fill', 'Cor'], ['border', 'Borda'], ['blend', 'Opacidade'], ['mask', 'Máscara'], ...(av ? [['sound', 'Áudio']] : [])],
+      nova: [['move', 'Transformar'], ['fill', 'Estilo'], ['border', 'Borda'], ['blend', 'Opacidade'], ['mask', 'Máscara'], ...(av ? [['sound', 'Volume']] : [])],
+    }[L];
+    if (TABS && layer.type !== 'audio') {
+      if (!TABS.some(([k]) => k === this.ptab)) this.ptab = TABS[0][0];
+      return `<nav class="ptabs ptabs-${L}">${TABS.map(([k, l]) => `<button data-ptab="${k}" class="${k === this.ptab ? 'on' : ''}">${l}</button>`).join('')}</nav>${this.fragHtml(layer, this.ptab, parts)}`;
+    }
     return html;
   }
 
@@ -288,7 +300,8 @@ export class Inspector {
   fragHtml(layer, focus, parts) {
     const L = lay();
     let body = '';
-    if (focus === 'move') body = parts.transform || '<div class="empty-note">Esta camada não tem transformação.</div>';
+    if (focus === 'basic') body = (parts.transform || '') + (parts.blendop ? `<div class="frag-sub">Mesclagem</div>${parts.blendop}` : '');
+    else if (focus === 'move') body = parts.transform || '<div class="empty-note">Esta camada não tem transformação.</div>';
     else if (focus === 'fill') body = parts.layer;
     else if (focus === 'blend') body = parts.blendop || '<div class="empty-note">Sem opacidade nesta camada.</div>';
     else if (focus === 'sound') body = parts.sound || '<div class="empty-note">Esta camada não tem som.</div>';
@@ -489,6 +502,7 @@ export class Inspector {
     root.querySelector('[data-masksize]')?.addEventListener('change', () => store.commit());
     root.querySelector('[data-maskfeather]')?.addEventListener('input', (e) => { const m = (layer.masks || [])[0]; if (!m) return; m.feather = anim([+e.target.value, +e.target.value]); store.emit('preview'); });
     root.querySelector('[data-maskfeather]')?.addEventListener('change', () => store.commit());
+    root.querySelectorAll('[data-ptab]').forEach((b) => b.addEventListener('click', () => { this.ptab = b.dataset.ptab; this.render(); }));
     root.querySelectorAll('[data-fxsel]').forEach((b) => b.addEventListener('click', () => { this.selFx = b.dataset.fxsel; this.render(); }));
     root.querySelector('[data-parent]')?.addEventListener('change', (e) => {
       const np = store.layers.find((o) => o.id === e.target.value) || null;

@@ -42,7 +42,7 @@ export function applyPcLayout(layout) {
   const tabs = TABS[layout] || [];
   lp.innerHTML = `${tabs.length ? `<nav class="lp-tabs">${tabs.map(([k, i, l]) => `<button data-lp="${k}">${ico(i)}<span>${l}</span></button>`).join('')}</nav>` : ''}<div class="lp-head"><b class="lp-title"></b></div><div class="lp-body"></div><div class="lp-resize" title="Arraste para mudar a largura"></div>`;
   const body = lp.querySelector('.lp-body');
-  for (const n of LEFT[layout]) { const p = document.querySelector(`.sheet .pane[data-pane="${n}"]`); if (p) body.appendChild(p); }
+  for (const n of LEFT[layout]) { const p = document.querySelector(`.sheet .pane[data-pane="${n}"]`); if (p) { p.classList.remove('dock-open', 'dock-min', 'dock-focus', 'active'); p.style.order = ''; body.appendChild(p); } }
   lp.querySelector('.lp-tabs')?.addEventListener('click', (e) => {
     const b = e.target.closest('[data-lp]'); if (!b) return;
     const k = b.dataset.lp;
@@ -77,3 +77,32 @@ export function pcOpenLeft(name) {
 }
 export const pcActive = () => cur || null;
 export const pcLeftPanes = () => (cur ? LEFT[cur] : []);
+
+// ---- faixas com rolagem lateral (abas, miniaturas, barra de ferramentas): arrastar com o mouse e rodinha rolam pro lado
+const STRIPS = '.lp-tabs, .lfx-tabs, .lib-tabs, .lfx-cc-top, .fxs-strip, .toolbar, .dock-bar, .chips, .ltop, .exp-chips, .lfx-am-feat';
+const scrollerOf = (el) => { for (let n = el.closest(STRIPS); n; n = n.parentElement?.closest(STRIPS)) if (n.scrollWidth > n.clientWidth + 2) return n; return null; };
+export function initDragScroll() {
+  let drag = null, suppress = false;
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    const sc = scrollerOf(e.target); if (!sc) return;
+    drag = { sc, x0: e.clientX, l0: sc.scrollLeft, moved: false, id: e.pointerId };
+  }, true);
+  document.addEventListener('pointermove', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x0;
+    if (!drag.moved && Math.abs(dx) < 5) return;
+    drag.moved = true; drag.sc.classList.add('dragging');
+    drag.sc.scrollLeft = drag.l0 - dx;
+  }, true);
+  const end = () => { if (drag?.moved) { suppress = true; setTimeout(() => { suppress = false; }, 0); drag.sc.classList.remove('dragging'); } drag = null; };
+  document.addEventListener('pointerup', end, true);
+  document.addEventListener('pointercancel', end, true);
+  document.addEventListener('click', (e) => { if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; } }, true);
+  document.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const sc = scrollerOf(e.target); if (!sc) return;
+    if (getComputedStyle(sc).flexDirection === 'column') return; // trilhos verticais rolam normal
+    sc.scrollLeft += e.deltaY; e.preventDefault();
+  }, { passive: false, capture: true });
+}

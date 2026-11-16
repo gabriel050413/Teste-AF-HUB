@@ -26,7 +26,7 @@ import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from '
 import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
 import { startTour, maybeStartTour } from './tour.js';
 import { FRAG_TITLE } from './inspector.js';
-import { initPcLayouts, applyPcLayout, pcOpenLeft, pcActive, pcLeftPanes } from './pc-layouts.js';
+import { initDragScroll, initPcLayouts, applyPcLayout, pcOpenLeft, pcActive, pcLeftPanes } from './pc-layouts.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -631,7 +631,7 @@ function renderDock() {
   });
   const bar = document.getElementById('dockBar');
   const pc = pcActive(), leftP = pcLeftPanes();
-  if (pc && on && (!sheetPane || leftP.includes(sheetPane))) { sheetPane = dock.open.find((x) => !leftP.includes(x)) || 'props'; if (!dock.open.includes(sheetPane)) dock.open.unshift(sheetPane); document.querySelectorAll('.sheet .pane').forEach((p) => { p.classList.toggle('dock-focus', p.dataset.pane === sheetPane); p.classList.toggle('dock-open', dock.open.includes(p.dataset.pane)); }); }
+  if (pc && on && (!sheetPane || leftP.includes(sheetPane))) { sheetPane = 'props'; if (!dock.open.includes(sheetPane)) dock.open.unshift(sheetPane); document.querySelectorAll('.sheet .pane').forEach((p) => { p.classList.toggle('dock-focus', p.dataset.pane === sheetPane); p.classList.toggle('dock-open', dock.open.includes(p.dataset.pane)); }); }
   bar.classList.toggle('pc-tabs', !!pc);
   bar.innerHTML = DOCK_BAR.filter(([n]) => paneAllowed(n) && !leftP.includes(n)).map(([n, i, l]) => `<button data-dock="${n}" class="${(pc ? sheetPane === n : dock.open.includes(n)) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${paneTitle(n) || l}">${ico(i)} ${paneTitle(n) || l}</button>`).join('');
   bar.querySelectorAll('[data-dock]').forEach((x) => x.addEventListener('click', () => {
@@ -1858,6 +1858,7 @@ const commands = {
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
 initEditorLayouts(commands);
 initPcLayouts(commands);
+initDragScroll();
 
 // ------------------------------------------------------------------ atalhos de teclado (os do After Effects)
 export const SHORTCUTS = [
