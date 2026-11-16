@@ -39,6 +39,13 @@ export function createApp(opts = {}) {
   const PUBLIC_ROOMS = ['Geral', 'Pedidos de edit', 'Presets & dicas'].map(ensureRoom);
 
   const limitAuth = rateLimiter({ max: cfg.authMax, windowMs: 60_000 });
+  const limitAll = rateLimiter({ max: cfg.ipMax ?? 600, windowMs: 60_000 }); // teto geral por IP (contra abuso/robôs)
+  // chave de admin: comparação em tempo constante e só com chave longa (curta = desligada)
+  const adminOk = (req) => {
+    const k = String(cfg.adminKey || ''), got = String(req.headers['x-admin-key'] || '');
+    if (k.length < 16 || got.length !== k.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(k));
+  };
   const limitWrite = rateLimiter({ max: cfg.writeMax, windowMs: 60_000 });
 
   // ---- tempo real (Server-Sent Events) ----
@@ -613,7 +620,7 @@ export function createApp(opts = {}) {
 
   // ---------- administração (só com a chave do dono) ----------
   route('POST', '/api/admin/grant', ({ req, body }) => {
-    need(cfg.adminKey && req.headers['x-admin-key'] === cfg.adminKey, 403, 'Chave de administrador inválida.');
+    need(adminOk(req), 403, 'Chave de administrador inválida.');
     const u = db.get('SELECT * FROM users WHERE username = ?', str(body.username, 30));
     need(u, 404, 'Usuário não encontrado.');
     const points = int(body.points);
@@ -621,7 +628,7 @@ export function createApp(opts = {}) {
     return { balance: db.tx(() => addPoints(db, u.id, points, str(body.reason, 80) || 'Ajuste do administrador')) };
   }, { auth: false });
   route('GET', '/api/admin/stats', ({ req }) => {
-    need(cfg.adminKey && req.headers['x-admin-key'] === cfg.adminKey, 403, 'Chave de administrador inválida.');
+    need(adminOk(req), 403, 'Chave de administrador inválida.');
     return {
       users: db.get('SELECT COUNT(*) c FROM users').c, points_in_circulation: db.get('SELECT COALESCE(SUM(points), 0) c FROM users').c, listings: db.get('SELECT COUNT(*) c FROM listings WHERE active = 1').c,
       posts: db.get('SELECT COUNT(*) c FROM posts').c, purchases: db.get('SELECT COUNT(*) c FROM purchases').c, messages: db.get('SELECT COUNT(*) c FROM messages').c,
@@ -645,22 +652,37 @@ export function createApp(opts = {}) {
       req.on('error', reject);
     });
   }
+  // cabeçalhos de segurança em todas as respostas
+  const SEC = {
+    'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY', 'referrer-policy': 'strict-origin-when-cross-origin',
+    'permissions-policy': 'camera=(), microphone=(self), geolocation=(), payment=()', 'cross-origin-opener-policy': 'same-origin',
+    ...(cfg.hsts ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),
+  };
   const send = (res, status, body) => {
     const buf = Buffer.from(JSON.stringify(body));
-    res.writeHead(status, { ...cors, 'content-type': 'application/json; charset=utf-8', 'content-length': buf.length });
+    res.writeHead(status, { ...SEC, ...cors, 'cache-control': 'no-store', 'content-type': 'application/json; charset=utf-8', 'content-length': buf.length });
     res.end(buf);
   };
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://x');
-    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    // IP: o cabeçalho X-Forwarded-For só vale atrás de um proxy confiável (TRUST_PROXY) e usa o último valor (o que o
+    // proxy acrescentou) — o primeiro pode ser inventado pelo cliente para escapar do limite de tentativas
+    const xff = cfg.trustProxy ? String(req.headers['x-forwarded-for'] || '').split(',').map((x) => x.trim()).filter(Boolean) : [];
+    const ip = xff.length ? xff[xff.length - 1] : String(req.socket.remoteAddress || '');
     try {
-      if (req.method === 'OPTIONS') { res.writeHead(204, cors); return res.end(); }
+      if (req.method === 'OPTIONS') { res.writeHead(204, { ...SEC, ...cors }); return res.end(); }
+      if (url.pathname.startsWith('/api/')) {
+        limitAll(`ip:${ip}`);
+        // comunidade (contas, feed, mercado, chat, IA) desligada nesta versão beta: só /api/health responde
+        if (cfg.community === false && url.pathname !== '/api/health') throw new HttpError(404, 'A comunidade está desligada nesta versão.');
+      }
       // tempo real
       if (url.pathname === '/api/stream' && req.method === 'GET') {
         const uid = readSession(url.searchParams.get('token') || (req.headers.authorization || '').replace(/^Bearer /, ''), secret);
         if (!uid || !userById(uid)) throw new HttpError(401, 'Entre na sua conta.');
-        res.writeHead(200, { ...cors, 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+        if ((streams.get(uid)?.size || 0) >= 5) throw new HttpError(429, 'Conexões demais abertas.');
+        res.writeHead(200, { ...SEC, ...cors, 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive', 'x-accel-buffering': 'no' });
         res.write(`event: hello\ndata: {"ok":true}\n\n`);
         const set = streams.get(uid) || new Set(); set.add(res); streams.set(uid, set);
         const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch { /* caiu */ } }, 25000);
@@ -695,15 +717,22 @@ export function createApp(opts = {}) {
     }
   });
 
-  function serveStatic(pathname, res) {
-    let p = path.normalize(decodeURIComponent(pathname)).replace(/^(\.\.[/\\])+/, '');
-    if (p.endsWith(path.sep) || p === '.' || p === '') p = path.join(p, 'index.html');
-    const file = path.join(cfg.staticDir, p);
-    if (!file.startsWith(path.resolve(cfg.staticDir))) throw new HttpError(403, 'Acesso negado.');
+  // arquivos do site: nunca serve arquivos ocultos (.env, .git), o código do servidor, banco de dados nem testes
+  const BLOCK = /(^|[\\/])(\.[^\\/]*|server|node_modules|tests?|tools|data|backend)([\\/]|$)|\.(db|sqlite3?|env|pem|key|log|map)$/i;
+  function serveStatic(pathname, res, depth = 0) {
+    let rel;
+    try { rel = decodeURIComponent(pathname); } catch { throw new HttpError(400, 'Endereço inválido.'); }
+    if (rel.includes('\0')) throw new HttpError(400, 'Endereço inválido.');
+    rel = path.normalize(`/${rel}`).replace(/^[/\\]+/, '');
+    if (!rel || rel.endsWith(path.sep)) rel = path.join(rel, 'index.html');
+    if (BLOCK.test(rel)) throw new HttpError(404, 'Arquivo não encontrado.');
+    const root = path.resolve(cfg.staticDir);
+    const file = path.resolve(root, rel);
+    if (file !== root && !file.startsWith(root + path.sep)) throw new HttpError(403, 'Acesso negado.');
     let st;
     try { st = fs.statSync(file); } catch { throw new HttpError(404, 'Arquivo não encontrado.'); }
-    if (st.isDirectory()) return serveStatic(path.join(pathname, 'index.html'), res);
-    res.writeHead(200, { 'content-type': STATIC_TYPES[path.extname(file)] || 'application/octet-stream', 'content-length': st.size, 'cache-control': 'no-cache' });
+    if (st.isDirectory()) { if (depth) throw new HttpError(404, 'Arquivo não encontrado.'); return serveStatic(`${pathname.replace(/\/?$/, '/')}index.html`, res, 1); }
+    res.writeHead(200, { ...SEC, 'content-type': STATIC_TYPES[path.extname(file)] || 'application/octet-stream', 'content-length': st.size, 'cache-control': 'no-cache' });
     fs.createReadStream(file).pipe(res);
   }
 

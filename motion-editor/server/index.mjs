@@ -21,9 +21,14 @@ const app = createApp({
   aiCost: Number(env.AI_UI_COST || 25),          // pontos por interface gerada pela IA
   anthropicKey: env.ANTHROPIC_API_KEY || '',     // sem chave: gerador procedural
   staticDir: env.STATIC_DIR ? path.resolve(env.STATIC_DIR) : '',
+  community: env.COMMUNITY === '1',              // comunidade desligada por padrão nesta versão beta (COMMUNITY=1 liga)
+  trustProxy: env.TRUST_PROXY === '1' || !!env.RENDER, // atrás de proxy confiável (Render): usa o IP que o proxy informa
+  hsts: env.HSTS === '1' || !!env.RENDER,
+  ipMax: Number(env.IP_MAX_PER_MIN || 600),
 });
 
 const port = await app.listen(Number(env.PORT || 8787), env.HOST || '0.0.0.0');
 console.log(`MotionFrame Cloud no ar: http://localhost:${port}  (banco: ${app.cfg.dbPath})`);
-if (!app.cfg.adminKey) console.log('Dica: defina ADMIN_KEY para poder dar pontos a usuários.');
+if (!app.cfg.adminKey || app.cfg.adminKey.length < 16) console.log('Dica: defina ADMIN_KEY (16+ caracteres) para poder dar pontos a usuários.');
+if (!app.cfg.community) console.log('Comunidade desligada (defina COMMUNITY=1 para ligar).');
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await app.close(); process.exit(0); });

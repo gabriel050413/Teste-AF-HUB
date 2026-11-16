@@ -18,10 +18,8 @@ import { setModelListener } from './model3d.js';
 import { Timeline } from './timeline.js';
 import { Inspector } from './inspector.js';
 import { Library } from './library.js';
-import { CloudUI } from './cloud-ui.js';
 import { newProjectSheet } from './new-project.js';
 import { serializePreset, parsePresetJSON } from './presets.js';
-import { cloud } from './cloud.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
 import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
 import { startTour, maybeStartTour } from './tour.js';
@@ -1517,7 +1515,7 @@ const APP_MENU = [
   ['Projeto', [['new', 'plus', 'Novo projeto'], ['comp', 'settings', 'Configurações do projeto'], ['open', 'folder', 'Abrir projeto (.json)'], ['save', 'save', 'Salvar projeto (.json)'], ['home', 'home', 'Meus projetos']]],
   ['Importar', [['ffx', 'import', 'Preset .ffx do After Effects'], ['aep', 'ae', 'Projeto .aep do After Effects'], ['xml', 'xml', 'XML (Alight / Premiere / Final Cut / DaVinci)'], ['font', 'font', 'Fontes (.ttf / .otf / .woff)']]],
   ['Ajuda', [['tour', 'help', 'Tutorial deste layout'], ['help', 'info', 'Como usar (passo a passo)'], ['keys', 'keyboard', 'Atalhos de teclado'], ['about', 'effects', 'Sobre os efeitos e plugins']]],
-  ['App', [['account', 'account', 'Conta e acesso'], ['apps', 'download', 'Baixar o app (PC / Android)'], ['lang', 'globe', 'Idioma / Language'], ['ui', 'ae', 'Interface avançada (After Effects)']]],
+  ['App', [['apps', 'download', 'Baixar o app (PC / Android)'], ['lang', 'globe', 'Idioma / Language'], ['ui', 'ae', 'Interface avançada (After Effects)']]],
 ];
 async function showMenu() {
   const L = editorLayout();
@@ -1526,7 +1524,6 @@ async function showMenu() {
   const res = await modal('Menu', appMenu || `<div class="menu-list">
     <button data-m="ui">🎚 Interface: ${getSettings().uiMode === 'ae' ? 'Avançada (After Effects) → trocar para Simples' : 'Simples → trocar para Avançada (After Effects)'}</button>
     <button data-m="home">⌂ Meus projetos</button>
-    <button data-m="account">🔑 Conta e acesso</button>
     <button data-m="apps">⬇ Baixar o app (PC Windows / Android)</button>
     <button data-m="help">❓ Como usar (passo a passo)</button>
     <button data-m="tour">👆 Tutorial deste layout (mostra onde fica cada coisa)</button>
@@ -1711,7 +1708,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); library.render(); effectsInspector.render(); propsInspector.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
+  layout: async () => { await layoutPopover(null, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); library.render(); effectsInspector.render(); propsInspector.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
   'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
@@ -2785,17 +2782,8 @@ async function goHome() {
   home.show();
 }
 
-const cloudUI = new CloudUI({
-  userPresets: () => library.user || [],
-  serializePreset,
-  installPreset: (payload) => { const list = parsePresetJSON(payload); for (const p of list) { p.category = 'Meus presets'; library.addToLibrary(p); } library.render(); return list.length; },
-  currentProject: () => (store.project?.layers?.length ? store.project : null),
-  openProjectData: async (d) => { if (!Array.isArray(d.layers) || !d.width) throw new Error('Projeto inválido.'); d.id = uid('prj'); saveProjectData(d, null); await openProjectById(d.id); toast('Projeto aberto. Reimporte as mídias que faltarem.', 'ok', 4000); },
-  thumb: () => { try { const c = document.createElement('canvas'); const k = 360 / Math.max(view.width, view.height); c.width = Math.round(view.width * k); c.height = Math.round(view.height * k); c.getContext('2d').drawImage(view, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.7); } catch { return undefined; } },
-});
+// Comunidade (feed, mercado, chat) desligada nesta versão beta — volta numa próxima versão.
 const home = new HomeScreen({
-  cloud: (tab) => cloudUI.open(tab || 'feed'),
-  cloudSell: async () => { await cloudUI.open('market'); if (cloud.loggedIn) cloudUI.sellDialog().catch((e) => toast(e.message, 'error')); },
   newProject: async () => {
     const s = getSettings(); const pre = COMP_PRESETS.find((x) => x.id === s.compPreset) || COMP_PRESETS[0];
     const r = await newProjectSheet({ name: `Projeto ${listProjects().length + 1}`, ratio: pre.w > pre.h ? '16:9' : pre.w === pre.h ? '1:1' : '9:16', fps: pre.fps });
@@ -2807,7 +2795,7 @@ const home = new HomeScreen({
     toast('Projeto criado. Adicione vídeo, texto ou presets na barra de baixo.', 'ok', 3500);
   },
   tool: async (id) => { await ensureSomeProject(); commands[id]?.(); },
-  interface: async () => { await cloud.init(); await interfaceDialog(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); home.render(); }); },
+  interface: async () => { await interfaceDialog(null, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); home.render(); }); },
   open: (id) => openProjectById(id),
   afterDelete: () => cleanUnusedMedia(),
   create: () => quickProjectFlow(),
@@ -2867,4 +2855,4 @@ const home = new HomeScreen({
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.
-window.motionframe = { routeFiles: (f) => routeFiles(f), cloud, cloudUI, store, openSheet, openProjectById, tour: () => commands.tour(), commands, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };
+window.motionframe = { routeFiles: (f) => routeFiles(f), store, transPanel, openSheet, openProjectById, tour: () => commands.tour(), commands, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };

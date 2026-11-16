@@ -70,10 +70,10 @@ export async function interfaceDialog(cloud, onChange) {
   const res = await modal('Interface e layouts', `<p class="muted small">Escolha o layout. Tudo é salvo neste aparelho.</p>
     <div class="lay-grid">${Object.entries(BUILTIN).map(([k, t]) => card(k, t, 'b')).join('')}${ai.map((t, i) => card(i, t, 'a')).join('')}</div>
     <button class="wide" data-k="reset">↺ Voltar ao visual padrão</button>
-    <h4 style="margin:14px 0 6px">✨ Criar com IA <span class="pt" style="color:#ffd166">◈ ${cost}</span></h4>
+    ${cloud ? `<h4 style="margin:14px 0 6px">✨ Criar com IA <span class="pt" style="color:#ffd166">◈ ${cost}</span></h4>
     <p class="muted small">Descreva o visual (ex.: “laranja pôr do sol, cantos redondos, estilo revista”). ${cloud?.loggedIn ? `Seu saldo: ◈ ${cloud.user.points}.` : 'Entre na sua conta (aba Perfil) para usar a IA.'}${engine === 'procedural' ? ' <br>Servidor sem chave de IA: usa o gerador automático de paletas.' : ''}</p>
     <input type="text" data-f="prompt" placeholder="Descreva a interface…" style="width:100%" ${cloud?.loggedIn ? '' : 'disabled'}>
-    <button class="wide primary" data-k="gen" ${cloud?.loggedIn ? '' : 'disabled'}>Gerar interface (◈ ${cost})</button>`,
+    <button class="wide primary" data-k="gen" ${cloud?.loggedIn ? '' : 'disabled'}>Gerar interface (◈ ${cost})</button>` : ''}`,
   [{ label: 'Fechar', value: null }], {
     onMount: (w, close) => w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => close({ k: b.dataset.k, prompt: w.querySelector('[data-f="prompt"]')?.value })))
   });
@@ -108,7 +108,7 @@ export function refreshLayoutChip() { const c = document.getElementById('layoutC
 export async function layoutPopover(cloud, onChange) {
   const cur = getSettings().custom?.layout || 'studio';
   const r = await modal('Layout', `<div class="lay-list">${Object.entries(BUILTIN).map(([k, t]) => `<button class="lay-row ${cur === k ? 'on' : ''}" data-k="${k}">${swatch(t)}<span class="lay-txt"><b>${esc(t.name)}</b><small>${DESC[k]}${NOTE[k] ? ` · ${NOTE[k]}` : ''}</small><span class="lay-feats">${FEATS[k].map((f) => ico(f)).join('')}</span></span>${cur === k ? `<i class="lay-check">${ico('check')}</i>` : ''}</button>`).join('')}
-    <button class="lay-row lay-more" data-k="more">${ico('palette')}<span class="lay-txt"><b>Mais opções</b><small>Temas, cores e interfaces criadas com IA</small></span></button></div>`, [{ label: 'Fechar', value: null }],
+    <button class="lay-row lay-more" data-k="more">${ico('palette')}<span class="lay-txt"><b>Mais opções</b><small>Temas e cores</small></span></button></div>`, [{ label: 'Fechar', value: null }],
   { onMount: (w, close) => w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => close(b.dataset.k))) });
   if (!r) return;
   if (r === 'more') return interfaceDialog(cloud, () => { onChange?.(); refreshLayoutChip(); });

@@ -35,7 +35,7 @@ async function signup(opts = {}) {
   return { ...r.body, token, code };
 }
 
-test.before(async () => { app = createApp({ publicKey: SPKI, defaultPoints: 100, adminKey: 'segredo', staticDir: '', authMax: 1000, writeMax: 1000 }); base = `http://127.0.0.1:${await app.listen(0, '127.0.0.1')}`; });
+test.before(async () => { app = createApp({ publicKey: SPKI, defaultPoints: 100, adminKey: 'segredo-do-dono-123456', staticDir: '', authMax: 1000, writeMax: 1000 }); base = `http://127.0.0.1:${await app.listen(0, '127.0.0.1')}`; });
 test.after(async () => { await app.close(); });
 
 test('conta: token com pontos iniciais, token sem pontos usa o padrão, e cada token só cria uma conta', async () => {
@@ -235,9 +235,9 @@ test('administração: só com a chave do dono; pontos nunca ficam negativos', a
   const u = await signup({ points: 5, username: 'sem_grana' });
   const call = (key, body) => fetch(`${base}/api/admin/grant`, { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { 'x-admin-key': key } : {}) }, body: JSON.stringify(body) });
   assert.equal((await call('errada', { username: 'sem_grana', points: 50 })).status, 403);
-  assert.equal((await call('segredo', { username: 'sem_grana', points: 50 })).status, 200);
+  assert.equal((await call('segredo-do-dono-123456', { username: 'sem_grana', points: 50 })).status, 200);
   assert.equal((await api('GET', '/api/me', undefined, u.session)).body.user.points, 55);
-  assert.equal((await call('segredo', { username: 'sem_grana', points: -500 })).status, 402);
+  assert.equal((await call('segredo-do-dono-123456', { username: 'sem_grana', points: -500 })).status, 402);
   assert.equal((await api('GET', '/api/me', undefined, u.session)).body.user.points, 55);
 });
 
@@ -261,4 +261,25 @@ test('IA de interface: gasta pontos, devolve tema válido e estorna se faltar sa
   assert.equal(r2.status, 402);
   assert.equal((await api('GET', '/api/me', undefined, u.session)).body.user.points, 5);
   assert.equal((await api('POST', '/api/ai/interface', { prompt: 'x' }, u.session)).status, 400);
+});
+
+test('segurança: arquivos sensíveis não são servidos, cabeçalhos de proteção e comunidade desligável', async () => {
+  const fs = await import('node:fs'); const os = await import('node:os'); const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mfsec-'));
+  fs.writeFileSync(path.join(dir, 'index.html'), '<h1>ok</h1>');
+  fs.writeFileSync(path.join(dir, '.env'), 'SEGREDO=1');
+  fs.mkdirSync(path.join(dir, 'server')); fs.writeFileSync(path.join(dir, 'server', 'app.mjs'), 'x');
+  fs.writeFileSync(path.join(dir, 'banco.db'), 'x');
+  const a = createApp({ publicKey: SPKI, staticDir: dir, community: false, adminKey: 'curta' });
+  const b = `http://127.0.0.1:${await a.listen(0, '127.0.0.1')}`;
+  try {
+    const home = await fetch(`${b}/`);
+    assert.equal(home.status, 200);
+    assert.equal(home.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(home.headers.get('x-frame-options'), 'DENY');
+    for (const p of ['/.env', '/server/app.mjs', '/banco.db', '/%2e%2e/%2e%2e/etc/passwd', '/..%2f..%2fetc%2fpasswd', '/%E0%A4%A']) assert.notEqual((await fetch(`${b}${p}`)).status, 200, p);
+    assert.equal((await fetch(`${b}/api/health`)).status, 200);
+    assert.equal((await fetch(`${b}/api/feed`)).status, 404); // comunidade desligada
+    assert.equal((await fetch(`${b}/api/admin/grant`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-admin-key': 'curta' }, body: '{}' })).status, 404);
+  } finally { await a.close(); }
 });

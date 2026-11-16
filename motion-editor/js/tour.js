@@ -12,7 +12,7 @@ const COMMON_END = [
 ];
 const STEPS = {
   studio: [
-    ['.topbar [data-lcmd="home"]', 'Projetos', 'Volta para a tela inicial com seus projetos, presets e a comunidade.'],
+    ['.topbar [data-lcmd="home"]', 'Projetos', 'Volta para a tela inicial com seus projetos, e presets.'],
     ['.transport .play', 'Reproduzir', 'Toca e pausa a prévia. Arraste a régua da timeline para andar no vídeo.'],
     ['#timeline', 'Timeline', 'Cada camada é uma faixa. Toque num clipe para selecionar; arraste as bordas para cortar e o meio para mover.'],
     ['#toolbar [data-cmd="add-media"]', 'Importar', 'Traga vídeos e fotos do aparelho. Também dá para arrastar arquivos para a prévia.'],

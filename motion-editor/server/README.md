@@ -32,3 +32,11 @@ O app procura o servidor em: ajuste do usuário (Perfil › Servidor) › `cloud
 - Criar conta: e-mail, usuário, senha e foto. Um token = uma conta.
 - Dar pontos: `POST /api/admin/grant` com cabeçalho `x-admin-key` e `{ "username": "...", "amount": 100 }`.
 - Vendas: quem vende recebe o preço (menos `FEE_PCT`); quem compra paga. Gorjetas, bônus diário, encomendas com pontos em custódia e loja (destaque, impulso, selos, molduras, exportações sem marca d'água, pacotes de IA, vagas de nuvem).
+
+## Segurança (v1.0.0 BETA TEST)
+- A comunidade (contas, feed, mercado, chat, IA de interface) fica **desligada** por padrão: só `/api/health` responde. Para ligar: `COMMUNITY=1`.
+- `ADMIN_KEY` precisa ter 16+ caracteres (comparação em tempo constante); chave curta = admin desligado.
+- Limite geral por IP (`IP_MAX_PER_MIN`, padrão 600/min) além dos limites de login/cadastro e escrita.
+- Atrás de proxy (Render): `TRUST_PROXY=1` (automático no Render) usa o IP informado pelo proxy; fora disso o `X-Forwarded-For` é ignorado.
+- Cabeçalhos: `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, HSTS no Render (`HSTS=1`).
+- O servidor de arquivos nunca entrega arquivos ocultos (`.env`, `.git`), `server/`, `data/`, `tests/`, `tools/`, bancos `.db`.

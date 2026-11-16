@@ -8,8 +8,8 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v203';
-export const APP_LABEL = 'v1.0.0';
+export const APP_VERSION = 'v204';
+export const APP_LABEL = 'v1.0.0 BETA TEST';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -157,7 +157,7 @@ export class HomeScreen {
   tabNav() {
     const t = this.tab || 'home';
     const b = (id, icon, lb) => `<button class="${t === id ? 'on' : ''}" data-h="tab" data-id="${id}">${ico(icon)}<span>${lb}</span></button>`;
-    return `<nav class="mf-nav">${b('home', 'home', 'Início')}${b('projects', 'grid', 'Projetos')}<button class="mf-plus" data-h="plus" aria-label="Criar">${ico('plus')}</button>${b('presets', 'presets', 'Presets')}${b('profile', 'user', 'Perfil')}</nav>`;
+    return `<nav class="mf-nav">${b('home', 'home', 'Início')}${b('projects', 'grid', 'Projetos')}<button class="mf-plus" data-h="plus" aria-label="Criar">${ico('plus')}</button>${b('presets', 'presets', 'Presets')}<button data-h="settings">${ico('settings')}<span>Ajustes</span></button></nav>`;
   }
 
   projectCard(p, small) {
@@ -185,8 +185,6 @@ export class HomeScreen {
         ${list.length ? `<div class="mf-strip">${list.slice(0, 10).map((p) => this.projectCard(p, true)).join('')}</div>` : `<div class="mf-empty">${ico('folder')}<span>Seus projetos aparecem aqui.</span></div>`}
         <div class="mf-sec"><h3>Ferramentas</h3></div>
         <div class="mf-tools">${AI_TOOLS.map(([id, icon, name]) => `<button class="mf-tool" data-h="tool" data-id="${id}"><span>${ico(icon)}</span><small>${name}</small></button>`).join('')}</div>
-        <div class="mf-sec"><h3>Comunidade</h3></div>
-        <div class="mf-list">${row('cloud', 'feed', 'Feed de edits', 'Poste, curta e venda seus edits', 'feed')}${row('cloud', 'store', 'Mercado de presets', 'Compre e venda com pontos', 'market')}${row('cloud', 'chat', 'Conversas', 'Fale com outros editores', 'chat')}</div>
         <div class="home-recover"></div></div>`;
     } else if (tab === 'projects') {
       body = `${top('Projetos', `${list.length} projeto(s) neste aparelho`)}<div class="mf-body">
@@ -195,15 +193,14 @@ export class HomeScreen {
         ${list.length ? `<div class="mf-grid">${list.map((p) => this.projectCard(p, false)).join('')}</div>` : `<div class="mf-empty">${ico('folder')}<span>Nenhum projeto ainda. Toque em ＋ para começar.</span></div>`}
         <div class="mf-list" style="margin-top:18px">${row('logoAnim', 'wand', 'Animar minha logo', 'Logo animada em segundos')}${row('demoLogo', 'play', 'Projeto de exemplo', 'Logo animada editável')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins do After Effects')}</div></div>`;
     } else if (tab === 'presets') {
-      body = `${top('Presets', 'Biblioteca, comunidade e After Effects')}<div class="mf-body">
-        <div class="mf-list">${row('presets', 'presets', 'Minha biblioteca', 'Shakes, CCs, transições, textos e seus .ffx')}${row('cloud', 'download', 'Presets da comunidade', 'Baixe presets de outros editores', 'market')}${row('cloudSell', 'upload', 'Vender um preset', 'Publique e ganhe pontos')}${row('importAE', 'ae', 'Importar do After Effects', '.ffx e .aep viram presets com efeitos e keyframes')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins para efeitos do app')}</div></div>`;
+      body = `${top('Presets', 'Biblioteca e After Effects')}<div class="mf-body">
+        <div class="mf-list">${row('presets', 'presets', 'Minha biblioteca', 'Shakes, CCs, transições, textos e seus .ffx')}${row('importAE', 'ae', 'Importar do After Effects', '.ffx e .aep viram presets com efeitos e keyframes')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins para efeitos do app')}</div></div>`;
     } else {
       body = `${top('Perfil')}<div class="mf-body"><div class="mf-empty">${ico('user')}<span>Abrindo perfil…</span></div></div>`;
     }
     this.el.innerHTML = `${body}${this.tabNav()}`;
     this.el.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => this.action(b.dataset.h, b.dataset.id)));
     if (tab === 'home' || tab === 'projects') this.checkRecoverable();
-    if (tab === 'profile') { this.tab = 'home'; this.hooks.cloud?.('me'); setTimeout(() => this.render(), 50); }
   }
 
   /** Botão ＋ do meio: o que você quer criar. */
