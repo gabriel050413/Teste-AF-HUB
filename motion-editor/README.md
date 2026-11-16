@@ -217,3 +217,12 @@ Lidos: composições, camadas (texto, formas, sólidos, nulls, câmeras, pré-co
 - **`.aepx` (XML) não é lido:** no After use Arquivo › Salvar como › Salvar uma cópia… e escolha `.aep`.
 - Fonte SF Pro (Apple): vira Inter com escala e linha de base ajustadas; `Bumbbled` vira Kaushan Script.
 - Limites conhecidos: movimento da câmera/entrada de alguns textos 3D (ex.: “Ohhh…”), efeitos de números e peso do texto branco sobre caixa preta ainda diferem do render.
+
+## MotionFrame Cloud (comunidade, pontos e IA de interface)
+Servidor opcional em `server/` (Node 22, sem dependências; veja `server/README.md`): contas criadas com o token de acesso (e-mail, usuário, senha, foto), pontos, mercado de presets e projetos (vendedor ganha os pontos do comprador), feed de edits com venda pelo vídeo postado, chat em tempo real, encomendas com recompensa em pontos, loja (selos, molduras, impulsos, vagas de nuvem, pacote de IA) e backup de projetos.
+- **Pontos iniciais:** o gerador de tokens (`tools/token-gen`) tem o campo “pontos”; em branco vale `DEFAULT_POINTS` do servidor.
+- **IA de interface:** `POST /api/ai/interface` gasta `AI_UI_COST` pontos (padrão 25). Com `ANTHROPIC_API_KEY` no servidor usa o Claude; sem a chave, usa um gerador procedural de paletas. O resultado aparece em 🎨 Interface e layouts (junto com os layouts Nova, CapCut, Blurrr, Motion e After Effects).
+- **Conexão:** `cloud.json` no site (`{"api":"https://seu-servidor"}`; no GitHub, defina a variável de repositório `MF_CLOUD_URL` e o deploy gera o arquivo) ou Perfil › Servidor.
+- **Camada de ajuste:** qualquer efeito vale para todas as camadas visíveis abaixo; efeitos de tempo (eco, fatias, motion blur) enxergam o que está abaixo em outros instantes.
+- **Atalhos extras do AE:** Alt+Shift+J (ir ao tempo), Alt+setas (empurrar 1 px), Enter (renomear), `,` `.` `;` (zoom da timeline), L (som), Y (ancoragem), Shift+P/S/R/T/A. Lista completa em ? no app.
+- **Topaz:** além dos modelos do plugin do AE, o app inclui Theia (Detail/Fidelity), Gaia CG, Nyx XL e Rhea XL, recriados por filtros clássicos (não são as redes neurais da Topaz; paridade exata não é possível).

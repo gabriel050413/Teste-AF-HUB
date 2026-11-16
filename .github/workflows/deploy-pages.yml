@@ -28,6 +28,11 @@ jobs:
           node-version: 22
       - name: Monta o site (www + version.json + app-update.zip)
         run: node tools/build-presets.mjs && node tools/build-www.mjs && node tools/make-update.mjs
+      - name: Aponta o app para o MotionFrame Cloud (opcional: variável MF_CLOUD_URL do repositório)
+        env:
+          MF_CLOUD_URL: ${{ vars.MF_CLOUD_URL }}
+        run: |
+          if [ -n "$MF_CLOUD_URL" ]; then node -e 'require("fs").writeFileSync("www/cloud.json", JSON.stringify({api: process.env.MF_CLOUD_URL}))'; fi
       - name: Publica no gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
