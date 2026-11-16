@@ -39,7 +39,7 @@ function shapeAmount(shape, a, b, c0, c1, smooth) {
 }
 
 /** Quanto (0..1, pode ser negativo) cada caractere é afetado pelos seletores de um animador. */
-function selectorAmounts(an, chars, t) {
+function selectorAmounts(an, chars, t, t0 = 0) {
   let acc = null;
   for (const s of an.selectors || []) {
     const { key, n } = unitsOf(chars, s.based || 1);
@@ -58,7 +58,7 @@ function selectorAmounts(an, chars, t) {
     } else if (s.type === 'expr' && s.delay != null) {
       // oscilação amortecida do After por caractere: t = (tempo AE − início) − atraso × índice (1-based);
       // antes do atraso a quantidade é 100 %; depois, s = amp·cos(2π·freq·t) / e^(decay·t) (em %)
-      const tc = t / (s.k || 1); // t já é o tempo local da camada (desde a entrada), em segundos do app
+      const tc = (t - t0) / (s.k || 1); // a expressão do AE usa (time − inPoint): tempo desde a entrada da camada
       vals = chars.map((c) => {
         const ti = tc - s.delay * ((c.ci ?? 0) + 1);
         if (ti < 0) return 1;
@@ -104,7 +104,7 @@ export function animatorPad(p) {
 }
 
 /** Desenha o texto com animadores. Mesma diagramação do desenho normal (linhas, alinhamento, contorno). */
-export function drawAnimatedText(ctx, p, w, h, t, font) {
+export function drawAnimatedText(ctx, p, w, h, t, font, t0 = 0) {
   ctx.font = font;
   if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
   ctx.textBaseline = 'middle';
@@ -123,7 +123,7 @@ export function drawAnimatedText(ctx, p, w, h, t, font) {
       chars.push({ ch, line: li, ci: ci++, ns: sp ? null : ns++, word: sp ? null : word });
     }
   });
-  const ams = (p.animators || []).map((an) => ({ an, s: selectorAmounts(an, chars, t) }));
+  const ams = (p.animators || []).map((an) => ({ an, s: selectorAmounts(an, chars, t, t0) }));
   // tracking por caractere (1/1000 em)
   const track = chars.map((_, i) => ams.reduce((sum, { an, s }) => sum + (an.props?.tracking ? (v(an.props.tracking, t, 0) / 1000) * p.fontSize * s[i] : 0), 0));
   let k = 0;
