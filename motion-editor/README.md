@@ -201,3 +201,19 @@ js/main.js          app, gestos, comandos
 tools/              build-presets (manifest FREE) e build-www (Capacitor)
 android/, ios/      projetos nativos (Capacitor)
 ```
+
+## Atualização automática do app
+
+- **Site e PWA** (`https://gabriel050413.github.io/Teste-AF-HUB/`): o app confere `version.json` ao abrir, ao voltar para ele e a cada 10 minutos. Na tela inicial ele recarrega sozinho na versão nova; com projeto aberto aparece a faixa “Nova versão”.
+- **Publicação:** o workflow *publicar site* roda a cada push no `main` (e no branch de trabalho): monta `www/`, gera `version.json` + `app-update.zip` e publica no `gh-pages` sem mexer em `downloads/`. À mão: `npm run deploy` (na pasta `motion-editor`).
+- **APK e .exe:** o workflow *APK e IPA* compila e publica `downloads/MotionFrame.apk` e `downloads/MotionFrame-leve.exe`. Apps instalados **antes da v1.6.2** tinham um endereço de atualização errado embutido: baixe o APK/.exe novo uma vez; depois eles se atualizam sozinhos. O APK é assinado com a chave de depuração de cada compilação: se o Android recusar instalar por cima, faça antes ☰ Menu › Transferir tudo › Exportar, desinstale e importe de novo.
+
+## Projetos do After Effects (`.aep`)
+
+Lidos: composições, camadas (texto, formas, sólidos, nulls, câmeras, pré-comps), keyframes e eases, efeitos (convertidos como no `.ffx`), animadores de texto (inclusive seletor de expressão com atraso/oscilação), máscaras, Track Matte, motion blur por camada (inclusive 3D), Paint (traços viram formas) e `.ai` ligados por camada do Illustrator.
+
+- O tempo do render do After é a composição deslocada em 0,205 s (medido contra o vídeo de referência; `AE_TIME_OFFSET` em `js/aep.js`).
+- Uma camada com problema não derruba a importação: entra com aviso no relatório. Arquivo cortado também importa o que der.
+- **`.aepx` (XML) não é lido:** no After use Arquivo › Salvar como › Salvar uma cópia… e escolha `.aep`.
+- Fonte SF Pro (Apple): vira Inter com escala e linha de base ajustadas; `Bumbbled` vira Kaushan Script.
+- Limites conhecidos: movimento da câmera/entrada de alguns textos 3D (ex.: “Ohhh…”), efeitos de números e peso do texto branco sobre caixa preta ainda diferem do render.
