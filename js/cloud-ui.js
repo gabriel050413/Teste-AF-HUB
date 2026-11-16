@@ -3,8 +3,9 @@
 import { cloud, CloudError, fileToAvatar, BADGES, initials, timeAgo } from './cloud.js';
 import { modal, toast, pickFiles } from './ui.js';
 import { escapeHtml as esc } from './util.js';
+import { ico } from './icons.js';
 
-const TABS = [['home', '⌂', 'Início'], ['feed', '▶', 'Feed'], ['market', '★', 'Presets'], ['chat', '✉', 'Chat'], ['me', '☺', 'Perfil']];
+const TABS = [['home', 'home', 'Início'], ['feed', 'feed', 'Feed'], ['market', 'store', 'Mercado'], ['chat', 'chat', 'Chat'], ['me', 'user', 'Perfil']];
 const pts = (n) => `<b class="pt">◈ ${Number(n || 0).toLocaleString('pt-BR')}</b>`;
 const avatar = (u, size = 36) => {
   const s = `width:${size}px;height:${size}px;font-size:${size * 0.45}px`;
@@ -31,7 +32,7 @@ export class CloudUI {
   async open(tab = 'feed') {
     this.el.hidden = false; document.body.classList.add('at-cloud');
     this.el.innerHTML = `<header class="c-top"><b class="c-title"></b><span class="c-pts"></span></header><div class="c-body"></div>
-      <nav class="c-nav">${TABS.map(([id, ic, lb]) => `<button data-t="${id}"><span>${ic}</span>${lb}</button>`).join('')}</nav>`;
+      <nav class="mf-nav c-nav">${TABS.map(([id, ic, lb]) => `<button data-t="${id}">${ico(ic)}<span>${lb}</span></button>`).join('')}</nav>`;
     this.el.querySelectorAll('[data-t]').forEach((b) => b.addEventListener('click', () => (b.dataset.t === 'home' ? this.close() : this.go(b.dataset.t))));
     this.body = this.el.querySelector('.c-body');
     this.body.innerHTML = '<div class="c-empty">Conectando…</div>';
@@ -45,7 +46,7 @@ export class CloudUI {
     const t = this.el.querySelector('.c-title'); const p = this.el.querySelector('.c-pts');
     if (!t) return;
     t.textContent = { feed: 'Feed de edits', market: 'Presets', chat: 'Conversas', me: 'Perfil' }[this.tab] || 'Comunidade';
-    p.innerHTML = cloud.loggedIn ? `<button class="c-link" data-wallet>${pts(cloud.user.points)}</button><button class="c-link" data-bell>🔔${cloud.unread ? ` <i class="c-dot">${cloud.unread}</i>` : ''}</button>` : '';
+    p.innerHTML = cloud.loggedIn ? `<button class="c-link" data-wallet>${pts(cloud.user.points)}</button><button class="c-link" data-bell>${ico('bell')}${cloud.unread ? ` <i class="c-dot">${cloud.unread}</i>` : ''}</button>` : '';
     p.querySelector('[data-wallet]')?.addEventListener('click', guard(() => this.wallet()));
     p.querySelector('[data-bell]')?.addEventListener('click', guard(() => this.notifications()));
     this.el.querySelectorAll('[data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === this.tab));

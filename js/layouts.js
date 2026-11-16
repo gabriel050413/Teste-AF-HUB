@@ -2,12 +2,13 @@
 import { getSettings, setSettings } from './projects.js';
 import { modal, toast } from './ui.js';
 import { escapeHtml as esc } from './util.js';
+import { ico } from './icons.js';
 
 const FONT = { Inter: 'Inter, system-ui, sans-serif', system: 'system-ui, -apple-system, "Segoe UI", sans-serif', serif: 'Georgia, "Times New Roman", serif', mono: 'ui-monospace, "SF Mono", Consolas, monospace', rounded: '"Nunito", "Quicksand", system-ui, sans-serif' };
 
-/** Layouts prontos: mesma ideia dos apps de edição conhecidos, com tokens próprios (não copiam o visual exato de nenhum). */
+/** Layouts prontos: o visual do MotionFrame e variações inspiradas em outros editores (tokens próprios). */
 export const BUILTIN = {
-  nova: { name: 'Nova', uiMode: 'simple', rows: 'normal', bg: '#121214', panel: '#1b1b1f', panel2: '#25252b', line: '#303038', text: '#ececf1', muted: '#9a9aa6', accent: '#7c5cff', accent2: '#a995ff', radius: 14, font: 'Inter', layout: 'nova' },
+  studio: { name: 'MotionFrame', uiMode: 'simple', rows: 'normal', bg: '#0f1013', panel: '#17181d', panel2: '#20222a', line: '#2b2d36', text: '#eef0f5', muted: '#9298a6', accent: '#3d7bff', accent2: '#7fb0ff', radius: 14, font: 'Inter', layout: 'studio' },
   capcut: { name: 'CapCut', uiMode: 'simple', rows: 'big', bg: '#000000', panel: '#0d0d0d', panel2: '#181818', line: '#242424', text: '#ffffff', muted: '#8b8b8b', accent: '#00e5c0', accent2: '#7dfbe4', radius: 10, font: 'system', layout: 'capcut' },
   blurrr: { name: 'Blurrr', uiMode: 'simple', rows: 'normal', bg: '#0e1116', panel: '#161b22cc', panel2: '#1f2630cc', line: '#2d3643', text: '#e8edf5', muted: '#8d99ab', accent: '#4aa3ff', accent2: '#9bd0ff', radius: 20, font: 'Inter', layout: 'blurrr' },
   motion: { name: 'Motion', uiMode: 'simple', rows: 'compact', bg: '#17140f', panel: '#201c15', panel2: '#2a251c', line: '#3a3326', text: '#f1ebdd', muted: '#a39a85', accent: '#ff8a1f', accent2: '#ffc27a', radius: 8, font: 'Inter', layout: 'motion' },
@@ -19,7 +20,8 @@ const VARS = ['--bg', '--panel', '--panel-2', '--panel-3', '--line', '--text', '
 
 /** Aplica o tema salvo (settings.custom) ao documento. Chamada pelo applyUIMode do app. */
 export function applyCustom(st = getSettings()) {
-  const b = document.body; const t = st.custom;
+  const b = document.body; let t = st.custom;
+  if (t && (t.layout === 'nova' || t.name === 'Nova')) { t = null; setSettings({ ...st, custom: null }); } // layout antigo removido
   for (const v of VARS) b.style.removeProperty(v);
   b.style.removeProperty('font-family');
   if (!t) { delete b.dataset.layout; return; }
@@ -27,7 +29,7 @@ export function applyCustom(st = getSettings()) {
   const set = { '--bg': t.bg, '--panel': t.panel, '--panel-2': t.panel2, '--panel-3': lighten(h(t.panel2), 0.06), '--line': t.line, '--text': t.text, '--muted': t.muted, '--accent': t.accent, '--accent-2': t.accent2, '--hot': t.accent, '--radius': `${t.radius}px` };
   for (const [k, v] of Object.entries(set)) b.style.setProperty(k, v);
   b.style.fontFamily = FONT[t.font] || FONT.Inter;
-  b.dataset.layout = t.layout || 'nova';
+  b.dataset.layout = t.layout || 'studio';
 }
 
 export function setLayout(theme, onChange) {
@@ -43,7 +45,14 @@ export function setLayout(theme, onChange) {
 
 const savedAI = () => { try { return JSON.parse(localStorage.getItem('motionframe.ui.ai') || '[]'); } catch { return []; } };
 const saveAI = (l) => { try { localStorage.setItem('motionframe.ui.ai', JSON.stringify(l.slice(0, 20))); } catch { /* ok */ } };
-const swatch = (t) => `<span class="lay-sw" style="background:${t.bg};border-color:${t.line}"><i style="background:${t.panel}"></i><i style="background:${t.accent}"></i><i style="background:${t.accent2}"></i></span>`;
+const swatch = (t) => {
+  const r = Math.min(6, (t.radius || 8) / 3), ae = t.layout === 'ae';
+  return `<svg class="lay-wire" viewBox="0 0 64 44" aria-hidden="true"><rect x="0.5" y="0.5" width="63" height="43" rx="${r + 2}" fill="${t.bg}" stroke="${t.line}"/>
+    ${ae ? `<rect x="4" y="4" width="12" height="22" rx="${r / 2}" fill="${t.panel}"/><rect x="18" y="4" width="28" height="22" rx="${r / 2}" fill="#000" stroke="${t.line}" stroke-width=".6"/><rect x="48" y="4" width="12" height="22" rx="${r / 2}" fill="${t.panel}"/>`
+    : `<rect x="16" y="4" width="32" height="22" rx="${r / 2}" fill="#000" stroke="${t.line}" stroke-width=".6"/><circle cx="32" cy="15" r="3.4" fill="${t.accent}"/>`}
+    <rect x="4" y="29" width="56" height="4" rx="2" fill="${t.panel2}"/><rect x="${ae ? 18 : 10}" y="29" width="${ae ? 20 : 26}" height="4" rx="2" fill="${t.accent}"/>
+    <rect x="4" y="35" width="56" height="5" rx="${r / 2}" fill="${t.panel}"/>${[0, 1, 2, 3, 4].map((i) => `<circle cx="${12 + i * 10}" cy="37.5" r="1.3" fill="${i === 0 ? t.accent2 : t.muted}"/>`).join('')}</svg>`;
+};
 
 /** Janela "Interface e layouts". cloud: cliente do MotionFrame Cloud (para a IA). onChange: refaz toolbar/timeline. */
 export async function interfaceDialog(cloud, onChange) {
@@ -82,18 +91,19 @@ export async function interfaceDialog(cloud, onChange) {
   return interfaceDialog(cloud, onChange);
 }
 
-const FEATS = { nova: ['▤', '◎', '✦', '☁', 'CC', '🔗'], capcut: ['✂', '♪', 'T', '☆', '▦', '▣'], blurrr: ['▶', '♪', '✦', 'T', '▲', '⛶'], motion: ['▤', '◎', '✦', '☁', 'CC', '🔗'], ae: ['➤', '✋', '🔍', '⚭', '✛', '↻'] };
+const FEATS = { studio: ['layers', 'effects', 'presets', 'sparkle', 'captions'], capcut: ['scissors', 'audio', 'text', 'effects', 'captions'], blurrr: ['media', 'audio', 'sparkle', 'text', 'max'], motion: ['layers', 'graph', 'keys', 'effects', 'wand'], ae: ['pointer', 'hand', 'zoom', 'null', 'camera'] };
+const DESC = { studio: 'O visual padrão do app', capcut: 'Botões grandes, foco no corte', blurrr: 'Painéis translúcidos', motion: 'Compacto, para keyframes', ae: 'Painéis do After Effects' };
 const NOTE = { ae: 'Precisa de tela grande' };
 
 /** Nome do layout atual (para o botão da barra do editor). */
-export function layoutName(st = getSettings()) { return st.custom?.name || 'Nova'; }
-export function refreshLayoutChip() { const c = document.getElementById('layoutChip'); if (c) c.textContent = `${layoutName()} ▾`; }
+export function layoutName(st = getSettings()) { return st.custom?.name || 'MotionFrame'; }
+export function refreshLayoutChip() { const c = document.getElementById('layoutChip'); if (c) c.innerHTML = `${ico('layout')}<span>${esc(layoutName())}</span>`; }
 
 /** Lista de layouts (popover do botão da barra), como no app de referência. */
 export async function layoutPopover(cloud, onChange) {
-  const cur = getSettings().custom?.layout || 'nova';
-  const r = await modal('Layout', `<div class="lay-list">${Object.entries(BUILTIN).map(([k, t]) => `<button class="lay-row ${cur === k ? 'on' : ''}" data-k="${k}">${swatch(t)}<span><b>${esc(t.name)}</b> ${NOTE[k] ? `<small class="muted">${NOTE[k]}</small>` : ''}<br><small class="lay-feats">${FEATS[k].join('  ')}</small></span>${cur === k ? '<i>✓</i>' : ''}</button>`).join('')}
-    <button class="lay-row" data-k="more"><span>☰ Mais opções de layout (temas e IA)</span></button></div>`, [{ label: 'Fechar', value: null }],
+  const cur = getSettings().custom?.layout || 'studio';
+  const r = await modal('Layout', `<div class="lay-list">${Object.entries(BUILTIN).map(([k, t]) => `<button class="lay-row ${cur === k ? 'on' : ''}" data-k="${k}">${swatch(t)}<span class="lay-txt"><b>${esc(t.name)}</b><small>${DESC[k]}${NOTE[k] ? ` · ${NOTE[k]}` : ''}</small><span class="lay-feats">${FEATS[k].map((f) => ico(f)).join('')}</span></span>${cur === k ? `<i class="lay-check">${ico('check')}</i>` : ''}</button>`).join('')}
+    <button class="lay-row lay-more" data-k="more">${ico('palette')}<span class="lay-txt"><b>Mais opções</b><small>Temas, cores e interfaces criadas com IA</small></span></button></div>`, [{ label: 'Fechar', value: null }],
   { onMount: (w, close) => w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => close(b.dataset.k))) });
   if (!r) return;
   if (r === 'more') return interfaceDialog(cloud, () => { onChange?.(); refreshLayoutChip(); });
