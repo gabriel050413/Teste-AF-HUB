@@ -199,6 +199,25 @@ export const MARKETING_IN = (W, H) => [
   ['Deslizar da lateral (slide)', { position: ['rel', [[0, [W * 0.6, 0], 'expoOut'], [1, [0, 0]]]] }, [['dirBlur', { angle: 90, length: [[0, 90, 'expoOut'], [0.7, 0]] }]]],
 ];
 
+// ---------------------------------------------------------------- FUTEBOL / MIXTAPE / MANGÁ (entradas aplicadas no clipe)
+export const FUT_IN = (W, H) => [
+  ['Shake simples (futebol)', {}, [['shake', { frequency: 9, rotation: 1, amount: [[0, 35, 'linear'], [1, 35]] }]]],
+  ['Shake de impacto', { scale: ['abs', [[0, [112, 112], 'expoOut'], [1, [100, 100]]]] }, [['shake', { frequency: 16, rotation: 3, amount: [[0, 90, 'easeOut'], [1, 0]] }]]],
+  ['Headbop de câmera (pulso)', { scale: ['abs', [[0, [100, 100], 'easeIn'], [0.15, [108, 108], 'expoOut'], [1, [100, 100]]]] }],
+  ['Flash de beat', {}, [['exposure', { exposure: [[0, 2.5, 'expoOut'], [1, 0]] }]]],
+];
+export const MIX_IN = (W, H) => [
+  ['Block glitch de entrada', {}, [['blockGlitch', { amount: [[0, 90, 'expoOut'], [1, 0]], colors: 40 }]]],
+  ['Zoom de estrelas (mixtape)', { scale: ['abs', [[0, [40, 40], 'expoOut'], [1, [100, 100]]]], rotation: ['abs', [[0, -20, 'expoOut'], [1, 0]]] }, [['radialBlur', { amount: [[0, 80, 'expoOut'], [0.8, 0]] }], ['glow', { threshold: 40, radius: 30, intensity: [[0, 2.5, 'expoOut'], [1, 0.8]] }]]],
+  ['Choque elétrico', {}, [['zap', {}], ['glowEdges', {}], ['shake', { frequency: 20, amount: [[0, 60, 'easeOut'], [1, 0]] }]]],
+];
+export const MANGA_IN = (W, H) => [
+  ['Impact frame (3 quadros)', {}, [['impactFrame', { amount: [[0, 100, 'hold'], [0.12, 0]] }], ['shake', { frequency: 18, amount: [[0, 90, 'easeOut'], [1, 0]] }]]],
+  ['Linhas de velocidade', { scale: ['abs', [[0, [100, 100], 'linear'], [1, [110, 110]]]] }, [['speedLines', { amount: 80 }]]],
+  ['Tom de mangá', {}, [['mangaTone', {}]]],
+  ['Entrada de painel (tilt)', { rotation: ['abs', [[0, -8, 'expoOut'], [1, 0]]], scale: ['abs', [[0, [125, 125], 'expoOut'], [1, [100, 100]]]] }, [['dirBlur', { angle: 0, length: [[0, 140, 'expoOut'], [0.6, 0]] }]]],
+];
+
 /** Lista para o Composer: [categoria, nome, fábrica, duração padrão]. */
 export const STYLE_ELEMENTS = [
   ...JUGG.map(([n, mk, d]) => ['Edit jugg', n, mk, d]),
@@ -209,4 +228,7 @@ export const STYLE_INS = (W, H) => [
   ...JUGG_IN(W, H).map((x) => ['Edit jugg', ...x]),
   ...MOGRAPH_IN(W, H).map((x) => ['Mograph TikTok', ...x]),
   ...MARKETING_IN(W, H).map((x) => ['Marketing', ...x]),
+  ...FUT_IN(W, H).map((x) => ['Futebol', ...x]),
+  ...MIX_IN(W, H).map((x) => ['Mixtape', ...x]),
+  ...MANGA_IN(W, H).map((x) => ['Mangá', ...x]),
 ];

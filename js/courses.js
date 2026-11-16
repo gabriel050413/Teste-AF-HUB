@@ -7,6 +7,7 @@ import { createEffectInstance } from './presets.js';
 import { STYLE_ELEMENTS } from './edit-styles.js';
 import { shiftLayerKeys } from './composer.js';
 import { uid, escapeHtml } from './util.js';
+import { MOGRAPH_MODULE } from './mograph-course.js';
 
 const DONE = 'motionframe.courses.done';
 const getDone = () => { try { return new Set(JSON.parse(localStorage.getItem(DONE) || '[]')); } catch { return new Set(); } };
@@ -56,7 +57,7 @@ const fxOn = (l, type, params) => { l.effects.push(createEffectInstance(type, pa
 
 // ---------------------------------------------------------------- aulas
 // passo: [texto, { t: segundos, sel: nome da camada, cmd: comando do app, play: true }]
-const C = [];
+const C = [MOGRAPH_MODULE];
 const mod = (id, title, icon, desc, lessons) => C.push({ id, title, icon, desc, lessons });
 
 mod('basico', 'Conceitos básicos', '🎓', 'Keyframes, easing, camadas e ritmo — a base de qualquer edit.', [
@@ -119,7 +120,7 @@ mod('basico', 'Conceitos básicos', '🎓', 'Keyframes, easing, camadas e ritmo 
   ] },
 ]);
 
-mod('mograph', 'Mograph do zero', '✨', 'Cards de post, digitação, letras com blur, moldura e transições — o estilo dos edits mograph do TikTok.', [
+mod('mograph', 'Mograph TikTok (interface e lyrics)', '📱', 'Cards de post, digitação, letras com blur, moldura e transições de mancha.', [
   { id: 'm1', title: 'Card de post e caixa de digitação', min: 4, build() {
     const P = base('Card e digitação', 6); bg(P, [0.55, 0.35, 0.95, 1], [0.12, 0.06, 0.25, 1]);
     put(P, 'Card de post (comentário)', 0.2, 2.6);
@@ -179,6 +180,40 @@ mod('jugg', 'Edits jugg', '⚡', 'Palavras gigantes no beat, impacto, texto 3D e
     ['O texto 3D é o efeito Element 3D (objeto “Texto 3D”), com extrusão, material e luz.', { t: 0.5, sel: 'Texto 3D', cmd: 'effects' }],
     ['A rotação Y tem keyframes com expo out: gira rápido e assenta. Mude o texto no campo “Texto” do efeito.', { t: 1.2, sel: 'Texto 3D' }],
     ['Nos seus clipes use Composer › Edit jugg › “Zoom punch” (entrada) ou a transição “Zoom punch” entre dois clipes.', { t: 1.5, cmd: 'composer' }],
+  ] },
+]);
+
+mod('futmanga', 'Headbop, mangá e mixtape', '🧍', 'As ferramentas automáticas: headbop de jogador, personagem de anime se mexendo, edit de páginas de mangá e efeitos de mixtape.', [
+  { id: 'f1', title: 'Headbop automático (jogador)', min: 3, build() {
+    const P = base('Headbop', 4); bg(P, [0.1, 0.12, 0.1, 1]);
+    txt(P, 'HEADBOP', 0, 4, { font: '"Anton", Impact, sans-serif', weight: 400, size: 200, y: 0.4 });
+    txt(P, 'importe a foto do jogador', 0, 4, { size: 54, weight: 600, y: 0.5, color: '#cfd2d8' });
+    return P;
+  }, steps: [
+    ['O headbop é a cabeça do jogador balançando no ritmo. No After/Alight são vários passos: recortar o jogador, cortar a cabeça, apagar a pessoa do fundo e animar a cabeça com curva de onda.', { t: 0 }],
+    ['Aqui é um toque: importe a foto (ou selecione o clipe) e toque em Headbop automático. A IA faz o recorte, separa a cabeça no pescoço e preenche o fundo.', { t: 0, cmd: 'headbop' }],
+    ['Resultado: 3 camadas (Fundo, Corpo, Cabeça). A cabeça tem âncora no pescoço e keyframes em cada batida — com música no projeto, ela segue o beat.', { t: 1 }],
+    ['Dica de edit de futebol: Composer › Futebol › “Shake simples” no clipe + CC e um texto de abertura.', { t: 1, cmd: 'composer' }],
+  ] },
+  { id: 'f2', title: 'Personagem de anime se mexendo (PNG)', min: 3, build() {
+    const P = base('Personagem animado', 4); bg(P, [0.12, 0.1, 0.18, 1]);
+    txt(P, 'PERSONAGEM', 0, 4, { font: '"Anton", Impact, sans-serif', weight: 400, size: 160, y: 0.4 });
+    txt(P, 'cabeça · cabelo · braços · corpo', 0, 4, { size: 50, weight: 600, y: 0.5, color: '#cfd2d8' });
+    return P;
+  }, steps: [
+    ['Coloque o PNG do personagem de anime/mangá (recortado é melhor; fundo liso o app tira sozinho).', { t: 0, cmd: 'manga-anim' }],
+    ['O efeito “Personagem animado” funciona como um Puppet Warp automático: cabeça gira no pescoço, o cabelo balança em onda (mais nas pontas), os braços balançam nos ombros, o peito respira e o corpo oscila.', { t: 1 }],
+    ['Os pinos (pescoço, ombros, quadril, pés, topo) aparecem no efeito: se algum ficou errado, arraste o valor. A força de cada parte também se ajusta.', { t: 1, cmd: 'effects' }],
+    ['Para estilo de edit: some Glow, Tom de mangá, Linhas de velocidade e um fundo Starfield.', { t: 1, cmd: 'browse-fx' }],
+  ] },
+  { id: 'f3', title: 'Edit de mangá a partir das páginas', min: 3, build() {
+    const P = base('Edit de mangá', 4); bg(P, [0.08, 0.08, 0.08, 1]);
+    txt(P, 'MANGÁ', 0, 4, { font: '"Bebas Neue", Impact, sans-serif', weight: 400, size: 220, y: 0.45 });
+    return P;
+  }, steps: [
+    ['Escolha páginas de mangá: o app acha os quadros pelas calhas brancas e monta a edit (câmera entrando em cada quadro, whip/zoom/flash/glitch, impact frame, linhas de velocidade).', { t: 0, cmd: 'manga-edit' }],
+    ['Com música no projeto, cada quadro dura 1, 2 ou 4 batidas. Ordem japonesa (direita → esquerda) ou ocidental.', { t: 1 }],
+    ['Efeitos usados: Impact Frame, Block Glitch, Linhas de velocidade, Tom de mangá — todos em Efeitos › Estilizar.', { t: 1, cmd: 'browse-fx' }],
   ] },
 ]);
 
@@ -289,7 +324,7 @@ export function coursesHtml(ico) {
 
 // ---------------------------------------------------------------- treinador (aula aberta no editor)
 let coach = null;
-const CMD_LABEL = { props: 'propriedades', effects: 'efeitos', composer: 'Composer', 'beat-sync': 'batidas', presets: 'presets', 'add-media': 'mídia', 'browse-fx': 'efeitos' };
+const CMD_LABEL = { props: 'propriedades', effects: 'efeitos', composer: 'Composer', 'beat-sync': 'batidas', presets: 'presets', 'add-media': 'mídia', 'browse-fx': 'efeitos', headbop: 'Headbop', 'manga-anim': 'Animar personagem', 'manga-edit': 'Edit de mangá', 'ai-assets': 'elementos .ai', 'track-matte': 'Track Matte' };
 /** Abre a aula: cria o projeto (via hook), e mostra o cartão com os passos. api: { store, commands, openProject(p), setPlaying } */
 export async function startLesson(id, api) {
   const f = lessonById(id); if (!f) return;

@@ -38,7 +38,7 @@ import { probeMp4, needsProxy, proxySupported, makeProxy } from './proxy.js';
 import { keepAwake as keepScreenOn } from './platform.js';
 import { getEffectDef } from './effects.js';
 import { modal, toast, pickFiles, storage } from './ui.js';
-import { syncClipsToBeat, beatEffects, recordVoice, transcribe, buildCaptions, CAPTION_STYLES } from './quick-tools.js';
+import { syncClipsToBeat, beatEffects, recordVoice, transcribe, buildCaptions, CAPTION_STYLES, projectBeats } from './quick-tools.js';
 import { formatTime, formatSimple, uid, deepClone, escapeHtml } from './util.js';
 import { putMedia, getMedia, pruneMedia, flushMedia, pendingMediaCount, ensurePersistentStorage } from './idb.js';
 import { saveFile, registerServiceWorker } from './platform.js';
@@ -1109,7 +1109,7 @@ function simpleItems(layer, t, many) {
       ['composer', '❖', 'Animações prontas'],
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
-      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
       ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
@@ -1122,7 +1122,7 @@ function simpleItems(layer, t, many) {
     ['more', '⋯', 'Mais'],
   ];
   if (!toolbarMore) return main;
-  return [ ['composer', '❖', 'Animações prontas'], ['logo-anim', '✦', 'Animar logo'], ['font-id', '🔤', 'Identificar fonte'], ['add-adjustment', '◐', 'Camada de cor'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['marker', '▾', 'Marcar batida'], ['comp', '⚙', 'Tamanho e FPS']];
+  return [ ['composer', '❖', 'Animações prontas'], ['logo-anim', '✦', 'Animar logo'], ['headbop', 'beat', 'Headbop automático'], ['manga-anim', 'freehand', 'Animar personagem (mangá)'], ['manga-edit', 'library', 'Edit de mangá (páginas)'], ['ai-assets', 'shapes', 'Elementos .ai'], ['font-id', '🔤', 'Identificar fonte'], ['add-adjustment', '◐', 'Camada de cor'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['marker', '▾', 'Marcar batida'], ['comp', '⚙', 'Tamanho e FPS']];
 }
 
 function renderToolbar() {
@@ -1172,7 +1172,7 @@ function advancedItems(layer, t, many) {
       ['effects', '✦', 'Efeitos', true], ['presets', '★', 'Presets'], ['transitions', 'transition', 'Transições'], ['composer', '❖', 'Composer'],
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
-      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
       ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
@@ -1182,7 +1182,7 @@ function advancedItems(layer, t, many) {
     : [
       ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
       ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
-      ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
+      ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['headbop', 'beat', 'Headbop automático'], ['manga-anim', 'freehand', 'Animar personagem (mangá)'], ['manga-edit', 'library', 'Edit de mangá (páginas)'], ['ai-assets', 'shapes', 'Elementos .ai'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
     ];
 }
 
@@ -1804,6 +1804,10 @@ const commands = {
   captions: () => captionsFlow(),
   voice: () => voiceFlow(),
   'beat-sync': () => beatSyncFlow(),
+  headbop: () => headbopFlow(),
+  'manga-anim': () => animeCharFlow(),
+  'manga-edit': () => mangaAnimFlow(),
+  'ai-assets': async () => { const { openAiAssets } = await import('./ai-assets.js'); openAiAssets({ addFiles: (fs) => addAiElements(fs) }); },
   'beat-fx': () => beatFxFlow(),
   'ui-mode': () => { const s0 = getSettings(); setSettings({ ...s0, uiMode: s0.uiMode === 'ae' ? 'simple' : 'ae' }); toolbarMore = false; renderToolbar(); timeline.render(); toast(getSettings().uiMode === 'ae' ? 'Interface avançada (After Effects) ligada.' : 'Interface simples ligada.', 'ok'); },
   new: () => createProjectFlow(),
@@ -2420,6 +2424,216 @@ async function beatFxFlow() {
   if (!ok) return;
   try { const r = await beatEffects(store, kind, strength, target); toast(`Efeito em ${r.beats} batida(s) ✓`, 'ok', 4000); }
   catch (e) { toast(`Não deu: ${e.message}`, 'warn', 6000); }
+}
+
+/** Cria uma camada de imagem a partir de um blob (guarda no aparelho). like: copia tamanho/transform de outra camada. */
+function imageLayerFromBlob(blob, name, { w, h, like = null, t0 = 0, t1 = null } = {}) {
+  const id = uid('m'), f = new File([blob], `${name}.png`, { type: 'image/png' });
+  putMedia(id, f);
+  const P = store.project;
+  const l = LAYER_FACTORIES.image(P, URL.createObjectURL(f), Math.round(like ? like.props.width : w), Math.round(like ? like.props.height : h), name);
+  l.props.mediaId = id; l.props.fileName = f.name;
+  if (like) for (const k of ['position', 'scale', 'rotation']) l.transform[k] = { value: structuredClone(valueAt(like.transform[k], store.time)), keys: [] };
+  l.inPoint = t0; l.outPoint = t1 ?? P.duration;
+  return l;
+}
+
+/** Elementos .ai grátis: entram do tamanho certo (sem preencher a tela), centralizados, a partir da agulha. */
+async function addAiElements(files) {
+  await ensureSomeProject();
+  for (const f of files) {
+    const png = await aiToPngFile(f, { maxSide: 2048 });
+    const bmp = await createImageBitmap(png);
+    const P = store.project, k = Math.min((P.width * 0.8) / bmp.width, (P.height * 0.6) / bmp.height);
+    const l = imageLayerFromBlob(png, f.name.replace(/\.ai$/, ''), { w: bmp.width * k, h: bmp.height * k, t0: store.time, t1: Math.min(P.duration, store.time + 4) });
+    bmp.close?.();
+    store.addLayer(l);
+  }
+}
+
+/** Headbop automático: recorta o jogador, separa a cabeça, limpa o fundo e anima a cabeça no ritmo. */
+async function headbopFlow() {
+  let target = store.layer();
+  if (!target || !['image', 'video'].includes(target.type)) {
+    const files = await pickFiles('image/*', false);
+    if (!files.length) return;
+    await ensureSomeProject();
+    await importMedia(files.slice(0, 1));
+    target = store.layer();
+    if (!target || target.type !== 'image') return;
+  }
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false && l !== target));
+  const o = { style: 'nod', amount: 1, bg: 'fill', blur: true, src: hasMusic ? 'music' : 'bpm', bpm: 100 };
+  const ok = await modal('🕺 Headbop automático', `<p>A IA recorta <b>${escapeHtml(target.name)}</b>, separa a cabeça, apaga a pessoa do fundo e faz a cabeça balançar em cada batida. Tudo no aparelho.</p>
+    <label>Movimento <select id="hbS"><option value="nod">Aceno (headbop clássico)</option><option value="sway">Balanço para os lados</option><option value="bounce">Pulo com squash</option></select></label>
+    <label>Força <select id="hbA"><option value="0.6">Suave</option><option value="1" selected>Normal</option><option value="1.6">Forte</option></select></label>
+    <label>Fundo <select id="hbB"><option value="fill">Foto sem a pessoa (preenchido)</option><option value="original">Foto original</option><option value="green">Verde (chroma key)</option></select></label>
+    <label>Ritmo <select id="hbR"><option value="music" ${hasMusic ? 'selected' : ''}>Batidas da música do projeto</option><option value="bpm" ${hasMusic ? '' : 'selected'}>BPM fixo</option></select></label>
+    <label>BPM <input id="hbP" type="number" min="40" max="220" value="100"></label>
+    <label class="row"><input id="hbBl" type="checkbox" checked> Desfocar o fundo (como nas edits)</label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Criar headbop', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#hbS').onchange = (e) => { o.style = e.target.value; }; w.querySelector('#hbA').onchange = (e) => { o.amount = +e.target.value; };
+    w.querySelector('#hbB').onchange = (e) => { o.bg = e.target.value; }; w.querySelector('#hbR').onchange = (e) => { o.src = e.target.value; };
+    w.querySelector('#hbP').onchange = (e) => { o.bpm = Math.max(40, Math.min(220, +e.target.value || 100)); }; w.querySelector('#hbBl').onchange = (e) => { o.blur = e.target.checked; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  toast('Recortando o jogador e separando a cabeça… (na 1ª vez baixa a IA)', 'info', 6000);
+  try {
+    const { frameOf, buildHeadbop, headKeys } = await import('./headbop.js');
+    const img = await frameOf(target, store.time);
+    const r = await buildHeadbop(img, { bg: o.bg });
+    const t0 = target.inPoint, t1 = target.outPoint;
+    let beats = [];
+    if (o.src === 'music') { try { beats = await projectBeats(store); } catch (e) { toast(`${e.message} — usando ${o.bpm} BPM.`, 'warn', 5000); } }
+    if (beats.length < 2) { beats = []; for (let b = t0 + 0.25; b < t1; b += 60 / o.bpm) beats.push(+b.toFixed(3)); }
+    const like = target;
+    const bg = imageLayerFromBlob(r.bg, 'Headbop · Fundo', { like, t0, t1 });
+    if (o.blur && o.bg !== 'green') bg.effects.push(createEffectInstance('blur', { radius: 14 }));
+    const body = imageLayerFromBlob(r.body, 'Headbop · Corpo', { like, t0, t1 });
+    const head = imageLayerFromBlob(r.headImg, 'Headbop · Cabeça', { like, t0, t1 });
+    // âncora da cabeça no pescoço (gira e desce a partir dali)
+    const lw = like.props.width, lh = like.props.height;
+    const sc = (valueAt(like.transform.scale, store.time) || [100, 100]).map((v) => v / 100);
+    const anc = [(r.head.cx / r.W - 0.5) * lw, (r.head.neck / r.H - 0.5) * lh];
+    const p0 = valueAt(like.transform.position, store.time);
+    const base = [p0[0] + anc[0] * sc[0], p0[1] + anc[1] * sc[1]];
+    head.transform.anchor = { value: anc, keys: [] };
+    head.transform.position = { value: base, keys: [] };
+    const headPx = (r.head.neck - r.head.top) / r.H * lh * sc[1];
+    const ks = headKeys(beats, { style: o.style, amount: o.amount, size: headPx * 3, t0, t1 });
+    const K = (list, f = (v) => v) => list.map(([t, v, ease]) => ({ t: +t.toFixed(4), v: f(v), ease }));
+    if (ks.pos.length) head.transform.position = { value: base, keys: K(ks.pos, (v) => [base[0] + v[0], base[1] + v[1]]) };
+    if (ks.rot.length) head.transform.rotation = { value: 0, keys: K(ks.rot) };
+    if (ks.sc.length) head.transform.scale = { value: [sc[0] * 100, sc[1] * 100], keys: K(ks.sc, (v) => [v[0] * sc[0], v[1] * sc[1]]) };
+    // corpo acompanha de leve (respira no beat)
+    if (o.style !== 'sway') {
+      const bp = valueAt(like.transform.position, store.time);
+      body.transform.position = { value: bp, keys: K(ks.pos.filter((_, i) => i % 3 !== 2), (v) => [bp[0], bp[1] + v[1] * 0.18]) };
+    }
+    target.visible = false;
+    for (const l of [bg, body, head]) store.addLayer(l);
+    store.commit('structure');
+    toast(`Headbop pronto ✓ — ${beats.filter((b) => b >= t0 && b < t1).length} batidas. A camada original ficou oculta; ajuste a força em Cabeça › Animar.`, 'ok', 7000);
+  } catch (e) { toast(`Headbop: ${e.message}`, 'error', 8000); }
+}
+
+/** Animador de personagem de anime/mangá: PNG do personagem → cabeça, cabelo, braços e corpo se mexendo (puppet automático). */
+async function animeCharFlow() {
+  let targets = store.selectedLayers().filter((l) => l.type === 'image');
+  let picked = [];
+  if (!targets.length) {
+    picked = await pickFiles('image/*', true);
+    if (!picked.length) return;
+    await ensureSomeProject();
+  }
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false));
+  const o = { style: 'idle', bpm: 100, beat: hasMusic };
+  const ok = await modal('🧍 Animar personagem (mangá/anime)', `<p>Coloque o PNG do personagem (de preferência já recortado). O app acha a cabeça, o pescoço, os ombros e os pés e faz <b>cabeça, cabelo, braços e corpo</b> se mexerem — como um Puppet Warp automático. Os pinos podem ser ajustados no efeito “Personagem animado”.</p>
+    <label>Movimento <select id="acS"><option value="idle">Parado respirando (idle)</option><option value="wind">Vento (cabelo forte)</option><option value="dance">Balançando no ritmo</option><option value="hype">Agitado (edit)</option></select></label>
+    <label>BPM (para “no ritmo”) <input id="acB" type="number" min="50" max="200" value="${o.bpm}"></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Animar', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#acS').onchange = (e) => { o.style = e.target.value; }; w.querySelector('#acB').onchange = (e) => { o.bpm = Math.max(50, Math.min(200, +e.target.value || 100)); };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    if (picked.length) {
+      const before = new Set(store.project.layers.map((l) => l.id));
+      for (const f of picked) {
+        const id = uid('m'); putMedia(id, f);
+        const src = URL.createObjectURL(f), img = new Image(); img.src = src; await img.decode();
+        const P = store.project, k = Math.min((P.width * 0.9) / img.naturalWidth, (P.height * 0.85) / img.naturalHeight);
+        const l = LAYER_FACTORIES.image(P, src, Math.round(img.naturalWidth * k), Math.round(img.naturalHeight * k), f.name.replace(/\.[^.]+$/, ''));
+        l.props.mediaId = id; l.props.fileName = f.name; l.inPoint = store.time; l.outPoint = P.duration;
+        store.layers.unshift(l);
+      }
+      targets = store.layers.filter((l) => !before.has(l.id));
+    }
+    const { autoRig } = await import('./anime-rig.js');
+    const S = { idle: { head: 0.7, hair: 0.8, arms: 0.4, breath: 1, sway: 0.5, speed: 0.35 }, wind: { head: 0.6, hair: 2.6, arms: 0.5, breath: 0.8, sway: 0.8, speed: 0.6 }, dance: { head: 1.4, hair: 1.4, arms: 1.3, breath: 1.2, sway: 1.6, speed: o.bpm / 120 }, hype: { head: 1.8, hair: 2, arms: 1.8, breath: 1.5, sway: 1.4, speed: 1.1 } }[o.style];
+    let n = 0;
+    for (const l of targets) {
+      const img = new Image(); img.src = l.props.src; await img.decode();
+      const rig = await autoRig(img);
+      if (rig.cutout) { // sem alfa: troca pela versão recortada
+        const id = uid('m'), f = new File([rig.cutout], `${l.name} (recorte).png`, { type: 'image/png' });
+        putMedia(id, f); l.props.src = URL.createObjectURL(f); l.props.mediaId = id; l.props.fileName = f.name;
+      }
+      l.effects = l.effects.filter((e) => e.type !== 'animePuppet');
+      l.effects.unshift(createEffectInstance('animePuppet', { ...S, ...rig.pins }));
+      n++;
+    }
+    store.commit('structure');
+    toast(`${n} personagem(ns) animado(s) ✓ — ajuste força e pinos em Efeitos › Personagem animado. Dica: some Shake e Glow para o estilo de edit.`, 'ok', 7000);
+  } catch (e) { toast(`Animar personagem: ${e.message}`, 'error', 8000); }
+}
+
+/** Animador automático de mangá: páginas/imagens → edit com câmera nos quadros, transições e efeitos no ritmo. */
+async function mangaAnimFlow() { // páginas de mangá → edit com câmera nos quadros
+  const selImgs = store.selectedLayers().filter((l) => l.type === 'image');
+  const files = selImgs.length ? await Promise.all(selImgs.map(async (l) => new File([await (await fetch(l.props.src)).blob()], `${l.name}.png`, { type: 'image/png' }))) : await pickFiles('image/*', true);
+  if (!files.length) return;
+  for (const l of selImgs) l.visible = false;
+  await ensureSomeProject();
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false));
+  const o = { per: 2, src: hasMusic ? 'music' : 'bpm', bpm: 120, rtl: true, look: 'auto', title: '' };
+  const ok = await modal('📖 Edit de mangá (páginas)', `<p>${files.length} imagem(ns). Vou achar os quadros de cada página e montar a edit: câmera entrando em cada quadro, whip/zoom/flash/glitch entre eles, linhas de velocidade, impact frame e shake — no ritmo.</p>
+    <label>Ordem dos quadros <select id="maR"><option value="rtl">Mangá japonês (direita → esquerda)</option><option value="ltr">Ocidental (esquerda → direita)</option></select></label>
+    <label>Cada quadro dura <select id="maP"><option value="1">1 batida (rápido)</option><option value="2" selected>2 batidas</option><option value="4">4 batidas (lento)</option></select></label>
+    <label>Ritmo <select id="maS"><option value="music" ${hasMusic ? 'selected' : ''}>Batidas da música do projeto</option><option value="bpm" ${hasMusic ? '' : 'selected'}>BPM fixo</option></select></label>
+    <label>BPM <input id="maB" type="number" min="60" max="200" value="120"></label>
+    <label>Visual <select id="maL"><option value="auto">Automático (grão + contraste)</option><option value="manga">Transformar em mangá P&B (retícula + nanquim)</option><option value="none">Sem look</option></select></label>
+    <label>Título no começo (opcional) <input id="maT" type="text" placeholder="ex.: GOJO"></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Animar', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#maR').onchange = (e) => { o.rtl = e.target.value === 'rtl'; }; w.querySelector('#maP').onchange = (e) => { o.per = +e.target.value; };
+    w.querySelector('#maS').onchange = (e) => { o.src = e.target.value; }; w.querySelector('#maB').onchange = (e) => { o.bpm = Math.max(60, Math.min(200, +e.target.value || 120)); };
+    w.querySelector('#maL').onchange = (e) => { o.look = e.target.value; }; w.querySelector('#maT').oninput = (e) => { o.title = e.target.value; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    const { planShots, buildMangaEdit } = await import('./manga-anim.js');
+    const images = [], plans = [];
+    for (const f of files) {
+      const id = uid('m'); putMedia(id, f);
+      const src = URL.createObjectURL(f), img = new Image(); img.src = src; await img.decode();
+      images.push({ img, iw: img.naturalWidth, ih: img.naturalHeight, src, id, name: f.name });
+      plans.push(planShots(img, { rtl: o.rtl }));
+    }
+    const P = store.project, t0 = store.time;
+    let beats = [];
+    if (o.src === 'music') { try { beats = (await projectBeats(store)).filter((b) => b >= t0); } catch (e) { toast(`${e.message} — usando ${o.bpm} BPM.`, 'warn', 5000); } }
+    const total = plans.reduce((n, p) => n + p.shots.length, 0) * o.per + 2;
+    if (beats.length < total) { const last = beats[beats.length - 1] ?? t0, step = beats.length > 3 ? (beats[beats.length - 1] - beats[0]) / (beats.length - 1) : 60 / o.bpm; for (let b = last + (beats.length ? step : 0); beats.length < total; b += step) beats.push(+b.toFixed(3)); }
+    const r = buildMangaEdit({
+      P, images, plans, beats, t0, beatsPerShot: o.per,
+      makeLayer: (k, a, b) => { const im = images[k]; const l = LAYER_FACTORIES.image(P, im.src, im.iw, im.ih, im.name); l.props.mediaId = im.id; l.props.fileName = im.name; l.inPoint = a; l.outPoint = b; return l; },
+      fx: (type, params) => createEffectInstance(type, params),
+    });
+    P.duration = Math.min(600, Math.max(P.duration, Math.ceil(r.end * 10) / 10));
+    for (const l of r.layers) store.layers.unshift(l);
+    const s0 = r.layers[0]?.inPoint ?? t0;
+    // look por cima de tudo (camada de ajuste)
+    if (o.look !== 'none') {
+      const adj = LAYER_FACTORIES.adjustment(P); adj.name = 'Mangá · Look'; adj.inPoint = s0; adj.outPoint = r.end;
+      if (o.look === 'manga') adj.effects.push(createEffectInstance('mangaTone', { dot: 5 }));
+      else adj.effects.push(createEffectInstance('brightnessContrast', { contrast: 18 }));
+      adj.effects.push(createEffectInstance('noise', { amount: 10 }), createEffectInstance('vignette', { amount: 45 }));
+      store.layers.unshift(adj);
+    }
+    if (o.title.trim()) {
+      const tx = LAYER_FACTORIES.text(P); Object.assign(tx.props, { text: o.title.trim().toUpperCase(), fontFamily: '"Bebas Neue", Impact, sans-serif', fontWeight: 400, fontSize: Math.round(P.width * 0.16), letterSpacing: Math.round(P.width * 0.03), color: '#e8f4ff' });
+      tx.name = 'Título'; tx.inPoint = s0; tx.outPoint = Math.min(r.end, s0 + Math.max(1.5, (beats[4] ?? s0 + 2) - s0));
+      tx.transform.position.value = [P.width / 2, P.height * 0.8];
+      tx.transform.opacity = { value: 0, keys: [{ t: s0, v: 0, ease: 'easeOut' }, { t: s0 + 0.25, v: 100, ease: 'linear' }, { t: tx.outPoint - 0.2, v: 100, ease: 'easeIn' }, { t: tx.outPoint, v: 0, ease: 'linear' }] };
+      tx.effects.push(createEffectInstance('glow', { threshold: 20, radius: 30, intensity: 1.6, color: [0.3, 0.7, 1, 1], useColor: true }));
+      store.layers.unshift(tx);
+    }
+    store.commit('structure');
+    const pages = plans.filter((p) => p.manga).length;
+    toast(`Mangá animado ✓ — ${r.count} tomadas${pages ? ` (${pages} página(s) com quadros detectados)` : ''}. Tudo editável na timeline.`, 'ok', 7000);
+  } catch (e) { toast(`Animar mangá: ${e.message}`, 'error', 8000); }
 }
 
 /** Transferir tudo entre programas/aparelhos (MotionFrame.exe antigo → leve, PC → outro PC). */

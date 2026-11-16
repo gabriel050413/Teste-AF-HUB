@@ -112,8 +112,10 @@ function drawTextBoxes(ctx, p, lines, x, h, lh, pad) {
     const x0 = p.align === 'left' ? x - pad : p.align === 'right' ? x - tw - pad : x - tw / 2 - pad;
     const top = y - lh / 2 - (i === 0 ? pad * 0.6 : 0), bot = y + lh / 2 + (i === lines.length - 1 ? pad * 0.6 : 0) + 0.5;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x0, top, tw + pad * 2, bot - top, Math.min(r, (bot - top) / 2)); else ctx.rect(x0, top, tw + pad * 2, bot - top);
+    const sw = p.bgStrokeW || 0, ins = sw / 2;
+    if (ctx.roundRect) ctx.roundRect(x0 + ins, top + ins, tw + pad * 2 - sw, bot - top - sw, Math.min(r, (bot - top) / 2)); else ctx.rect(x0 + ins, top + ins, tw + pad * 2 - sw, bot - top - sw);
     ctx.fill();
+    if (sw > 0) { ctx.lineWidth = sw; ctx.strokeStyle = p.bgStroke || '#111111'; ctx.stroke(); }
   });
   ctx.restore();
 }
@@ -130,7 +132,14 @@ function drawContent(ctx, layer, w, h, extra) {
         ctx.save(); ctx.translate(ax, 0); ctx.scale(sxF, 1); ctx.translate(-ax, 0);
       }
       try {
-      if (p.animators?.length) { drawAnimatedText(ctx, p, w, h, extra?.lt ?? 0, fontOf(p), layer.inPoint || 0); break; }
+      if (p.animators?.length) {
+        if (p.bgOn) { // caixa de fundo também nos textos animados
+          ctx.font = fontOf(p); if ('letterSpacing' in ctx) ctx.letterSpacing = `${p.letterSpacing || 0}px`;
+          const ls = String(p.text).split('\n'), bp = p.bgPad ?? p.fontSize * 0.22;
+          drawTextBoxes(ctx, p, ls, p.align === 'left' ? 4 + bp + (p.strokeWidth || 0) : p.align === 'right' ? w - 4 - bp - (p.strokeWidth || 0) : w / 2, h, p.fontSize * p.lineHeight, bp);
+        }
+        drawAnimatedText(ctx, p, w, h, extra?.lt ?? 0, fontOf(p), layer.inPoint || 0); break;
+      }
       ctx.font = fontOf(p);
       if ('letterSpacing' in ctx) ctx.letterSpacing = `${p.letterSpacing || 0}px`;
       ctx.textBaseline = 'middle';

@@ -11,7 +11,7 @@ import { MO_TEXT, MO_INOUT, MO_ELEMENTS, MO_LOGO, shiftShapeKeys, TEXT_UNITS } f
 import { STYLE_ELEMENTS, STYLE_INS, JUGG_TR } from './edit-styles.js';
 
 const FAV_KEY = 'motionframe.composerFavs';
-const CATS = ['Edit jugg', 'Mograph TikTok', 'Marketing', 'Motion design', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Fundos animados', 'Mograph texto', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Impacto'];
+const CATS = ['Edit jugg', 'Mograph TikTok', 'Futebol', 'Mixtape', 'Mangá', 'Marketing', 'Motion design', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Fundos animados', 'Mograph texto', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Impacto'];
 
 // ---------------------------------------------------------------- definições (tempo normalizado 0..1)
 // tr: { prop: [mode, [[u, valor, ease], ...]] }   fx: [[tipo, { param: [[u, valor, ease]] | constante }]]
