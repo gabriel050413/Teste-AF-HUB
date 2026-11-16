@@ -1886,6 +1886,7 @@ export const SHORTCUTS = [
   ['Geral', [['Espaço / 0 (numérico)', 'Tocar / pausar'], ['Ctrl+Z / Ctrl+Shift+Z', 'Desfazer / refazer'], ['Ctrl+S', 'Salvar projeto'], ['Ctrl+N', 'Nova composição'], ['Ctrl+K', 'Configurações da composição'], ['Ctrl+I', 'Importar vídeo/foto'], ['Ctrl+M', 'Exportar (fila de render)'], ['~ (til)', 'Ampliar o preview'], ['?', 'Esta lista de atalhos']]],
   ['Camadas', [['Ctrl+Y', 'Novo sólido'], ['Ctrl+Alt+Y', 'Nova camada de ajuste'], ['Ctrl+Alt+Shift+Y', 'Novo Null'], ['Ctrl+Alt+Shift+T', 'Novo texto'], ['Ctrl+Alt+Shift+C', 'Nova câmera 3D'], ['Ctrl+D', 'Duplicar'], ['Ctrl+Shift+D', 'Dividir camada no playhead'], ['Ctrl+Shift+C', 'Pré-compor (1 ou mais camadas)'], ['Ctrl+C / Ctrl+X / Ctrl+V', 'Copiar / recortar / colar camadas'], ['Delete', 'Excluir'], ['Ctrl+A', 'Selecionar todas as camadas'], ['Ctrl+Shift+A / F2', 'Tirar a seleção'], ['Ctrl+↑ / Ctrl+↓', 'Selecionar camada de cima / de baixo'], ['Ctrl+] / Ctrl+[', 'Subir / descer a camada'], ['Ctrl+Shift+] / Ctrl+Shift+[', 'Trazer para o topo / mandar para o fundo'], ['Ctrl+L', 'Travar / destravar'], ['Ctrl+Alt+F', 'Ajustar à composição'], ['Ctrl+Alt+R', 'Inverter no tempo (reverse)'], ['Ctrl+Alt+T', 'Ativar Time Remap'], ['Ctrl+Shift+E', 'Remover todos os efeitos']]],
   ['Tempo', [['← / →  ou  Page Up / Page Down', 'Voltar / avançar 1 quadro'], ['Shift + ← / →', '10 quadros'], ['Home / End', 'Início / fim da composição'], ['I / O', 'Ir para a entrada / saída da camada'], ['[ / ]', 'Mover a camada para começar / terminar no playhead'], ['Alt+[ / Alt+]', 'Cortar entrada / saída no playhead'], ['J / K', 'Keyframe anterior / próximo'], ['M ou *', 'Marcador'], ['= / -', 'Zoom da timeline']]],
+  ['CapCut / Blurrr / Nova', [['Ctrl+B', 'Dividir o clipe na agulha'], ['Q', 'Apagar a parte do clipe à esquerda da agulha'], ['W', 'Apagar a parte do clipe à direita da agulha'], ['Toque duplo no texto', 'Editar o texto (prévia ou timeline)']]],
   ['Extras (After Effects)', [['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['B / N', 'Início / fim da área de trabalho (a reprodução repete nela)'], ['Ctrl+Alt+B', 'Remover a área de trabalho'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
   ['Propriedades e keyframes', [['P / S / R / T / A', 'Mostrar Posição / Escala / Rotação / Opacidade / Ancoragem'], ['U', 'Keyframes da camada'], ['E', 'Efeitos da camada'], ['Alt+Shift+P / S / R / T / A', 'Keyframe em Posição / Escala / Rotação / Opacidade / Ancoragem'], ['Shift+K', 'Keyframe em todas as transformações'], ['F9', 'Easy Ease nos keyframes selecionados'], ['Shift+F9 / Ctrl+Shift+F9', 'Easy Ease In / Out'], ['Ctrl+Alt+A', 'Selecionar todos os keyframes'], ['Esc', 'Tirar seleção de keyframes']]],
 ];
@@ -1990,6 +1991,18 @@ function pasteLayers() {
   store.commit('structure');
   toast(`${copies.length} camada(s) colada(s).`, 'ok', 1200);
 }
+
+// atalhos do CapCut Desktop (nos layouts CapCut/Blurrr/Nova): Ctrl+B divide, Q apaga à esquerda da agulha, W à direita
+window.addEventListener('keydown', (e) => {
+  if (!['capcut', 'blurrr', 'nova'].includes(editorLayout())) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
+  const mod = e.ctrlKey || e.metaKey;
+  const act = mod && !e.altKey && !e.shiftKey && e.code === 'KeyB' ? 'split' : !mod && !e.altKey && !e.shiftKey && e.code === 'KeyQ' ? 'trim-start' : !mod && !e.altKey && !e.shiftKey && e.code === 'KeyW' ? 'trim-end' : null;
+  if (!act) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  commands[act]();
+}, true);
 
 document.addEventListener('keydown', (e) => {
   const tag = e.target.tagName;

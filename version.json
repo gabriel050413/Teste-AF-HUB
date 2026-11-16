@@ -1,7 +1,7 @@
 {
- "version": "v201",
- "label": "v2.0.1",
- "date": "2026-11-16T16:47:37.178Z",
+ "version": "v202",
+ "label": "v1.0.0",
+ "date": "2026-11-16T17:02:39.381Z",
  "update": "app-update.zip",
  "apk": "downloads/MotionFrame.apk",
  "exe": "downloads/MotionFrame.exe"

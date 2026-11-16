@@ -345,11 +345,12 @@ export const SFILM_DEF = {
     num('flicker', 'Flicker', 0, 0, 2, 0.01), num('flickFreq', 'Flicker Rand Freq', 10, 0, 60, 0.1), num('seed', 'Seed', 0.123, 0, 1000, 0.001)],
   render: (src, p, env) => {
     const f = Math.floor(env.t * (p.flickFreq || 10));
-    const fl = p.flicker > 0 ? 1 + (hashJS(f * 1.7 + p.seed) - 0.5) * p.flicker * 0.5 : 1;
+    const T = globalThis.__MF_TUNE || {};
+    const fl = p.flicker > 0 && !T.noFlick ? 1 + (hashJS(f * 1.7 + p.seed) - 0.5) * p.flicker * 0.5 : 1;
     return env.gl.pass(SFILM, {
       u_tex: src, u_grain: p.grain, u_ga: [p.grainR, p.grainG, p.grainB], u_sat: p.sat, u_sclL: p.scale, u_off: p.offset, u_tl: rgb(p.tintL), u_td: rgb(p.tintD),
       u_dust: p.dust, u_dustOp: p.dustOp, u_d1: rgb(p.dust1), u_d2: rgb(p.dust2), u_scr: p.scratches, u_scrOp: p.scrOp,
-      u_vig: p.vig, u_vigR: p.vigR, u_vigSoft: p.vigSoft, u_vigRH: p.vigRH, u_gain: fl, u_seed: p.seed % 97, u_fr: Math.floor(env.t * (env.fps || 30)),
+      u_vig: p.vig * (T.vigK ?? 1), u_vigR: p.vigR, u_vigSoft: p.vigSoft, u_vigRH: p.vigRH, u_gain: fl, u_seed: p.seed % 97, u_fr: Math.floor(env.t * (env.fps || 30)),
     });
   },
 };

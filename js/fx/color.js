@@ -12,9 +12,10 @@ const EXPOSURE = colorFrag('uniform float u_exp, u_off, u_gamma;', `
 // Brightness & Contrast (AE, modo novo) — medido no tutorial "football dark cc" (mesmo quadro, antes/depois):
 // Brightness negativo multiplica a imagem (−35 → ×0,8) preservando um pouco os brancos; Contrast é uma curva em S
 // (sigmoide normalizada) com pivô em 0,46 — +40 dá inclinação 1,22 no meio e comprime as pontas.
-const BC = colorFrag('uniform float u_b, u_bn, u_c;', `
+const BC = colorFrag('uniform float u_b, u_bn, u_c, u_bq;', `
   r = clamp(r, 0.0, 1.0);
   if (u_bn < 0.0) { vec3 r4 = r * r; r4 *= r4; r = r * (1.0 + u_bn * (1.0 - r4)); }
+  else if (u_bq > 0.0) { vec3 q = 1.0 - r; r = r + u_bq * r * q * (1.0 + q); }
   else if (u_b > 0.0) r = pow(r, vec3(1.0 / (1.0 + u_b)));
   if (u_c > 0.001) {
     float k = u_c * 8.25, p = 0.46;
@@ -118,7 +119,7 @@ export default [
     type: 'brightnessContrast', label: 'Brilho e contraste', category: 'Cor',
     params: [num('brightness', 'Brilho', 0, -150, 150), num('contrast', 'Contraste', 0, -100, 100)],
     // AE (Brilho e contraste novo): +70 já clareia bastante os meios-tons
-    render: fx(BC, (p) => ({ u_b: p.brightness / 90, u_bn: Math.min(0, p.brightness / 170), u_c: p.contrast / 100 })),
+    render: fx(BC, (p) => { const T = globalThis.__MF_TUNE || {}; const q = Math.max(0, p.brightness / 90) * (T.bcQuad ?? 1.2); /* brilho positivo do AE novo: curva que preserva os pretos (gama levantava demais); Galego 16,0→14,9 */ return { u_b: p.brightness / 90, u_bn: Math.min(0, p.brightness / 170), u_c: p.contrast / 100, u_bq: q }; }),
   },
   {
     type: 'hueSat', label: 'Matiz / Saturação', category: 'Cor',
