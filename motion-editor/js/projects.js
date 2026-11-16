@@ -4,11 +4,12 @@ import { storage, modal, toast } from './ui.js';
 import { ico } from './icons.js';
 import { escapeHtml, uid } from './util.js';
 import { flatLayers } from './state.js';
+import { coursesHtml } from './courses.js';
 import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v207';
+export const APP_VERSION = 'v208';
 export const APP_LABEL = 'v1.0.0 BETA TEST';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
@@ -157,7 +158,7 @@ export class HomeScreen {
   tabNav() {
     const t = this.tab || 'home';
     const b = (id, icon, lb) => `<button class="${t === id ? 'on' : ''}" data-h="tab" data-id="${id}">${ico(icon)}<span>${lb}</span></button>`;
-    return `<nav class="mf-nav">${b('home', 'home', 'Início')}${b('projects', 'grid', 'Projetos')}<button class="mf-plus" data-h="plus" aria-label="Criar">${ico('plus')}</button>${b('presets', 'presets', 'Presets')}<button data-h="settings">${ico('settings')}<span>Ajustes</span></button></nav>`;
+    return `<nav class="mf-nav">${b('home', 'home', 'Início')}${b('projects', 'grid', 'Projetos')}<button class="mf-plus" data-h="plus" aria-label="Criar">${ico('plus')}</button>${b('presets', 'presets', 'Presets')}${b('courses', 'template', 'Cursos')}</nav>`;
   }
 
   projectCard(p, small) {
@@ -183,6 +184,7 @@ export class HomeScreen {
           <div class="mf-hero-btns"><button class="mf-btn primary" data-h="newProject">${ico('plus')}Novo projeto</button><button class="mf-btn" data-h="create">${ico('media')}Usar vídeos</button></div></section>
         <div class="mf-sec"><h3>Recentes</h3>${list.length ? '<button class="mf-link" data-h="tab" data-id="projects">Ver todos</button>' : ''}</div>
         ${list.length ? `<div class="mf-strip">${list.slice(0, 10).map((p) => this.projectCard(p, true)).join('')}</div>` : `<div class="mf-empty">${ico('folder')}<span>Seus projetos aparecem aqui.</span></div>`}
+        <button class="crs-banner" data-h="tab" data-id="courses"><span>🎓</span><span><b>Cursos de edit</b><small>Mograph, jugg, conceitos básicos, criatividade, modelos e efeitos — aulas na timeline</small></span>${ico('back', 'mf-chev')}</button>
         <div class="mf-sec"><h3>Ferramentas</h3></div>
         <div class="mf-tools">${AI_TOOLS.map(([id, icon, name]) => `<button class="mf-tool" data-h="tool" data-id="${id}"><span>${ico(icon)}</span><small>${name}</small></button>`).join('')}</div>
         <div class="home-recover"></div></div>`;
@@ -195,6 +197,8 @@ export class HomeScreen {
     } else if (tab === 'presets') {
       body = `${top('Presets', 'Biblioteca e After Effects')}<div class="mf-body">
         <div class="mf-list">${row('presets', 'presets', 'Minha biblioteca', 'Shakes, CCs, transições, textos e seus .ffx')}${row('importAE', 'ae', 'Importar do After Effects', '.ffx e .aep viram presets com efeitos e keyframes')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins para efeitos do app')}</div></div>`;
+    } else if (tab === 'courses') {
+      body = `${top('Cursos de edit', 'Aulas práticas na timeline do MotionFrame')}<div class="mf-body crs">${coursesHtml(ico)}</div>`;
     } else {
       body = `${top('Perfil')}<div class="mf-body"><div class="mf-empty">${ico('user')}<span>Abrindo perfil…</span></div></div>`;
     }

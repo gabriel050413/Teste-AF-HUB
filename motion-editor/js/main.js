@@ -821,7 +821,19 @@ propsInspector = new Inspector(document.getElementById('propsPanel'), store, 'pr
   track: (layer) => openTracker(layer, 'point'),
   faceTrack: (layer) => openTracker(layer, 'face'),
   replace: (layer) => replaceLayerMedia(layer),
+  matteName: (layer) => { const L = store.layers, i = L.indexOf(layer); return L[i - 1]?.name || ''; },
+  trackMatte: (layer, mode) => setTrackMatte(layer, mode),
 });
+/** Track Matte (como no AE): a camada logo acima na lista vira a máscara (alfa ou luma) e fica oculta. */
+function setTrackMatte(layer, mode) {
+  const L = store.layers, i = L.indexOf(layer);
+  if (mode && i < 1) { toast('Para usar Track Matte, coloque a camada da máscara (texto, forma…) logo acima desta na lista, como no After Effects.', 'warn', 5000); return; }
+  const m = L[i - 1];
+  if (!mode) { if (layer.trackMatte && m?.isMatteFor === layer.id) { m.visible = true; delete m.isMatteFor; } delete layer.trackMatte; }
+  else { layer.trackMatte = mode; m.visible = false; m.isMatteFor = layer.id; m.trackLuma = mode >= 3; }
+  store.commit('structure');
+  if (mode) toast(`Track Matte: “${m.name}” virou a máscara de “${layer.name}”.`, 'ok', 4000);
+}
 const library = new Library(document.getElementById('library'), store, {
   onApplied: () => { if (!desktop.matches) closeSheet(); },
   openAEP: (f) => { closeSheet(); return openAEPFlow(f); }, // .aep escolhido em Presets abre como projeto
@@ -1098,7 +1110,7 @@ function simpleItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
-      ['calibrate', '🎯', 'Igualar cor'],
+      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
       ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar']];
@@ -1161,7 +1173,7 @@ function advancedItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
-      ['calibrate', '🎯', 'Calibrar CC'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
+      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
       ['up', '▲', 'Subir'], ['down', '▼', 'Descer'],
@@ -1855,6 +1867,13 @@ const commands = {
   sequence: () => sequenceLayers(),
   freeze: () => freezeFrame(store.layer()),
   'time-reverse': () => timeReverse(store.layer()),
+  'track-matte': async () => {
+    const l = store.layer(); if (!l) return toast('Selecione a camada que vai aparecer DENTRO da máscara.', 'warn');
+    const L = store.layers, m = L[L.indexOf(l) - 1];
+    const v = await modal('Track Matte', `<p>${m ? `A camada acima, <b>${escapeHtml(m.name)}</b>, vira a máscara de <b>${escapeHtml(l.name)}</b> (como no After Effects).` : 'Coloque a camada da máscara (texto, forma…) logo acima desta na lista.'}</p>
+      <div class="menu-list">${[[1, 'Alfa — aparece dentro da forma/texto'], [2, 'Alfa invertido — aparece fora'], [3, 'Luma — usa o brilho'], [4, 'Luma invertida'], [0, 'Nenhum (tirar)']].map(([k, lb]) => `<button data-m="${k}">${lb}</button>`).join('')}</div>`, [{ label: 'Cancelar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(+b.dataset.m))) });
+    if (v != null) setTrackMatte(l, v);
+  },
   'time-remap': () => { addTimeRemap(); openSheet('effects'); },
   ungroup: ungroupLayer,
   home: () => goHome(),
@@ -2842,6 +2861,7 @@ async function ensureSomeProject() {
 }
 
 async function goHome() {
+  import('./courses.js').then((m) => m.endLesson());
   setPlaying(false);
   clearTimeout(saveTimer);
   if (pendingMediaCount()) { toast('Salvando os vídeos no aparelho…', 'info', 3000); await flushMedia(); }
@@ -2881,6 +2901,10 @@ const home = new HomeScreen({
     toast('Projeto de demonstração aberto: toque ▶ para ver a logo animada. Tudo é editável (camadas de forma, texto e efeitos).', 'ok', 5000);
   },
   importAE: () => importAEFiles(),
+  lesson: async (id) => {
+    const { startLesson } = await import('./courses.js');
+    await startLesson(id, { store, commands, setPlaying, toast, openProject: async (p) => { saveProjectData(p, null); await openProjectById(p.id); } });
+  },
   presets: async () => { await ensureSomeProject(); openSheet('presets'); },
   plugins: async () => { await ensureSomeProject(); openSheet('browser'); fxBrowser.cat = 'Meus plugins'; fxBrowser.render(); },
   settings: async () => {

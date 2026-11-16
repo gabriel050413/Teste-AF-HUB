@@ -8,9 +8,10 @@ import { renderFrame } from './renderer.js';
 import { toast, storage } from './ui.js';
 import { escapeHtml } from './util.js';
 import { MO_TEXT, MO_INOUT, MO_ELEMENTS, MO_LOGO, shiftShapeKeys, TEXT_UNITS } from './mograph.js';
+import { STYLE_ELEMENTS, STYLE_INS, JUGG_TR } from './edit-styles.js';
 
 const FAV_KEY = 'motionframe.composerFavs';
-const CATS = ['Motion design', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Fundos animados', 'Mograph texto', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Impacto'];
+const CATS = ['Edit jugg', 'Mograph TikTok', 'Marketing', 'Motion design', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Fundos animados', 'Mograph texto', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Impacto'];
 
 // ---------------------------------------------------------------- definições (tempo normalizado 0..1)
 // tr: { prop: [mode, [[u, valor, ease], ...]] }   fx: [[tipo, { param: [[u, valor, ease]] | constante }]]
@@ -126,6 +127,13 @@ export function composerItems(W = 1080, H = 1920) {
   for (const [name, fn] of MO_TEXT) items.push({ id: `mt:${name}`, cat: 'Mograph texto', name, kind: 'text', dur: 1, mk: (d, fs = 100) => fn(d, fs) });
   for (const [name, mk] of MO_ELEMENTS) items.push({ id: `me:${name}`, cat: 'Mograph formas', name, kind: 'element', dur: 1, mk });
   for (const [name, tr, fx] of MO_LOGO(W)) items.push({ id: `lg:${name}`, cat: 'Logo reveal', name, kind: 'in', dur: 1.2, make: (d) => toPreset(name, tr, fx, d) });
+  // pacotes de estilos de edit (edit-styles.js): elementos prontos, entradas/saídas e transições
+  for (const [cat, name, mk, d0] of STYLE_ELEMENTS) items.push({ id: `st:${name}`, cat, name, kind: 'element', dur: d0 || 1.5, mk });
+  for (const [cat, name, tr, fx] of STYLE_INS(W, H)) {
+    items.push({ id: `sti:${name}`, cat, name: `▶ ${name}`, kind: 'in', dur: 0.5, make: (d) => toPreset(name, tr, fx, d) });
+    items.push({ id: `sto:${name}`, cat, name: `◀ ${name} (saída)`, kind: 'out', dur: 0.5, make: (d) => toPreset(name, tr, fx, d, true) });
+  }
+  for (const [name, a, b] of JUGG_TR(W)) items.push({ id: `str:${name}`, cat: 'Edit jugg', name: `⇄ ${name}`, kind: 'trans', dur: 0.5, make: (d) => ({ a: { ...toPreset(name, a[0], a[1], d / 2), anchor: 'end' }, b: toPreset(name, b[0], b[1], d / 2) }) });
   for (const [name, mk] of ELEMENTOS) items.push({ id: `el:${name}`, cat: 'Elementos', name, kind: 'element', dur: 0.8, mk });
   for (const p of BUILTIN_PRESETS.filter((x) => /Shakes|Glows|Velocity/.test(x.category))) items.push({ id: `fx:${p.name}`, cat: 'Impacto', name: p.name, kind: 'fx', dur: p.duration || 0.6, native: true, make: (d) => (p.duration ? stretchPreset(p, d / p.duration) : p) });
   return items;
@@ -143,10 +151,9 @@ export function applyComposerItem(item0, dur, store) {
     for (const l of [...list].reverse()) {
       const isBg = item.id.startsWith('bg:');
       if (!Array.isArray(made) && !isBg) l.name = item.name;
-      for (const p of Object.values(l.transform)) for (const k of p.keys) k.t = +(k.t + t).toFixed(4);
-      if (l.type === 'shape') shiftShapeKeys(l.props.shapes, t);
+      shiftLayerKeys(l, t);
       // fundo animado: o projeto todo, embaixo de tudo
-      if (isBg) { l.inPoint = 0; l.outPoint = P.duration; } else { l.inPoint = t; l.outPoint = Math.min(P.duration, t + dur); }
+      if (isBg) { l.inPoint = 0; l.outPoint = P.duration; } else if (l.rel) { delete l.rel; l.inPoint = +(t + l.inPoint).toFixed(4); l.outPoint = Math.min(P.duration, +(t + l.outPoint).toFixed(4)); } else { l.inPoint = t; l.outPoint = Math.min(P.duration, t + dur); }
       store.addLayer(l);
       if (isBg) { const i = store.layers.indexOf(l); if (i >= 0) { store.layers.splice(i, 1); store.layers.push(l); store.commit('structure'); } }
     }
@@ -172,6 +179,13 @@ export function applyComposerItem(item0, dur, store) {
   store.commit('structure');
   return next ? `Transição “${item.name}” entre “${layer.name}” e “${next.name}”.` : `Transição “${item.name}” no fim de “${layer.name}” (não achei clipe começando logo depois — a parte de entrada não foi aplicada).`;
 }
+/** Desloca no tempo todos os keyframes de uma camada recém-criada (transformação, efeitos, formas e animadores de texto). */
+export function shiftLayerKeys(l, t) {
+  for (const p of Object.values(l.transform)) for (const k of p.keys || []) k.t = +(k.t + t).toFixed(4);
+  for (const fx of l.effects || []) for (const p of Object.values(fx.params || {})) for (const k of p?.keys || []) k.t = +(k.t + t).toFixed(4);
+  if (l.type === 'shape') shiftShapeKeys(l.props.shapes, t);
+  if (l.props?.animators?.length) l.props.animators = l.props.animators.map((an) => shiftAnim(an, t));
+}
 export function shiftAnim(an, t0) {
   const sh = (p) => (p && p.keys ? { ...p, keys: p.keys.map((k) => ({ ...k, t: +(k.t + t0).toFixed(4) })) } : p);
   return { ...an, props: Object.fromEntries(Object.entries(an.props).map(([k, v]) => [k, sh(v)])), selectors: (an.selectors || []).map((s) => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, sh(v)]))) };
@@ -192,9 +206,9 @@ function previewProject(item, dur) {
   if (item.kind === 'element') {
     const made = item.mk(P, dur), list = Array.isArray(made) ? made : [made];
     for (const l of list) {
-      for (const p of Object.values(l.transform)) for (const k of p.keys) k.t += s0;
-      if (l.type === 'shape') { if (!Array.isArray(made)) l.transform.position = { value: [PW / 2, PH / 2], keys: [] }; shiftShapeKeys(l.props.shapes, s0); }
-      l.inPoint = s0; l.outPoint = s0 + dur;
+      if (l.type === 'shape' && !Array.isArray(made)) l.transform.position = { value: [PW / 2, PH / 2], keys: [] };
+      shiftLayerKeys(l, s0);
+      if (l.rel) { delete l.rel; l.inPoint += s0; l.outPoint += s0; } else { l.inPoint = s0; l.outPoint = s0 + dur; }
     }
     P.layers = [...list, bg]; return P;
   }
@@ -222,7 +236,7 @@ function previewProject(item, dur) {
 export class ComposerPanel {
   constructor(root, store, hooks = {}) {
     this.root = root; this.store = store; this.hooks = hooks;
-    this.cat = 'Motion design'; this.q = ''; this.sel = null; this.dur = null;
+    this.cat = 'Mograph TikTok'; this.q = ''; this.sel = null; this.dur = null;
     this.favs = new Set(storage.get(FAV_KEY, []));
     this.items = composerItems();
     this.raf = 0; this.thumbs = new Map(); this.ready = false; // monta na primeira vez que o painel abre

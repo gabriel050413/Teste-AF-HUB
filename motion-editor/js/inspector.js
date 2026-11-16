@@ -212,6 +212,9 @@ export class Inspector {
         rows.push(f('Espaçamento', num('letterSpacing', 0.5)));
         rows.push(f('Contorno', num('strokeWidth', 0.5, 0)));
         rows.push(f('Cor contorno', color('strokeColor')));
+        // caixa atrás do texto (estilo "fundo" do TikTok / Instagram)
+        rows.push(f('Caixa de fundo', `<label class="switch"><input type="checkbox" data-prop="bgOn" ${p.bgOn ? 'checked' : ''}><i></i></label>`));
+        if (p.bgOn) rows.push(f('Cor da caixa', `<input type="color" data-prop="bgColor" value="${p.bgColor || '#ffffff'}">`), f('Opacidade caixa %', `<input type="number" class="num" data-prop="bgOpacity" min="0" max="100" step="1" value="${p.bgOpacity ?? 100}">`), f('Margem da caixa', `<input type="number" class="num" data-prop="bgPad" min="0" step="1" value="${p.bgPad ?? Math.round(p.fontSize * 0.22)}">`), f('Arredondar', `<input type="number" class="num" data-prop="bgRadius" min="0" step="1" value="${p.bgRadius ?? Math.round(p.fontSize * 0.22)}">`));
         break;
       case 'video':
         rows.push(f('Início no vídeo (s)', num('sourceStart', 0.01, 0)));
@@ -272,6 +275,8 @@ export class Inspector {
       const op = Math.round(valueAt(layer.transform.opacity, this.store.time) ?? 100);
       parts.blendop = [
         f('Modo', `<select data-layer="blend">${Object.entries(BLENDS).map(([k, l]) => `<option value="${k}" ${layer.blend === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`),
+        f('Track Matte', `<select data-matte>${[[0, 'Nenhum'], [1, 'Alfa'], [2, 'Alfa invertido'], [3, 'Luma'], [4, 'Luma invertida']].map(([k, lb]) => `<option value="${k}" ${(layer.trackMatte || 0) === k ? 'selected' : ''}>${lb}</option>`).join('')}</select>`),
+        ...(layer.trackMatte ? [`<div class="note muted">A camada logo acima na lista (“${escapeHtml(this.hooks.matteName?.(layer) || '—')}”) vira a máscara e fica oculta, como no After Effects.</div>`] : []),
         f('Opacidade %', `<input type="range" data-opacity min="0" max="100" step="1" value="${op}"><input type="number" class="num" data-opacity min="0" max="100" step="1" value="${op}">`),
         f('Duração do estilo (s)', `<input type="number" class="num" data-opdur min="0.05" max="10" step="0.05" value="${this.opDur ?? 0.4}">`),
         `<div class="op-styles">${OP_STYLES.map(([k, l]) => `<button data-opstyle="${k}">${l}</button>`).join('')}</div>`,
@@ -461,6 +466,7 @@ export class Inspector {
         if ((el.type === 'number' || el.type === 'range') && !Number.isFinite(v)) return;
         root.querySelectorAll(`[data-prop="${k}"]`).forEach((o) => { if (o !== el && o.type !== 'checkbox') o.value = v; });
         if (k === 'fontWeight') v = +v;
+        if (k === 'bgOn') queueMicrotask(() => this.render());
         layer.props[k] = v;
         for (const o of store.selectedLayers?.() || []) if (o !== layer && o.type === layer.type) o.props[k] = v;
         store.emit('preview');
@@ -520,6 +526,7 @@ export class Inspector {
       cameraMove(layer, b.dataset.cammove, Math.max(layer.inPoint, store.time), this.camDur ?? 2, P.width, P.height, (t, v) => ({ t, v, ease: 'bezier', outInf: 0.75, inInf: 0.75 }));
       store.commit('structure');
     }));
+    root.querySelector('[data-matte]')?.addEventListener('change', (e) => { this.hooks.trackMatte?.(layer, +e.target.value); this.render(); });
     root.querySelectorAll('[data-layer]').forEach((el) => {
       const k = el.dataset.layer;
       el.addEventListener('change', () => {
