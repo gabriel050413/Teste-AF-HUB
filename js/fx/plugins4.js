@@ -258,35 +258,71 @@ void main() {
   gl_FragColor = vec4(s.rgb * (0.6 + 0.4 * k), s.a);
 }`);
 // Polytrace (low poly / plexus): pontos nas bordas, ligados por linhas aos vizinhos, sobre a imagem
+// Polytrace: pontos espalhados (mais nas bordas) ligados em triângulos. Modos: linhas (plexus), low poly (triângulos
+// pintados com a cor do meio) ou os dois. A detecção de borda olha uma área proporcional ao tamanho da célula — com a
+// amostra de 2 px de antes quase nenhum ponto passava do limite em vídeo real e o efeito "não aparecia".
 const POLY = frag(`
-uniform float u_cell, u_thr, u_lw, u_pt, u_amt, u_fill; uniform vec3 u_col;
+uniform float u_cell, u_thr, u_lw, u_pt, u_amt, u_fill, u_mode, u_dens;
+uniform vec3 u_col;
+float edgeAt(vec2 uv) {
+  vec2 t = max(u_texel * 2.0, u_texel * u_cell * 0.22);
+  vec4 a = texture2D(u_tex, uv + vec2(t.x, 0.0)), b = texture2D(u_tex, uv - vec2(t.x, 0.0));
+  vec4 c = texture2D(u_tex, uv + vec2(0.0, t.y)), d = texture2D(u_tex, uv - vec2(0.0, t.y));
+  float gl = length(vec2(luma(a.rgb) - luma(b.rgb), luma(c.rgb) - luma(d.rgb)));
+  float ga = length(vec2(a.a - b.a, c.a - d.a));
+  return max(gl * 2.5, ga);
+}
 vec2 vtx(vec2 cell, out float on) {
   float h = hash1(dot(cell, vec2(12.9, 78.2)));
-  vec2 p = (cell + 0.2 + 0.6 * vec2(h, hash1(h * 17.0))) * u_cell;
-  vec2 uv = p / u_size, t = u_texel * 2.0;
-  float gx = luma(texture2D(u_tex, uv + vec2(t.x, 0.0)).rgb) - luma(texture2D(u_tex, uv - vec2(t.x, 0.0)).rgb);
-  float gy = luma(texture2D(u_tex, uv + vec2(0.0, t.y)).rgb) - luma(texture2D(u_tex, uv - vec2(0.0, t.y)).rgb);
-  on = step(u_thr, length(vec2(gx, gy)) * 4.0) * texture2D(u_tex, uv).a;
+  vec2 p = (cell + 0.15 + 0.7 * vec2(h, hash1(h * 17.0 + 3.0))) * u_cell;
+  vec2 uv = p / u_size;
+  float e = edgeAt(uv);
+  float keep = step(1.0 - u_dens, hash1(h * 91.0 + 7.0));         // alguns pontos sempre ligados (malha não some em áreas lisas)
+  on = max(smoothstep(u_thr * 0.6, u_thr, e), keep) * step(0.02, texture2D(u_tex, uv).a + e);
   return p;
 }
 float seg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-3), 0.0, 1.0); return length(pa - ba * h); }
+float sgn(vec2 p1, vec2 p2, vec2 p3) { return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y); }
+bool inTri(vec2 p, vec2 a, vec2 b, vec2 c) { float d1 = sgn(p, a, b), d2 = sgn(p, b, c), d3 = sgn(p, c, a); return !(((d1 < 0.0) || (d2 < 0.0) || (d3 < 0.0)) && ((d1 > 0.0) || (d2 > 0.0) || (d3 > 0.0))); }
 void main() {
   vec4 s = texture2D(u_tex, v_uv);
   vec2 px = v_uv * u_size, base = floor(px / u_cell);
+  vec3 col = unpre(s).rgb;
+  // low poly: triângulos das células vizinhas (cada célula = 2 triângulos), cor no centro do triângulo
+  if (u_mode > 1.5) {
+    bool found = false;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      if (found) continue;
+      vec2 c0 = base + vec2(float(i), float(j));
+      float o; vec2 a = vtx(c0, o), b = vtx(c0 + vec2(1.0, 0.0), o), c = vtx(c0 + vec2(0.0, 1.0), o), d = vtx(c0 + vec2(1.0, 1.0), o);
+      vec2 ctr = vec2(-1.0);
+      if (inTri(px, a, b, d)) ctr = (a + b + d) / 3.0; else if (inTri(px, a, d, c)) ctr = (a + d + c) / 3.0;
+      if (ctr.x > -0.5) {
+        vec4 cs = texture2D(u_tex, clamp(ctr / u_size, 0.002, 0.998));
+        if (cs.a > 0.5) col = unpre(cs).rgb; // centro fora da imagem (borda/margem transparente): mantém a cor do pixel
+        found = true;
+      }
+    }
+    col = mix(unpre(s).rgb, col, clamp(u_amt, 0.0, 1.0));
+  }
   float line = 0.0, dot1 = 0.0;
-  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-    float on; vec2 a = vtx(base + vec2(float(i), float(j)), on);
-    if (on < 0.5) continue;
-    dot1 = max(dot1, smoothstep(u_pt, u_pt * 0.5, length(px - a)));
-    for (int k = 0; k < 3; k++) {
-      vec2 o = k == 0 ? vec2(1.0, 0.0) : k == 1 ? vec2(0.0, 1.0) : vec2(1.0, 1.0);
-      float on2; vec2 b = vtx(base + vec2(float(i), float(j)) + o, on2);
-      if (on2 > 0.5) line = max(line, smoothstep(u_lw, 0.0, seg(px, a, b)));
+  if (u_mode < 1.5 || u_mode > 2.5) {
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+      float on; vec2 a = vtx(base + vec2(float(i), float(j)), on);
+      if (on < 0.5) continue;
+      dot1 = max(dot1, smoothstep(u_pt, u_pt * 0.5, length(px - a)));
+      for (int k = 0; k < 4; k++) {
+        vec2 o = k == 0 ? vec2(1.0, 0.0) : k == 1 ? vec2(0.0, 1.0) : k == 2 ? vec2(1.0, 1.0) : vec2(1.0, -1.0);
+        float on2; vec2 b = vtx(base + vec2(float(i), float(j)) + o, on2);
+        if (on2 > 0.5) line = max(line, smoothstep(u_lw, u_lw * 0.25, seg(px, a, b)));
+      }
     }
   }
-  vec3 c = unpre(s).rgb * (1.0 - u_fill);
-  vec3 o = mix(unpre(s).rgb, c, step(0.5, u_fill)) + u_col * max(line * 0.8, dot1) * u_amt;
-  gl_FragColor = vec4(clamp(o, 0.0, 1.0) * max(s.a, max(line, dot1) * u_amt), max(s.a, max(line, dot1) * u_amt));
+  vec3 bg = u_fill > 0.5 ? vec3(0.0) : col;
+  float m = max(line * 0.85, dot1) * (u_mode > 1.5 && u_mode < 2.5 ? 0.0 : min(u_amt, 3.0));
+  vec3 o = clamp(bg + u_col * m, 0.0, 1.0);
+  float al = u_fill > 0.5 ? clamp(m, 0.0, 1.0) : max(s.a, clamp(m, 0.0, 1.0));
+  gl_FragColor = vec4(o * al, al);
 }`);
 // AutoPaint: pinceladas (Kuwahara anisotrópico simples + textura de tela)
 const PAINT = frag(`
@@ -432,9 +468,10 @@ export default [
   {
     type: 'polytrace', label: 'Polytrace (low poly)', category: 'Estilizar', plugin: 'Polytrace (Cinema Spice)',
     description: 'Pontos nas bordas da imagem ligados por linhas (visual low-poly / plexus).',
-    params: [num('size', 'Size (espaçamento px)', 40, 6, 400), num('threshold', 'Threshold', 0.25, 0, 2, 0.01), num('lineWidth', 'Espessura da linha', 1.5, 0.3, 10, 0.1), num('point', 'Tamanho do ponto', 3, 0, 20, 0.5),
+    params: [sel('mode', 'Modo', ['Linhas (plexus)', 'Low poly (triângulos)', 'Low poly + linhas'], 1), num('size', 'Size (espaçamento px)', 40, 6, 400), num('threshold', 'Threshold (bordas)', 0.15, 0, 2, 0.01), num('density', 'Pontos extras %', 25, 0, 100),
+      num('lineWidth', 'Espessura da linha', 1.5, 0.3, 10, 0.1), num('point', 'Tamanho do ponto', 3, 0, 20, 0.5),
       num('amount', 'Intensidade', 1, 0, 3, 0.05), col('color', 'Cor', [1, 1, 1, 1]), bool('only', 'Esconder a imagem', false)],
-    render: (src, p, env) => env.gl.pass(POLY, { u_tex: src, u_cell: Math.max(4, p.size * env.scale), u_thr: p.threshold, u_lw: p.lineWidth * env.scale, u_pt: Math.max(0.1, p.point * env.scale), u_amt: p.amount, u_col: rgb(p.color), u_fill: p.only ? 1 : 0 }),
+    render: (src, p, env) => env.gl.pass(POLY, { u_tex: src, u_cell: Math.max(4, p.size * env.scale), u_thr: Math.max(0.005, p.threshold), u_dens: Math.max(0, Math.min(1, (p.density ?? 25) / 100)), u_lw: Math.max(0.5, p.lineWidth * env.scale), u_pt: Math.max(0.1, p.point * env.scale), u_amt: p.amount, u_col: rgb(p.color), u_fill: p.only ? 1 : 0, u_mode: p.mode || 1 }),
   },
   {
     type: 'autoPaint', label: 'AutoPaint (pintura)', category: 'Estilizar', plugin: 'S_AutoPaint (Sapphire)',

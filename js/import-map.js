@@ -666,7 +666,7 @@ export const IMPORT_RULES = [
   { vendor: 'Adobe', plugin: 'Minimax', to: 'minimax', match: ['ADBE Minimax'], map: { operation: { n: ['operation'], conv: (v) => (v === 2 || v === 3 ? 2 : 1) }, radius: { n: ['radius'] }, direction: { n: ['direction'], conv: (v) => Math.min(3, Math.max(1, Math.round(v))) } } },
   { vendor: 'Adobe', plugin: 'CC Jaws', to: 'ccJaws', test: /^cc jaws/i, map: { completion: { n: ['completion'] }, height: { n: ['height'] }, width: { n: ['width'] } } },
   { vendor: 'Adobe', plugin: 'Card Wipe', to: 'cardWipe', test: /cardwipe|card wipe/i, map: { completion: { n: ['transition completion'] }, width: { n: ['transition width'] }, rows: { n: ['rows'] }, columns: { n: ['columns'] }, axis: { n: ['flip axis'], conv: (v) => (v >= 2 ? 2 : 1) }, order: { n: ['flip order'], conv: (v) => (v <= 2 ? 1 : v <= 4 ? 2 : 3) } } },
-  { vendor: 'Cinema Spice', plugin: 'Polytrace', to: 'polytrace', test: /polytrace/i, map: { threshold: { n: ['threshold'] }, size: { n: ['size'] } } },
+  { vendor: 'Cinema Spice', plugin: 'Polytrace', to: 'polytrace', test: /polytrace/i, map: { threshold: { n: ['threshold'], conv: (v) => (v > 2 ? v / 100 : v) }, size: { n: ['size'] } } }, // Threshold do plugin pode vir 0–100
   { vendor: 'Sapphire', plugin: 'S_AutoPaint', to: 'autoPaint', test: /s_autopaint/i, map: { frequency: { n: ['frequency'] } } },
   { vendor: 'Sapphire', plugin: 'S_ReverseClip', to: 'twixtor', test: /s_reverseclip/i, set: { speed: -100 } },
   // Magic Bullet Film (matchName genérico "Magic_Bullet_Suite_Magic_Bullet"): Negative Stock, Color Temperature, Exposure, Grain, Strength
