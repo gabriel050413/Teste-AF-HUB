@@ -298,8 +298,12 @@ export function looksFromTools(tools, strength = 100) {
         // Colorista: [?, Strength, Exposure, Lift RGB, Gamma RGB, Gain RGB, Saturation, HSL de 8 cores…, Sat×Lum, Sat×Sat,
         // Temperature (216), Tint (217), Contrast (218)] — tudo pesado pelo Strength
         const k = clampN((v[1] ?? 100) / 100, 0, 1);
+        // Lift do Colorista = cor da roda (relativa à luminância dela) + brilho; antes cada canal só era abaixado e as
+        // sombras azuis da Wdzik viravam ciano fraco
+        const T = globalThis.__MF_TUNE || {};
+        const lw = 0.2126 * (v[3] ?? 1) + 0.7152 * (v[4] ?? 1) + 0.0722 * (v[5] ?? 1);
         ['R', 'G', 'B'].forEach((c, i) => {
-          p[`lift${c}`] += ((v[3 + i] ?? 1) - 1) * 0.6 * k;
+          p[`lift${c}`] += (T.cstaOld ? ((v[3 + i] ?? 1) - 1) * 0.6 : ((v[3 + i] ?? 1) - lw) * (T.cstaC ?? 1.2) + (lw - 1) * (T.cstaB ?? 1)) * k;
           p[`gamma${c}`] *= 1 + ((v[6 + i] ?? 1) - 1) * k;
           p[`gain${c}`] *= 1 + ((v[9 + i] ?? 1) - 1) * k;
         });
@@ -377,9 +381,10 @@ export function looksFromTools(tools, strength = 100) {
         const k = (v[2] ?? 100) / 100 * (globalThis.__MF_TUNE?.w4 ?? 1), o = (i) => ((v[i] ?? 0.5) - 0.5) * 2 * k;
         p.exposure += (v[0] || 0) * k; p.contrast += (v[1] || 0) * k;
         ['R', 'G', 'B'].forEach((c, i) => {
-          p[`gain${c}`] *= 1 + o(3 + i) * 0.5 + o(15 + i) * 0.5;
-          p[`gamma${c}`] *= 1 + o(7 + i) * 0.6 + o(15 + i) * 0.3;
-          p[`lift${c}`] += o(11 + i) * 0.25 + o(15 + i) * 0.1;
+          const T = globalThis.__MF_TUNE || {};
+          p[`gain${c}`] *= 1 + o(3 + i) * 0.5 * (T.w4h ?? 1) + o(15 + i) * 0.5;
+          p[`gamma${c}`] *= 1 + o(7 + i) * 0.6 * (T.w4g ?? 1) + o(15 + i) * 0.3;
+          p[`lift${c}`] += o(11 + i) * 0.25 * (T.w4l ?? 1) + o(15 + i) * 0.1;
         });
         p.saturation *= 1 + (((v[6] ?? 100) + (v[10] ?? 100) + (v[14] ?? 100)) / 3 / 100 - 1) * k * 0.7 + ((v[18] ?? 100) / 100 - 1) * k;
         break;
