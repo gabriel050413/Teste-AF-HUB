@@ -97,6 +97,23 @@ export class Library {
     const all = this.all();
     const cats = this.categories(all);
     const items = all.filter((p) => (this.cat === 'Todos' || p.category === this.cat) && (!q || `${p.name} ${p.category}`.toLowerCase().includes(q)));
+    const L = document.body.dataset.elayout || 'studio';
+    if (['capcut', 'blurrr', 'alight', 'nova'].includes(L)) {
+      // presets no estilo do app do layout: abas no topo e grade de miniaturas (Blurrr: "Criar / Importar / Em alta🔥")
+      const hot = { capcut: 'Em alta', blurrr: 'Em alta 🔥', alight: 'Todos', nova: 'Todos' }[L];
+      this.root.innerHTML = `<div class="lib-m lib-${L}">
+        <div class="lib-tabs">${L === 'blurrr' ? '<button data-act="save-layer">Criar</button><button data-act="import">Importar</button><i class="lib-sep"></i>' : ''}${['Todos', ...cats].map((c) => `<button class="${c === this.cat ? 'on' : ''}" data-cat="${escapeHtml(c)}">${escapeHtml(c === 'Todos' ? hot : c)}</button>`).join('')}</div>
+        <input type="search" class="lib-search" placeholder="${L === 'alight' ? 'Pesquisar presets' : 'Pesquisar'}" value="${escapeHtml(this.filter)}">
+        <div class="lib-grid">${items.map((p) => this.card(p)).join('')}</div>
+        ${items.length ? '' : '<div class="empty-note">Nenhum preset aqui ainda. Importe .ffx ou salve uma camada.</div>'}
+        <div class="lib-more">
+          ${L === 'blurrr' ? '' : '<button data-act="import">⤒ Importar</button><button data-act="save-layer">★ Salvar camada</button>'}
+          <button data-act="capture">◐ Capturar CC do AE</button><button data-act="aex">⤒ Plugins .aex</button>
+          <label class="fit-toggle ${this.fit ? 'on' : ''}"><span class="switch"><input type="checkbox" data-act="fit" ${this.fit ? 'checked' : ''}><i></i></span><span>Sincronizar com a duração da camada</span></label>
+        </div></div>`;
+      this.bind();
+      return;
+    }
     this.root.innerHTML = `
       <div class="lib-tools">
         <button class="primary" data-act="import">⤒ Importar .ffx / .rgx / .cube / preset</button>
@@ -122,6 +139,7 @@ export class Library {
     const meta = p.lazy ? (p.file?.endsWith('.ffx') ? '.ffx' : 'preset') : [tr ? `${tr} anim.` : '', fx ? `${fx} fx` : '', p.duration ? `${p.duration.toFixed(2)}s` : ''].filter(Boolean).join(' · ');
     return `<div class="preset ${p.source}" data-id="${p.id}" role="button" tabindex="0">
       <div class="preset-thumb">${p.thumb ? `<img src="${escapeHtml(p.thumb)}" alt="" loading="lazy">` : thumbFor(p)}</div>
+      ${p.duration ? `<em class="pframes">${Math.max(1, Math.round(p.duration * 30))}F</em>` : ''}
       <div class="preset-name">${escapeHtml(p.name)}</div>
       <div class="preset-meta">${meta || '&nbsp;'}</div>
       <div class="preset-actions">
@@ -134,11 +152,11 @@ export class Library {
 
   bind() {
     const r = this.root;
-    r.querySelector('[data-act="import"]').addEventListener('click', async () => {
+    r.querySelectorAll('[data-act="import"]').forEach((b) => b.addEventListener('click', async () => {
       const files = await pickFiles('.ffx,.aep,.rgx,.cube,.png,.aex,.json,application/json,application/octet-stream');
       if (files.length) this.importFiles(files);
-    });
-    r.querySelector('[data-act="save-layer"]').addEventListener('click', () => this.saveLayer());
+    }));
+    r.querySelectorAll('[data-act="save-layer"]').forEach((b) => b.addEventListener('click', () => this.saveLayer()));
     r.querySelector('[data-act="capture"]').addEventListener('click', () => this.captureAE());
     r.querySelector('[data-act="aex"]').addEventListener('click', async () => { const f = await pickFiles('.aex,.plugin,application/octet-stream', true); if (f.length) (this.hooks.importAex ? this.hooks.importAex(f) : this.scanPlugins(f)); });
     r.querySelector('[data-act="fit"]').addEventListener('change', (e) => { this.fit = e.target.checked; storage.set('motionframe.presetFit', this.fit); this.render(); });
