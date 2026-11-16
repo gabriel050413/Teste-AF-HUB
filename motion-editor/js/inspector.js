@@ -162,6 +162,8 @@ export class Inspector {
     this.collapsed = new Set();
     this.binds = [];
     store.on((kind) => {
+      // painel escondido: não remonta agora (fica marcado e remonta quando abrir) — evita travadas a cada toque
+      if (!this.root.offsetParent) { if (kind !== 'time' && kind !== 'preview') this.dirty = true; return; }
       if (kind === 'time' || kind === 'preview') this.refresh();
       else if (kind !== 'keys' && kind !== 'keyspreview') this.render();
     });
@@ -170,6 +172,7 @@ export class Inspector {
 
   render() {
     if (!this.root.isConnected) return;
+    this.dirty = false;
     const active = document.activeElement;
     const focusId = this.root.contains(active) ? active.dataset.fid : null;
     const layer = this.store.layer();

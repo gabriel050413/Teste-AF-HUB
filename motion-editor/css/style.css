@@ -41,7 +41,7 @@ button.danger:hover, button.danger:active { color: var(--err); border-color: var
 button.icon { background: none; border: 0; width: 40px; height: 40px; padding: 0; font-size: 18px; border-radius: 50%; }
 button.wide { width: 100%; margin: 6px 0; }
 input[type="number"], input[type="text"], input[type="search"], select, textarea {
-  background: #0d0d16; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; min-width: 0; font-size: 14px;
+  background: var(--input-bg, #0d0d16); border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; min-width: 0; font-size: 14px;
 }
 input:focus, select:focus, textarea:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 input[type="color"] { width: 44px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; }
@@ -1488,3 +1488,193 @@ body[data-elayout="blurrr"] .insp-sec h4 { color: #555; }
 .lib-alight .lib-tabs button.on { color: #2fd38a; border-bottom-color: #2fd38a; }
 .lib-nova .lib-grid { grid-template-columns: repeat(3, 1fr); }
 .lib-nova .lib-tabs button.on { color: #22d97a; border-bottom-color: #22d97a; }
+/* editar texto com toque duplo */
+.txt-edit { position: fixed; inset: 0; z-index: 9000; background: #0006; display: flex; align-items: flex-end; justify-content: center; }
+.txt-edit-in { width: min(640px, 100%); display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px calc(10px + var(--safe-b)); background: var(--panel); border-radius: 16px 16px 0 0; box-shadow: 0 -8px 30px #0008; }
+.txt-edit textarea { flex: 1; margin: 0; min-height: 44px; max-height: 30vh; font-size: 17px; border-radius: 10px; background: var(--input-bg, #0d0d16); }
+.txt-edit button { flex: none; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 0; }
+.txt-edit .tx-ok { background: var(--accent); color: #fff; }
+.txt-edit .ico { width: 22px; height: 22px; }
+body[data-elayout="capcut"] .txt-edit-in { background: #1a1a1a; } body[data-elayout="capcut"] .txt-edit .tx-ok { background: #23c4dc; color: #001418; }
+body[data-elayout="blurrr"] .txt-edit-in { background: #fff; } body[data-elayout="blurrr"] .txt-edit .tx-ok { background: #d6f53c; color: #111; }
+body[data-elayout="alight"] .txt-edit-in { background: #262a35; } body[data-elayout="alight"] .txt-edit .tx-ok { background: #2fd38a; color: #05231a; }
+@media (min-width: 1100px) { .txt-edit { align-items: center; } .txt-edit-in { border-radius: 16px; } }
+/* ---------- Blurrr: tudo claro e legível (nada de texto preto em fundo escuro) ---------- */
+body[data-elayout="blurrr"] { --input-bg: #f1f1f1; --key: #8fae00; }
+body[data-elayout="blurrr"] :is(.fx-card, .preset, .proj-card, .tz-sec, .kt-info, .exp-chip, .exp-chips button, .fit-toggle, .fit-toggle.on, .cache-pill, .cd-anchor button, .tr-big, .cfx-pv, .cv, .report pre, .sc-table kbd, .access-card textarea, .access-code code, .hint-bar, .progress, .upd-banner, .exp-pv, .e3-view, .dock-head, .dock-bar button.on, .lfx-ae, .lfx-ae .fx-search) { background: #f4f4f4 !important; color: #121212 !important; border-color: #e4e4e4 !important; }
+body[data-elayout="blurrr"] .badge { background: #e9e9e9; color: #333; }
+body[data-elayout="blurrr"] :is(.modal, .modal-body, .modal-head, .modal-foot) { background: #fff; color: #121212; }
+body[data-elayout="blurrr"] :is(.preset-name, .fx-title, .insp-sec h4, .row > span, .plabel, .note, .desc, .plugin-note, .empty-note, .muted, .preset-meta, .lib-cat) { color: #444 !important; }
+body[data-elayout="blurrr"] .preset-thumb { background: #e9e9e9; color: #555; }
+body[data-elayout="blurrr"] .lib-m .preset { background: none !important; }
+body[data-elayout="blurrr"] .lfx-nm, body[data-elayout="blurrr"] .fxs-nm { color: #444; }
+body[data-elayout="blurrr"] .lfx-tabs button { color: #666; }
+body[data-elayout="blurrr"] .lfx-cc-top button.on, body[data-elayout="blurrr"] .lfx-m-title { color: #111; }
+body[data-elayout="blurrr"] .switch i { background: #ddd; }
+body[data-elayout="blurrr"] .chip { background: #f1f1f1; color: #333; border-color: #e4e4e4; }
+body[data-elayout="blurrr"] .chip.on { background: #d6f53c; color: #111; }
+body[data-elayout="blurrr"] button.primary { color: #111; }
+body[data-elayout="blurrr"] .more-grid button, body[data-elayout="blurrr"] .menu-list button { background: #f4f4f4; color: #111; }
+
+/* ===================== v1.9.6: cabeçalhos dos painéis no jeito de cada app (celular) ===================== */
+body[data-elayout="capcut"] .sheet-head { justify-content: center; padding: 6px 10px; }
+body[data-elayout="capcut"] .sheet-head h3 { text-align: center; font-weight: 600; font-size: 15px; }
+body[data-elayout="capcut"] #sheetClose .ico, body[data-elayout="blurrr"] #sheetClose .ico { display: none; }
+body[data-elayout="capcut"] #sheetClose::after, body[data-elayout="blurrr"] #sheetClose::after { content: '✓'; font-size: 22px; line-height: 1; }
+body[data-elayout="capcut"] .sheet-grip, body[data-elayout="blurrr"] .sheet-grip { opacity: .5; }
+body[data-elayout="blurrr"] .sheet-head { padding: 8px 12px; }
+body[data-elayout="blurrr"] .sheet-head h3 { text-align: center; font-size: 17px; }
+body[data-elayout="blurrr"] #sheetClose { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #ddd; }
+body[data-elayout="blurrr"] .sheet-head .back { visibility: visible; width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid #ddd; }
+body[data-elayout="blurrr"] .sheet-head .back::after { content: '×'; font-size: 24px; }
+body[data-elayout="blurrr"] .sheet-head .back { font-size: 0; }
+body[data-elayout="alight"] .sheet-head { padding: 6px 8px; }
+body[data-elayout="alight"] #sheetClose { order: -1; }
+body[data-elayout="alight"] #sheetClose .ico { display: none; }
+body[data-elayout="alight"] #sheetClose::after { content: '‹'; font-size: 30px; line-height: 1; }
+body[data-elayout="alight"] .sheet-head h3 { font-size: 17px; font-weight: 600; }
+body[data-elayout="alight"] .sheet-grip { display: none; }
+
+/* ===================== v1.9.6: versões de PC ===================== */
+.lpanel { display: none; }
+@media (min-width: 1100px) {
+  /* PC em geral: ícones menores e timeline maior */
+  .app { --tl-h-pc: 40vh; }
+  .app:not(.dock-mode), .app.dock-mode { grid-template-rows: auto minmax(0, 1fr) auto minmax(200px, var(--tl-h, 40vh)) auto; }
+  .toolbar .tool { min-width: 54px; padding: 4px 3px; }
+  .toolbar .tool .ti .ico, .toolbar .tool > .ico { width: 18px; height: 18px; }
+  .toolbar .tool .tl { font-size: 10.5px; }
+  .topbar .lb { width: 32px; height: 32px; }
+  .topbar .lb .ico { width: 18px !important; height: 18px !important; }
+  .transport .lx .lb { width: 30px; height: 30px; }
+  .transport .lx .lb .ico { width: 17px !important; height: 17px !important; }
+  .lay-btn { width: 30px; height: 30px; }
+  .lay-btn .bars b { width: 12px; } .lay-btn .bars b:nth-child(2) { width: 9px; }
+
+  body[data-pc] .lpanel { display: flex; flex-direction: column; grid-area: lp; position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+  body[data-pc] .hint-bar { display: none !important; }
+  body[data-pc] .lp-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 12px 12px; }
+  body[data-pc] .lp-body > .pane { display: none; }
+  body[data-pc] .lp-body > .pane.lp-on { display: block; }
+  body[data-pc] .lp-body .dock-head { display: none; }
+  body[data-pc] .lp-head { padding: 10px 14px 4px; font-size: 13px; }
+  body[data-pc] .lp-tabs { display: flex; gap: 2px; padding: 6px 6px 0; overflow-x: auto; scrollbar-width: none; flex: none; }
+  body[data-pc] .lp-tabs button { flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 56px; padding: 6px 4px; border: 0; border-radius: 6px; background: none; color: #bdbdbd; font-size: 11px; }
+  body[data-pc] .lp-tabs button .ico { width: 19px; height: 19px; }
+  body[data-pc] .lp-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: ew-resize; z-index: 5; }
+  body[data-pc] .lp-resize:hover { background: #ffffff22; }
+  /* painel da direita em abas (um painel por vez) */
+  body[data-pc] .app.dock-mode .sheet-body { gap: 0; padding: 0; }
+  body[data-pc] .app.dock-mode .sheet .pane { border: 0; border-radius: 0; background: none; }
+  body[data-pc] .app.dock-mode .sheet .pane.dock-open:not(.dock-focus) { display: none; }
+  body[data-pc] .app.dock-mode .sheet .pane > :not(.dock-head) { max-height: none; padding: 6px 14px 14px; }
+  body[data-pc] .app.dock-mode .sheet .pane.dock-min > :not(.dock-head) { display: block; }
+  body[data-pc] .app.dock-mode .dock-head { display: none; }
+  body[data-pc] .app.dock-mode .dock-bar { gap: 2px 14px; padding: 8px 14px 0; border-bottom: 1px solid #ffffff14; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  body[data-pc] .dock-bar button { border: 0; border-radius: 0; background: none !important; padding: 6px 0 8px; font-size: 12.5px; border-bottom: 2px solid transparent; }
+  body[data-pc] .dock-bar button .ico { display: none; }
+  body[data-pc] .dock-bar button.on { color: #fff; }
+  body[data-pc] .sheet .dock-resize { left: -4px; }
+  body[data-pc] .transport .tp-main { justify-content: center; gap: 10px; }
+
+  /* ---------- CapCut Desktop ---------- */
+  body[data-pc="capcut"] .app.dock-mode { background: #0b0b0b; gap: 3px; padding: 0 3px 3px;
+    grid-template-columns: var(--lp-w, 400px) minmax(0, 1fr) var(--dock-w, 360px);
+    grid-template-rows: 42px minmax(0, 1fr) auto auto minmax(200px, var(--tl-h, 42vh));
+    grid-template-areas: "top top top" "lp stage sheet" "lp transport sheet" "toolbar toolbar toolbar" "timeline timeline timeline"; }
+  body[data-pc="capcut"] .topbar { padding: 4px 10px; gap: 6px; background: #0b0b0b; }
+  body[data-pc="capcut"] .topbar .lq { padding: 5px 10px; font-size: 12px; }
+  body[data-pc="capcut"] .export-btn { padding: 5px 14px; font-size: 13px; border-radius: 6px; }
+  body[data-pc="capcut"] :is(.lpanel, .stage, .transport, .sheet, .toolbar, .timeline-wrap) { background: #181818; border: 0; }
+  body[data-pc="capcut"] .lpanel, body[data-pc="capcut"] .sheet { border-radius: 8px; }
+  body[data-pc="capcut"] .stage { border-radius: 8px 8px 0 0; background: #181818; }
+  body[data-pc="capcut"] .transport { border-radius: 0 0 8px 8px; padding: 4px 12px; display: flex !important; align-items: center; }
+  body[data-pc="capcut"] .transport .tc { order: 0; color: #23c4dc; font: 500 12px ui-monospace, Menlo, monospace; min-width: 150px; }
+  body[data-pc="capcut"] .transport .tp-main { order: 1; flex: 1; }
+  body[data-pc="capcut"] .transport .lx-l, body[data-pc="capcut"] .transport .lx-r { min-width: 0; }
+  body[data-pc="capcut"] .transport .play .ico { width: 20px; height: 20px; }
+  body[data-pc="capcut"] .lp-tabs button.on, body[data-pc="capcut"] .lp-tabs button:hover { color: #23c4dc; background: #23c4dc14; }
+  body[data-pc="capcut"] .lp-head { color: #e6e6e6; }
+  body[data-pc="capcut"] .dock-bar button.on { border-bottom-color: #23c4dc; }
+  /* barra de ferramentas acima da timeline: só ícones pequenos, como a do CapCut Desktop */
+  body[data-pc="capcut"] .toolbar { flex-direction: row; align-items: center; gap: 2px; padding: 4px 8px; height: 40px; overflow-x: auto; border-radius: 8px 8px 0 0; }
+  body[data-pc="capcut"] .toolbar .tool { min-width: 30px; height: 30px; padding: 0; flex-direction: row; border-radius: 6px; }
+  body[data-pc="capcut"] .toolbar .tool:hover { background: #2a2a2a; }
+  body[data-pc="capcut"] .toolbar .tool .tl, body[data-pc="capcut"] .toolbar .tool .tnew { display: none; }
+  body[data-pc="capcut"] .toolbar .tool .ti .ico { width: 18px; height: 18px; }
+  body[data-pc="capcut"] .toolbar .tool.lback { min-width: 30px; background: none; box-shadow: none; margin: 0 4px 0 0; }
+  body[data-pc="capcut"] .timeline-wrap { border-radius: 0 0 8px 8px; }
+  body[data-pc="capcut"] .lfab { display: none; }
+
+  /* ---------- Blurrr (formulado para PC) ---------- */
+  body[data-pc="blurrr"] .app.dock-mode { background: #f3f3f3; gap: 10px; padding: 0 10px 10px;
+    grid-template-columns: 92px var(--lp-w, 330px) minmax(0, 1fr) var(--dock-w, 350px);
+    grid-template-rows: 60px minmax(0, 1fr) auto minmax(200px, var(--tl-h, 38vh));
+    grid-template-areas: "top top top top" "toolbar lp stage sheet" "toolbar lp transport sheet" "toolbar timeline timeline timeline"; }
+  body[data-pc="blurrr"] .topbar { background: #f3f3f3; padding: 8px 4px; }
+  body[data-pc="blurrr"] :is(.lpanel, .sheet, .timeline-wrap, .toolbar, .transport) { background: #fff; border: 0; border-radius: 18px; }
+  body[data-pc="blurrr"] .stage { border-radius: 18px 18px 0 0; background: #000; }
+  body[data-pc="blurrr"] .transport { border-radius: 0 0 18px 18px; }
+  body[data-pc="blurrr"] .toolbar { flex-direction: column; align-items: stretch; overflow-y: auto; overflow-x: hidden; padding: 10px 8px; gap: 8px; min-height: 0 !important; display: flex !important; }
+  body[data-pc="blurrr"] .toolbar .tool { min-width: 0 !important; width: 100%; height: 70px !important; padding: 8px 2px !important; gap: 6px !important; border-radius: 14px; flex: none; }
+  body[data-pc="blurrr"] .toolbar .tool .ti .ico { width: 22px !important; height: 22px !important; }
+  body[data-pc="blurrr"] .toolbar .tool .tl { font-size: 10.5px !important; white-space: normal; text-align: center; line-height: 1.1; }
+  body[data-pc="blurrr"] .toolbar.has-ltop .ltop { display: grid; grid-template-columns: 1fr 1fr; width: auto; position: static; padding: 0 0 6px; }
+  body[data-pc="blurrr"] .lp-head { font-size: 16px; font-style: italic; color: #111; }
+  body[data-pc="blurrr"] .dock-bar { border-color: #eee !important; }
+  body[data-pc="blurrr"] .dock-bar button { color: #888; font-style: italic; font-size: 14px !important; }
+  body[data-pc="blurrr"] .dock-bar button.on { color: #111; border-bottom-color: #d6f53c; }
+  body[data-pc="blurrr"] .lp-resize:hover, body[data-pc="blurrr"] .dock-resize:hover { background: #d6f53c66; }
+
+  /* ---------- Alight Motion (formulado para PC) ---------- */
+  body[data-pc="alight"] .app.dock-mode { background: #1b1e26; gap: 0;
+    grid-template-columns: 88px minmax(0, 1fr) var(--dock-w, 380px);
+    grid-template-rows: 52px minmax(0, 1fr) auto minmax(200px, var(--tl-h, 40vh));
+    grid-template-areas: "top top top" "toolbar stage sheet" "toolbar transport sheet" "toolbar timeline sheet"; }
+  body[data-pc="alight"] .sheet { background: #22252f; border-left: 1px solid #2c303c; }
+  body[data-pc="alight"] .toolbar { display: flex !important; flex-direction: column; align-items: stretch; overflow-y: auto; overflow-x: hidden; padding: 8px 6px; gap: 4px; border-top: 0; border-right: 1px solid #2c303c; max-height: none; }
+  body[data-pc="alight"] .toolbar .tool { min-width: 0; width: 100%; height: auto !important; padding: 8px 2px; gap: 5px; border-radius: 10px; flex: none; }
+  body[data-pc="alight"] .toolbar .tool:hover { background: #2b2f3b; }
+  body[data-pc="alight"] .toolbar .tool .ti .ico { width: 21px; height: 21px; }
+  body[data-pc="alight"] .toolbar .tool .tl { font-size: 10px !important; max-width: 76px; }
+  body[data-pc="alight"] .toolbar.sel { display: flex !important; }
+  body[data-pc="alight"] .toolbar.sel .tool { background: #2b2f3b; height: 64px !important; }
+  body[data-pc="alight"] .toolbar.sel .ltop { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0 0 4px; }
+  body[data-pc="alight"] .toolbar.sel .ltop .lt { height: 32px; border-radius: 8px !important; margin: 0 !important; }
+  body[data-pc="alight"] .dock-bar button { color: #9b9eaa; }
+  body[data-pc="alight"] .dock-bar button.on { color: #fff; border-bottom-color: #2fd38a; }
+
+  /* ---------- Nova (formulado para PC) ---------- */
+  body[data-pc="nova"] .app.dock-mode { background: #070a10; gap: 2px;
+    grid-template-columns: var(--lp-w, 360px) minmax(0, 1fr) var(--dock-w, 360px);
+    grid-template-rows: 50px minmax(0, 1fr) auto minmax(200px, var(--tl-h, 38vh)) auto;
+    grid-template-areas: "top top top" "lp stage sheet" "lp transport sheet" "timeline timeline timeline" "toolbar toolbar toolbar"; }
+  body[data-pc="nova"] :is(.lpanel, .sheet) { background: #0d121c; border: 0; }
+  body[data-pc="nova"] .lp-tabs button.on { color: #22d97a; }
+  body[data-pc="nova"] .dock-bar button.on { border-bottom-color: #22d97a; }
+  body[data-pc="nova"] .toolbar.has-ltop { flex-wrap: nowrap; max-height: none; }
+  body[data-pc="nova"] .toolbar.has-ltop .ltop { width: auto; flex: none; padding: 0 8px 0 0; }
+  body[data-pc="nova"] .toolbar.has-ltop .tool { flex: none !important; height: 48px !important; min-width: 80px; }
+}
+@media (min-width: 1100px) {
+  body[data-pc="blurrr"] .toolbar.has-ltop .ltop, body[data-pc="alight"] .toolbar .ltop { flex: none !important; height: auto; }
+  body[data-pc="blurrr"] .toolbar.has-ltop .ltop .lt { height: 32px; flex: none; }
+  body[data-pc="capcut"] .lp-head { display: none; }
+}
+/* tamanho da timeline */
+.tl-corner { position: relative; }
+.tl-szb { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 24px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: #ffffff14; color: inherit; opacity: .8; z-index: 2; }
+.tl-szb:hover { opacity: 1; background: #ffffff26; }
+.tl-nrz { position: absolute; right: -3px; top: 0; bottom: -2000px; width: 6px; cursor: ew-resize; z-index: 6; touch-action: none; }
+.tl-nrz:hover { background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.tl-size-pop { position: fixed; z-index: 9500; width: 290px; padding: 12px 14px; border-radius: 14px; background: var(--panel); color: var(--text); border: 1px solid var(--line); box-shadow: 0 12px 40px #0009; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+.tl-size-pop label { display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
+.tl-size-btns { display: flex; justify-content: flex-end; gap: 8px; }
+.tl-size-btns button { padding: 5px 12px; font-size: 12.5px; }
+body[data-elayout="blurrr"] .tl-szb { background: #eee; color: #333; }
+@media (min-width: 1100px) { .tl-grip { width: 100%; height: 8px; } .tl-grip::before { width: 48px; } }
+/* avisos (toasts) no jeito de cada app */
+body[data-elayout="capcut"] .toast { background: #2a2a2a; border: 0; border-radius: 6px; color: #fff; }
+body[data-elayout="blurrr"] .toast { background: #222; border: 0; border-radius: 14px; color: #fff; }
+body[data-elayout="alight"] .toast { background: #2b2f3b; border: 0; border-radius: 8px; color: #fff; }
+body[data-elayout="capcut"] .toast.ok, body[data-elayout="blurrr"] .toast.ok, body[data-elayout="alight"] .toast.ok { border: 0; }
