@@ -1836,3 +1836,16 @@ body[data-elayout="nova"] :is(.tr-top, .cmp-bar) { background: #141c2b !importan
 .ml-alight .np-ratios button.on { border-color: #2fd38a; color: #2fd38a; }
 .ml-alight input[type="range"] { accent-color: #2fd38a; }
 .ml-blurrr :is(select, input[type="number"], input[type="text"], input[type="search"], textarea) { background: #f1f1f1 !important; color: #111 !important; border-color: #e6e6e6 !important; }
+/* v1.9.9: miniaturas nunca esticam a grade (imagens grandes de presets importados) */
+.lib-grid { grid-template-columns: repeat(auto-fill, minmax(min(100px, 100%), 1fr)); }
+.lib-m .lib-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+.lib-alight .lib-grid, .lib-nova .lib-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.preset, .lfx-tile, .tr-tile, .cmp-tile, .fxs-tile { min-width: 0; }
+.preset-thumb img, .lfx-th img { max-width: 100%; min-width: 0; }
+@media (min-width: 1100px) {
+  body[data-pc] :is(.sheet, .lpanel) .lib-m .lib-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) !important; gap: 10px 8px; }
+  body[data-pc] :is(.sheet, .lpanel) .lib-m .preset-name { font-size: 11px; }
+  /* barra de ferramentas no PC: mostra tudo (sem "Mais") e quebra em linhas se precisar */
+  body[data-pc="nova"] .toolbar { flex-wrap: wrap; overflow: visible; row-gap: 2px; max-height: 30vh; overflow-y: auto; }
+  body[data-pc="nova"] .toolbar .tool { min-width: 64px; }
+}

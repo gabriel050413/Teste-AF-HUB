@@ -1055,7 +1055,14 @@ function renderToolbar() {
   const many = store.selectedLayers().length;
   applyUIMode();
   const simple = document.body.classList.contains('ui-simple');
-  const lay = simple ? layoutToolItems(layer, many) : null;
+  let lay = simple ? layoutToolItems(layer, many) : null;
+  // PC: há espaço — em vez do "Mais", a barra mostra todas as ferramentas do MotionFrame (sem repetir as do app)
+  if (lay && desktop.matches && pcActive()) {
+    const have = new Set(lay.map((x) => x[0]));
+    const extra = advancedItems(layer, t, many).filter((x) => x[0] !== 'sep' && x[0] !== 'deselect' && !have.has(x[0]) && (have.add(x[0]), true)).map(([c, i, l]) => [c, i, l, false, '']);
+    if (!layer && many < 2) for (const x of [['captions', 'captions', 'Legendas'], ['beat-sync', 'beat', 'Batidas'], ['voice', 'mic', 'Voz'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera'], ['add-brush', 'freehand', 'Desenho'], ['add-vector', 'vector', 'Vetor'], ['tour', 'help', 'Tutorial']]) if (!have.has(x[0])) { have.add(x[0]); extra.push([...x, false, '']); }
+    lay = [...lay.filter((x) => x[0] !== 'all-tools'), ...extra];
+  }
   const items = lay || (simple ? simpleItems(layer, t, many) : advancedItems(layer, t, many));
   const ltop = lay ? layoutToolTop(layer) : null;
   toolbar.classList.toggle('has-ltop', !!ltop);
