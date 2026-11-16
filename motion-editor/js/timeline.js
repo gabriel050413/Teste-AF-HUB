@@ -167,9 +167,10 @@ export class Timeline {
       const el = e.currentTarget;
       el.setPointerCapture(e.pointerId);
       const move = (ev) => this.store.setTime(Math.max(0, Math.min(this.store.project.duration, this.xToT(ev.clientX))));
+      this.userScrub = true;
       move(e);
       el.onpointermove = move;
-      el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; };
+      el.onpointerup = el.onpointercancel = () => { el.onpointermove = null; el.onpointerup = null; this.userScrub = false; };
     };
     this.rulerWrap.addEventListener('pointerdown', start);
     this.cti.addEventListener('pointerdown', start);
@@ -424,14 +425,20 @@ export class Timeline {
     const x = this.names + this.tToX(time);
     this.cti.style.transform = `translateX(${x}px)`;
     this.tc.textContent = isSimpleUI() ? formatSimple(time) : `0:${formatTime(time, fps)}`;
-    // CapCut / Nova / Blurrr: a agulha fica parada no meio e a timeline anda por baixo dela
+    // CapCut / Nova / Blurrr: tocando, a agulha fica parada no meio e a timeline anda por baixo dela.
+    // Arrastando a agulha (ou a régua) a timeline NÃO se mexe — só rola se a agulha sair da tela por outro motivo.
     const centered = /^(capcut|nova|blurrr)$/.test(document.body.dataset.elayout || '');
-    if (centered && (this.store.playing || follow)) {
+    if (centered && this.store.playing) {
       const vw = this.scroll.clientWidth - this.names;
       this.scroll.scrollLeft = Math.max(0, this.tToX(time) - vw / 2);
     } else if (follow && this.store.playing) {
       const left = this.scroll.scrollLeft + this.names, right = this.scroll.scrollLeft + this.scroll.clientWidth - 10;
       if (x > right || x < left) this.scroll.scrollLeft = Math.max(0, x - this.names - 20);
+    } else if (follow && !this.userScrub) {
+      // pulo de tempo por botão/atalho (início, fim, quadro a quadro): só rola o mínimo para a agulha aparecer
+      const left = this.scroll.scrollLeft + this.names, right = this.scroll.scrollLeft + this.scroll.clientWidth - 10;
+      if (x > right) this.scroll.scrollLeft = x - this.scroll.clientWidth + 40;
+      else if (x < left) this.scroll.scrollLeft = Math.max(0, x - this.names - 20);
     }
     this.drawRuler();
   }
