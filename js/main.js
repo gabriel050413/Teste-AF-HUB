@@ -19,9 +19,10 @@ import { Timeline } from './timeline.js';
 import { Inspector } from './inspector.js';
 import { Library } from './library.js';
 import { CloudUI } from './cloud-ui.js';
+import { newProjectSheet } from './new-project.js';
 import { serializePreset, parsePresetJSON } from './presets.js';
 import { cloud } from './cloud.js';
-import { applyCustom, interfaceDialog } from './layouts.js';
+import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -900,6 +901,7 @@ function applyUIMode() {
   document.body.dataset.theme = st.theme || 'ae'; // aparência (como os "looks" do Frameify)
   document.body.dataset.rows = st.rows || 'normal';
   applyCustom(st);
+  refreshLayoutChip();
 }
 let toolbarMore = false; // modo simples: "Mais" mostra as ferramentas avançadas
 
@@ -1566,6 +1568,7 @@ function timeReverse(l) {
 }
 
 const commands = {
+  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); }); },
   'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
@@ -2572,6 +2575,18 @@ const cloudUI = new CloudUI({
 });
 const home = new HomeScreen({
   cloud: (tab) => cloudUI.open(tab || 'feed'),
+  cloudSell: async () => { await cloudUI.open('market'); if (cloud.loggedIn) cloudUI.sellDialog().catch((e) => toast(e.message, 'error')); },
+  newProject: async () => {
+    const s = getSettings(); const pre = COMP_PRESETS.find((x) => x.id === s.compPreset) || COMP_PRESETS[0];
+    const r = await newProjectSheet({ name: `Projeto ${listProjects().length + 1}`, ratio: pre.w > pre.h ? '16:9' : pre.w === pre.h ? '1:1' : '9:16', fps: pre.fps });
+    if (!r) return;
+    const p = createProject(r.width, r.height);
+    Object.assign(p, { id: uid('prj'), name: r.name, fps: r.fps, duration: r.duration, background: r.background });
+    saveProjectData(p, null);
+    await openProjectById(p.id);
+    toast('Projeto criado. Adicione vídeo, texto ou presets na barra de baixo.', 'ok', 3500);
+  },
+  tool: async (id) => { await ensureSomeProject(); commands[id]?.(); },
   interface: async () => { await cloud.init(); await interfaceDialog(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); home.render(); }); },
   open: (id) => openProjectById(id),
   afterDelete: () => cleanUnusedMedia(),

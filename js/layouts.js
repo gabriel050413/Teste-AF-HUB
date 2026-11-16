@@ -81,3 +81,22 @@ export async function interfaceDialog(cloud, onChange) {
   if (t) { setLayout(t, onChange); toast(`Layout “${t.name}” aplicado.`, 'ok'); }
   return interfaceDialog(cloud, onChange);
 }
+
+const FEATS = { nova: ['▤', '◎', '✦', '☁', 'CC', '🔗'], capcut: ['✂', '♪', 'T', '☆', '▦', '▣'], blurrr: ['▶', '♪', '✦', 'T', '▲', '⛶'], motion: ['▤', '◎', '✦', '☁', 'CC', '🔗'], ae: ['➤', '✋', '🔍', '⚭', '✛', '↻'] };
+const NOTE = { ae: 'Precisa de tela grande' };
+
+/** Nome do layout atual (para o botão da barra do editor). */
+export function layoutName(st = getSettings()) { return st.custom?.name || 'Nova'; }
+export function refreshLayoutChip() { const c = document.getElementById('layoutChip'); if (c) c.textContent = `${layoutName()} ▾`; }
+
+/** Lista de layouts (popover do botão da barra), como no app de referência. */
+export async function layoutPopover(cloud, onChange) {
+  const cur = getSettings().custom?.layout || 'nova';
+  const r = await modal('Layout', `<div class="lay-list">${Object.entries(BUILTIN).map(([k, t]) => `<button class="lay-row ${cur === k ? 'on' : ''}" data-k="${k}">${swatch(t)}<span><b>${esc(t.name)}</b> ${NOTE[k] ? `<small class="muted">${NOTE[k]}</small>` : ''}<br><small class="lay-feats">${FEATS[k].join('  ')}</small></span>${cur === k ? '<i>✓</i>' : ''}</button>`).join('')}
+    <button class="lay-row" data-k="more"><span>☰ Mais opções de layout (temas e IA)</span></button></div>`, [{ label: 'Fechar', value: null }],
+  { onMount: (w, close) => w.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => close(b.dataset.k))) });
+  if (!r) return;
+  if (r === 'more') return interfaceDialog(cloud, () => { onChange?.(); refreshLayoutChip(); });
+  setLayout(BUILTIN[r], () => { onChange?.(); refreshLayoutChip(); });
+  toast(`Layout “${BUILTIN[r].name}” aplicado.`, 'ok', 1800);
+}
