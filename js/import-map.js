@@ -681,8 +681,13 @@ export const IMPORT_RULES = [
     } },
   { vendor: 'Sapphire', plugin: 'S_Shake', to: 'shake', test: /s_shake|s_camerashake/i,
     map: {
-      amount: { n: ['amplitude', 'shake amp', 'amp'], conv: (v) => (v < 20 ? v * 100 : v) }, frequency: { n: ['frequency', 'shake freq', 'freq'], conv: (v) => (v > 60 ? Math.min(40, v / 250) : v) },
-      ampX: { n: ['x rand amp'] }, ampY: { n: ['y rand amp'] }, rotation: { n: ['tilt rand amp', 'rotate amp'] }, zoom: { n: ['z rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) } /* já vem em % quando X/Y Rand Amp vêm em % (ex.: 150) */,
+      amount: { n: ['amplitude', 'shake amp', 'amp'], conv: (v) => (v < 20 ? v * 100 : v) },
+      // Frequency alta (ex.: 5000) = tremor que muda a cada quadro (shake hard); antes era dividida por 250 e ficava suave
+      frequency: { n: ['frequency', 'shake freq', 'freq'], conv: (v) => (v > 60 ? Math.min(48, v / 100) : v) },
+      ampX: { n: ['x rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) }, ampY: { n: ['y rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) }, rotation: { n: ['tilt rand amp', 'rotate amp'] },
+      freqX: { n: ['x rand freq'] }, freqY: { n: ['y rand freq'] },
+      waveX: { n: ['x wave amp'], conv: (v) => (v <= 5 ? v * 100 : v) }, waveY: { n: ['y wave amp'], conv: (v) => (v <= 5 ? v * 100 : v) }, waveTilt: { n: ['tilt wave amp'] },
+      waveFX: { n: ['x wave freq'] }, waveFY: { n: ['y wave freq'] }, waveFT: { n: ['tilt wave freq'] }, phaseX: { n: ['x phase'] }, phaseY: { n: ['y phase'] }, zoom: { n: ['z rand amp'], conv: (v) => (v <= 5 ? v * 100 : v) } /* já vem em % quando X/Y Rand Amp vêm em % (ex.: 150) */,
       style: { i: 1, n: ['style'] }, centerBias: { n: ['center bias'] },
       stillness: { n: ['stillness'] }, twitchFreq: { n: ['twitch frequency'] }, drift: { n: ['drift'], conv: (v) => v * 0.3 }, seed: { n: ['seed'] },
       shutter: { n: ['mo blur length'] }, wrap: { n: ['wrap x'], conv: (v) => Math.min(3, Math.max(1, v)) },
