@@ -87,8 +87,13 @@ function drawContent(ctx, layer, w, h, extra) {
   switch (layer.type) {
     case 'text': {
       if (p.fontShiftY) { ctx.save(); ctx.translate(0, p.fontShiftY * p.fontSize); } // Inter assenta ~0,1 em abaixo da SF Pro (medido no render do After)
+      const sxF = p.fontScaleX && p.fontScaleX !== 1 ? p.fontScaleX : 0;
+      if (sxF) { // fonte substituta mais larga (Inter no lugar da SF Pro): estreita em volta da borda de alinhamento
+        const ax = p.align === 'left' ? 4 + (p.strokeWidth || 0) : p.align === 'right' ? w - 4 - (p.strokeWidth || 0) : w / 2;
+        ctx.save(); ctx.translate(ax, 0); ctx.scale(sxF, 1); ctx.translate(-ax, 0);
+      }
       try {
-      if (p.animators?.length) { drawAnimatedText(ctx, p, w, h, extra?.lt ?? 0, fontOf(p)); break; }
+      if (p.animators?.length) { drawAnimatedText(ctx, p, w, h, extra?.lt ?? 0, fontOf(p), layer.inPoint || 0); break; }
       ctx.font = fontOf(p);
       if ('letterSpacing' in ctx) ctx.letterSpacing = `${p.letterSpacing || 0}px`;
       ctx.textBaseline = 'middle';
@@ -107,7 +112,7 @@ function drawContent(ctx, layer, w, h, extra) {
         ctx.fillStyle = p.color;
         ctx.fillText(line, x, y);
       });
-      } finally { if (p.fontShiftY) ctx.restore(); }
+      } finally { if (sxF) ctx.restore(); if (p.fontShiftY) ctx.restore(); }
       break;
     }
     case 'rect':

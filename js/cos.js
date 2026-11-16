@@ -94,6 +94,9 @@ export function textFromCOS(cos) {
     text,
     font: fontName,
     size: Number(ch['1']) || 0,
+    hscale: Number.isFinite(Number(ch['6'])) && ch['6'] !== undefined ? Number(ch['6']) : 1,
+    vscale: Number.isFinite(Number(ch['7'])) && ch['7'] !== undefined ? Number(ch['7']) : 1,
+    baselineShift: Number(ch['9']) || 0,
     tracking: Number(ch['8']) || 0, // ordem do AE: 4 entrelinha auto, 5 entrelinha, 6/7 escala H/V, 8 tracking
     color: Array.isArray(fill) && fill.length >= 4 ? fill.slice(1, 4) : Array.isArray(fill) ? fill.slice(0, 3) : null,
     strokeColor: Array.isArray(stroke) && stroke.length >= 4 ? stroke.slice(1, 4) : null,

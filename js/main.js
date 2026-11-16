@@ -51,7 +51,7 @@ applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · ef
 import { ico, iconize } from './icons.js';
 import { translateDOM, getLang, setLang } from './i18n.js';
 import { EFFECTS } from './effects.js';
-import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont, isSFPro, SF_SCALE, SF_SHIFT_Y } from './fonts.js';
+import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont, isSFPro, SF_SCALE, SF_SCALE_X, SF_SHIFT_Y } from './fonts.js';
 
 const store = new Store();
 const AUTOSAVE_KEY = 'motionframe.autosave.v2';
@@ -2194,7 +2194,7 @@ async function resolveProjectFonts() {
     const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
     if (!first || fams.includes(first.toLowerCase()) || /^(inter|system-ui|sans-serif|serif|monospace|impact|arial|georgia)$/i.test(first)) continue;
     const g = await resolveGoogleFont(first);
-    if (g && isSFPro(first)) { l.props.fontScale = SF_SCALE; l.props.fontShiftY = SF_SHIFT_Y; } // SF Pro → Inter: mesma largura e linha de base do After
+    if (g && isSFPro(first)) { l.props.fontScale = SF_SCALE; l.props.fontScaleX = SF_SCALE_X; l.props.fontShiftY = SF_SHIFT_Y; } // SF Pro → Inter: mesma largura e linha de base do After
     if (g && g !== first) { l.props.fontFamily = `"${g}", ${l.props.fontFamily}`; n++; }
     else if (g) n++;
   }
