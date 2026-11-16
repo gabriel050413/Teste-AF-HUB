@@ -23,7 +23,8 @@ import { newProjectSheet } from './new-project.js';
 import { serializePreset, parsePresetJSON } from './presets.js';
 import { cloud } from './cloud.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
-import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed } from './editor-layouts.js';
+import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
+import { startTour, maybeStartTour } from './tour.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -379,7 +380,7 @@ function loop(now) {
       } else setTimeout(() => { dirty = true; }, 60); // GPU caiu: mantém o último quadro bom e refaz este
     }
     drawOverlay();
-    timecode.textContent = document.body.classList.contains('ui-simple') ? `${formatSimple(store.time)} / ${formatSimple(store.project.duration)}` : formatTime(store.time, store.project.fps).slice(1);
+    timecode.textContent = layoutTimecode(store.time, store.project.duration, store.project.fps) || (document.body.classList.contains('ui-simple') ? `${formatSimple(store.time)} / ${formatSimple(store.project.duration)}` : formatTime(store.time, store.project.fps).slice(1));
     dirty = false;
   }
   requestAnimationFrame(loop);
@@ -460,6 +461,7 @@ overlay.addEventListener('pointerdown', (e) => {
   const r = overlay.getBoundingClientRect();
   const toComp = (ev) => [((ev.clientX - r.left) / r.width) * store.project.width, ((ev.clientY - r.top) / r.height) * store.project.height];
   if (trackPick) { const cb = trackPick; trackPick = null; cb(toComp(e)); return; }
+  if (drawMode) { drawPointer('down', toComp(e), e.pointerId, toComp); return; }
   // tracker aberto: arrastar a caixa do Track Point / cantos das regiões (como no AE)
   const th = trackerPanel.hit(...toComp(e), overlay.width / store.project.width);
   if (th) { trackDrag = { ...th, toComp, id: e.pointerId }; return; }
@@ -478,6 +480,7 @@ overlay.addEventListener('pointerdown', (e) => {
 });
 overlay.addEventListener('pointermove', (e) => {
   if (trackDrag && e.pointerId === trackDrag.id) { trackerPanel.drag(trackDrag, ...trackDrag.toComp(e)); drawOverlay(); return; }
+  if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('move', drawMode.stroke.toComp(e)); return; }
   if (!gesture || !pointers.has(e.pointerId)) return;
   pointers.set(e.pointerId, gesture.toComp(e));
   const { layer } = gesture;
@@ -505,8 +508,59 @@ const endPointer = (e) => {
     dirty = true;
   }
 };
-overlay.addEventListener('pointerup', (e) => { if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
+overlay.addEventListener('pointerup', (e) => { if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
 overlay.addEventListener('pointercancel', endPointer);
+
+// ---- desenho livre / vetorial (como no Alight Motion): cada traço vira um caminho numa camada de formas
+let drawMode = null; // { layer, vector, stroke, pts }
+function strokeItem(pts, closed, vector) {
+  const P = [];
+  for (let i = 0; i < pts.length; i++) { const v = pts[i], n = pts[(i + 1) % pts.length]; P.push(v, v, n); }
+  const col = vector ? [0.36, 0.55, 1] : [0.1, 0.1, 1];
+  return { t: 'group', items: [{ t: 'path', path: { shapes: [{ closed, pts: P }], times: [] } }, ...(closed ? [{ t: 'fill', color: anim(col), opacity: anim(100), rule: 1 }] : []), { t: 'stroke', color: anim(vector ? [1, 1, 1] : col), opacity: anim(100), width: anim(vector ? 4 : Math.max(6, Math.round(store.project.width / 120))), cap: 2, join: 2 }], tr: {} };
+}
+function startDraw(vector) {
+  setPlaying(false); closeSheet();
+  const l = LAYER_FACTORIES.shape(store.project, []);
+  l.name = vector ? 'Desenho vetorial' : 'Desenho';
+  l.inPoint = 0; l.outPoint = store.project.duration;
+  store.addLayer(l);
+  drawMode = { layer: l, vector, stroke: null, pts: [] };
+  document.querySelector('.draw-bar')?.remove();
+  document.getElementById('stage').insertAdjacentHTML('beforeend', `<div class="draw-bar"><span>${vector ? 'Toque para pôr os pontos' : 'Desenhe com o dedo na prévia'}</span><button data-d="undo">${ico('undo')}</button><button data-d="done" class="ok">${ico('check')} Concluir</button></div>`);
+  const bar = document.querySelector('.draw-bar');
+  bar.addEventListener('click', (e) => { const b = e.target.closest('[data-d]'); if (!b) return; if (b.dataset.d === 'done') endDraw(); else { const sh = drawMode?.layer.props.shapes; if (drawMode?.pts.length) drawMode.pts.pop(); else sh?.pop(); if (drawMode?.vector) syncVector(); store.commit(); } });
+  toast(vector ? 'Desenho vetorial: toque para criar os pontos e depois em Concluir.' : 'Desenho livre: desenhe na prévia. Toque em Concluir quando terminar.', 'info', 3500);
+}
+function syncVector() {
+  const d = drawMode; if (!d) return;
+  const sh = d.layer.props.shapes;
+  if (d.vIdx == null) d.vIdx = sh.length;
+  sh.length = d.vIdx;
+  if (d.pts.length >= 2) sh.push(strokeItem(d.pts, d.pts.length > 2, true));
+}
+function drawPointer(kind, pt, id, toComp) {
+  const d = drawMode; if (!d) return;
+  const [cx, cy] = valueAt(d.layer.transform.position, store.time);
+  const q = [Math.round(pt?.[0] - cx), Math.round(pt?.[1] - cy)];
+  if (d.vector) { if (kind === 'down') { d.pts.push(q); syncVector(); store.commit(); } return; }
+  if (kind === 'down') { d.stroke = { id, toComp, pts: [q] }; d.layer.props.shapes.push(strokeItem([q, q], false, false)); }
+  else if (kind === 'move' && d.stroke) {
+    const last = d.stroke.pts[d.stroke.pts.length - 1];
+    if (Math.hypot(q[0] - last[0], q[1] - last[1]) < 3) return;
+    d.stroke.pts.push(q);
+    d.layer.props.shapes[d.layer.props.shapes.length - 1] = strokeItem(d.stroke.pts, false, false);
+    store.emit('preview');
+  } else if (kind === 'up') { d.stroke = null; store.commit(); }
+}
+function endDraw() {
+  const d = drawMode; drawMode = null;
+  document.querySelector('.draw-bar')?.remove();
+  if (!d) return;
+  if (!d.layer.props.shapes.length) { store.select(d.layer.id); deleteSelection(); return; }
+  store.select(d.layer.id); store.commit('structure');
+  toast('Desenho pronto ✓ Anime em Keyframes ou aplique efeitos.', 'ok', 2500);
+}
 
 // ------------------------------------------------------------------ sheet (painel inferior / lateral)
 const sheet = document.getElementById('sheet');
@@ -639,6 +693,7 @@ const timeline = new Timeline(document.getElementById('timeline'), store, {
   multiSelect: () => keyTools?.multi,
   onKeyTap: () => { if (sheetPane !== 'keys') openSheet('keys'); },
   onAdd: () => commands.add?.(),
+  cmd: (c) => commands[c]?.(),
 });
 new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
   browse: () => openSheet('browser', 'effects'),
@@ -903,8 +958,8 @@ function applyUIMode() {
   document.body.dataset.theme = st.theme || 'ae'; // aparência (como os "looks" do Frameify)
   document.body.dataset.rows = st.rows || 'normal';
   applyCustom(st);
-  let pname = ''; try { pname = store.project?.name || ''; } catch { /* store ainda não existe (início) */ }
-  applyEditorLayout(st.custom?.layout === 'motion' ? 'alight' : st.custom?.layout || 'studio', pname);
+  let pname = '', sel = null; try { pname = store.project?.name || ''; sel = store.layer(); } catch { /* store ainda não existe (início) */ }
+  applyEditorLayout(st.custom?.layout === 'motion' ? 'alight' : st.custom?.layout || 'studio', pname, sel);
   refreshLayoutChip();
 }
 let toolbarMore = false; // modo simples: "Mais" mostra as ferramentas avançadas
@@ -952,7 +1007,23 @@ function renderToolbar() {
   applyUIMode();
   const simple = document.body.classList.contains('ui-simple');
   const lay = simple ? layoutToolItems(layer, many) : null;
-  const items = lay || (simple ? simpleItems(layer, t, many) : many > 1
+  const items = lay || (simple ? simpleItems(layer, t, many) : advancedItems(layer, t, many));
+  const ltop = lay ? layoutToolTop(layer) : null;
+  toolbar.classList.toggle('has-ltop', !!ltop);
+  toolbar.classList.toggle('sel', !!lay && !!(layer || many > 1));
+  toolbar.innerHTML = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span>${cls === 'new' ? '<em class="tnew">NOVO</em>' : ''}</button>`)).join('');
+  toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+  // faixa de ajuda: diz o que está selecionado e o próximo passo
+  hintBar.hidden = !getSettings().showTips;
+  if (!store.project.layers.length) hintBar.innerHTML = 'Comece tocando em <b>Vídeo / Foto</b> para importar seu clipe.';
+  else if (!layer) hintBar.innerHTML = simple ? 'Toque num clipe para editar · arraste a agulha branca para andar no vídeo.' : 'Toque numa camada (na timeline ou na prévia) para editar. Arraste a régua azul para mudar o tempo.';
+  else if (many > 1) hintBar.innerHTML = `<b>${many} camadas selecionadas</b> — mudanças em Propriedades valem para todas · Pré-compor junta em um grupo · Shift/Ctrl+clique (ou toque longo) adiciona/remove`;
+  else hintBar.innerHTML = `<b>${escapeHtml(layer.name)}</b> · ${TYPE_LABEL[t] || t}${layer.effects.length ? ` · ${layer.effects.length} efeito(s)` : ''} — ${t === 'video' ? 'use <b>Presets</b> para CC/shake/reverse ou <b>Velocidade</b> para câmera lenta' : t === 'group' ? 'efeitos e presets valem para o grupo inteiro' : 'use <b>Efeitos</b> ou <b>Presets</b>'}`;
+}
+
+/** Todas as ferramentas do MotionFrame (barra avançada), usadas também no "Mais" de cada layout. */
+function advancedItems(layer, t, many) {
+  return many > 1
     ? [
       ['deselect', '✕', 'Limpar seleção'], ['sep'],
       ['group', '⊞', `Pré-compor (${many})`, true], ['props', '☰', `Ajustar ${many} juntas`, true], ['presets', '★', 'Preset em todas'], ['effects', '✦', 'Efeitos'],
@@ -977,17 +1048,7 @@ function renderToolbar() {
       ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
       ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
       ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
-    ]);
-  const ltop = lay ? layoutToolTop(layer) : null;
-  toolbar.classList.toggle('has-ltop', !!ltop);
-  toolbar.innerHTML = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span></button>`)).join('');
-  toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
-  // faixa de ajuda: diz o que está selecionado e o próximo passo
-  hintBar.hidden = !getSettings().showTips;
-  if (!store.project.layers.length) hintBar.innerHTML = 'Comece tocando em <b>Vídeo / Foto</b> para importar seu clipe.';
-  else if (!layer) hintBar.innerHTML = simple ? 'Toque num clipe para editar · arraste a agulha branca para andar no vídeo.' : 'Toque numa camada (na timeline ou na prévia) para editar. Arraste a régua azul para mudar o tempo.';
-  else if (many > 1) hintBar.innerHTML = `<b>${many} camadas selecionadas</b> — mudanças em Propriedades valem para todas · Pré-compor junta em um grupo · Shift/Ctrl+clique (ou toque longo) adiciona/remove`;
-  else hintBar.innerHTML = `<b>${escapeHtml(layer.name)}</b> · ${TYPE_LABEL[t] || t}${layer.effects.length ? ` · ${layer.effects.length} efeito(s)` : ''} — ${t === 'video' ? 'use <b>Presets</b> para CC/shake/reverse ou <b>Velocidade</b> para câmera lenta' : t === 'group' ? 'efeitos e presets valem para o grupo inteiro' : 'use <b>Efeitos</b> ou <b>Presets</b>'}`;
+    ];
 }
 
 // ------------------------------------------------------------------ mídia
@@ -1395,6 +1456,7 @@ async function showMenu() {
     <button data-m="account">🔑 Conta e acesso</button>
     <button data-m="apps">⬇ Baixar o app (PC Windows / Android)</button>
     <button data-m="help">❓ Como usar (passo a passo)</button>
+    <button data-m="tour">👆 Tutorial deste layout (mostra onde fica cada coisa)</button>
     <button data-m="new">✚ Nova composição (projeto)</button>
     <button data-m="open">📂 Abrir projeto (.json)</button>
     <button data-m="save">💾 Salvar projeto (.json)</button>
@@ -1412,6 +1474,7 @@ async function showMenu() {
     onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))),
   });
   if (res === 'help') showHelp();
+  if (res === 'tour') startTour(editorLayout(), true);
   if (res === 'ui') commands['ui-mode']();
   if (res === 'home') goHome();
   if (res === 'new') commands.new();
@@ -1575,7 +1638,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); renderDock(); }); },
+  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
   'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
@@ -1684,6 +1747,54 @@ const commands = {
       store.exporting = was;
       toast(`CC calibrado ✓ (saturação ${Math.round(r.params.saturation)}%). Ajuste fino em Efeitos › ${CALIB_LABEL}.`, 'ok', 4500);
     } catch (e) { console.error(e); toast('Não foi possível ler o print.', 'error'); }
+  },
+  'all-tools': async () => {
+    // "Mais" de cada layout: todas as ferramentas do MotionFrame, no estilo do layout atual
+    const layer = store.layer();
+    const items = advancedItems(layer, layer?.type, store.selectedLayers().length).filter((i) => i[0] !== 'sep' && i[0] !== 'deselect');
+    const extra = layer ? [] : [['captions', 'captions', 'Legendas automáticas'], ['beat-sync', 'beat', 'Sincronizar na batida'], ['voice', 'mic', 'Voz / narração'], ['browse-fx', 'effects', 'Todos os efeitos'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera 3D'], ['add-brush', 'freehand', 'Desenho livre'], ['tour', 'help', 'Tutorial do layout'], ['ui-mode', 'ae', 'Interface avançada (AE)']];
+    const cmd = await modal('Todas as ferramentas', `<div class="more-grid lmore">${[...items, ...extra].map(([c, icon, label]) => `<button data-mc="${c}"><span class="ti">${ico(icon)}</span><span>${escapeHtml(label)}</span></button>`).join('')}</div>`, [{ label: 'Fechar', value: null }], {
+      onMount: (w, close) => w.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => close(b.dataset.mc))),
+    });
+    if (cmd) commands[cmd]?.();
+  },
+  tour: () => startTour(editorLayout(), true),
+  'frame-prev': () => { setPlaying(false); store.setTime(Math.max(0, store.time - 1 / (store.project.fps || 30))); },
+  'frame-next': () => { setPlaying(false); store.setTime(Math.min(store.project.duration, store.time + 1 / (store.project.fps || 30))); },
+  'trim-start': () => { if (!store.layer()) return toast('Selecione um clipe.', 'warn'); trimLayer('in'); },
+  'trim-end': () => { if (!store.layer()) return toast('Selecione um clipe.', 'warn'); trimLayer('out'); },
+  'add-null': () => addLayer('null'),
+  'add-camera': () => addLayer('camera'),
+  'add-shape': () => { addLayer('rect'); },
+  'add-3d': () => { addLayer('rect'); const l = store.layer(); if (l) { setThreeD(l, true, anim); l.name = 'Forma 3D'; store.commit('structure'); toast('Camada 3D criada: gire em X/Y e use Posição Z (Propriedades). Adicione uma Câmera para perspectiva.', 'info', 4000); } },
+  'add-particle': () => { addLayer('adjustment'); const l = store.layer(); if (l) { l.name = 'Partículas'; l.effects.push(createEffectInstance('sparkles', {})); store.commit('structure'); openSheet('effects'); } },
+  'add-brush': () => startDraw(false),
+  'add-vector': () => startDraw(true),
+  opacity: () => { if (!store.layer()) return toast('Selecione uma camada.', 'warn'); revealProp('opacity'); },
+  'motion-blur': () => {
+    const l = store.layer(); if (!l) return toast('Selecione uma camada.', 'warn');
+    const i = l.effects.findIndex((fx) => fx.type === 'motionBlur');
+    if (i >= 0) { openSheet('effects'); return; }
+    l.effects.push(createEffectInstance('motionBlur', {})); store.commit(); openSheet('effects');
+    toast('Desfoque de movimento adicionado ✓', 'ok', 1800);
+  },
+  replace: () => { const l = store.layer(); if (!l || !['video', 'image', 'audio'].includes(l.type)) return toast('Selecione um vídeo, foto ou áudio para substituir.', 'warn'); replaceLayerMedia(l); },
+  'mute-clips': () => {
+    const vids = flatLayers(store.project.layers).filter((l) => l.type === 'video');
+    if (!vids.length) return toast('Não há clipes de vídeo.', 'warn');
+    const mute = !vids.every((l) => l.props.muted);
+    for (const l of vids) l.props.muted = mute;
+    store.commit('structure');
+    toast(mute ? 'Áudio dos clipes silenciado.' : 'Áudio dos clipes ligado.', 'ok', 1600);
+  },
+  cover: () => {
+    try {
+      const c = document.createElement('canvas'), k = 360 / Math.max(view.width, view.height);
+      c.width = Math.max(1, Math.round(view.width * k)); c.height = Math.max(1, Math.round(view.height * k));
+      c.getContext('2d').drawImage(view, 0, 0, c.width, c.height);
+      store.project.cover = c.toDataURL('image/jpeg', 0.75); store.commit();
+      toast('Capa definida com o quadro atual ✓ (aparece na lista de projetos)', 'ok', 2500);
+    } catch { toast('Não foi possível capturar a capa.', 'error'); }
   },
   sound: () => { openSheet('props'); setTimeout(() => document.querySelector('#propsPanel [data-section="sound"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); },
 };
@@ -2258,6 +2369,7 @@ async function routeFiles(files) {
 let saveTimer = 0;
 function projectThumb() {
   try {
+    if (store.project.cover) return store.project.cover; // capa escolhida (como o "Capa" do CapCut)
     if (!getSettings().autosaveThumb) return undefined;
     const c = document.createElement('canvas');
     const k = 180 / Math.max(view.width, view.height);
@@ -2314,6 +2426,7 @@ async function openProjectById(id) {
   home.hide();
   updateTitle(); renderToolbar(); layoutCanvas(); timeline.render();
   if (desktop.matches) { sheet.classList.add('open'); renderDock(); }
+  setTimeout(() => maybeStartTour(editorLayout()), 900);
 }
 
 /** Animar logo: escolhe a imagem, separa em peças e abre um projeto novo com a animação montada. */
@@ -2661,4 +2774,4 @@ const home = new HomeScreen({
 })();
 
 // Acesso para automação/testes (Playwright) e depuração no console.
-window.motionframe = { routeFiles: (f) => routeFiles(f), cloud, cloudUI, store, openSheet, openProjectById, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };
+window.motionframe = { routeFiles: (f) => routeFiles(f), cloud, cloudUI, store, openSheet, openProjectById, tour: () => commands.tour(), commands, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };

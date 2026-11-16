@@ -12,7 +12,8 @@ const TRANSFORM_LABELS = { position: 'Posição', scale: 'Escala', rotation: 'Ro
 const ICONS = { camera: '🎥', null: '✛', text: 'T', rect: '▭', ellipse: '◯', solid: '■', image: '▣', video: '▶', audio: '♪', adjustment: '◐' };
 // cores de rótulo no estilo AE
 // interface simples: cores por tipo, fáceis de reconhecer (vídeo azul, texto rosa, áudio verde, efeito amarelo…)
-import { layoutClipColor } from './editor-layouts.js';
+import { ico } from './icons.js';
+import { layoutClipColor, layoutTimelineRows, layoutMainSide } from './editor-layouts.js';
 const TYPE_COLOR = { video: '#2f7fe0', image: '#5b6ee8', text: '#d14fb4', rect: '#e08a2f', ellipse: '#e08a2f', shape: '#e08a2f', solid: '#7a7f8c', audio: '#2fae6b', adjustment: '#d6b22e', group: '#8a63d2', camera: '#8a8f99', null: '#8a8f99' };
 const TYPE_ICON = { video: '▶', image: '▣', text: 'T', rect: '◆', ellipse: '●', shape: '✦', solid: '■', audio: '♪', adjustment: '✺', group: '⊞', camera: '🎥', null: '✛' };
 const TYPE_NAME = { video: 'Vídeo', image: 'Foto', text: 'Texto', rect: 'Forma', ellipse: 'Forma', shape: 'Forma', solid: 'Cor', audio: 'Áudio', adjustment: 'Ajuste', group: 'Grupo', camera: 'Câmera', null: 'Controle' };
@@ -72,7 +73,7 @@ export class Timeline {
     this.render();
   }
 
-  get names() { return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
+  get names() { const L = document.body.dataset.elayout; if (isSimpleUI() && L === 'capcut') return 124; if (isSimpleUI() && L === 'alight') return 70; if (isSimpleUI() && L === 'blurrr') return 54; return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
   tToX(t) { return t * this.pps; } // relativo à área de trilhas
   xToT(clientX) {
     const r = this.scroll.getBoundingClientRect();
@@ -143,12 +144,27 @@ export class Timeline {
     html.push(`<div class="tl-markers">${(project.markers || []).map((m) => `<i style="left:${N + this.tToX(m)}px"></i>`).join('')}</div>`);
     const layers = this.store.layers;
     if (!layers.length) html.push('<div class="tl-empty">Toque em <b>＋ Camada</b> para adicionar vídeo, áudio, texto ou formas.</div>');
+    // faixa principal (CapCut): o último vídeo/foto da pilha recebe a coluna "Silenciar áudio / Capa" e o "+" no fim
+    const mainIdx = (() => { for (let i = layers.length - 1; i >= 0; i--) if (layers[i].type === 'video' || layers[i].type === 'image') return i; return layers.length - 1; })();
+    this._main = layers[mainIdx]?.id;
+    this._muted = layers.some((l) => l.type === 'video') && layers.filter((l) => l.type === 'video').every((l) => l.props.muted);
     layers.forEach((layer, i) => html.push(this.layerRows(layer, i + 1, trackW)));
-    if (layers.length && isSimpleUI()) html.push('<div class="tl-addrow"><button data-act="add-layer">＋ Adicionar camada</button></div>');
+    const extraRows = isSimpleUI() ? layoutTimelineRows() : null;
+    if (extraRows) html.push(extraRows.map(([c, i, l]) => `<div class="tl-row lrow"><div class="tl-name"><span class="lri">${ico(i)}</span></div><div class="tl-track" style="width:${trackW}px"><button class="lradd" data-act="lcmd" data-c="${c}"><b>＋</b> ${l}</button></div></div>`).join(''));
+    else if (layers.length && isSimpleUI()) html.push('<div class="tl-addrow"><button data-act="add-layer">＋ Adicionar camada</button></div>');
     this.rows.innerHTML = html.join('');
     this.bindRows();
+    if (!this._plusBound) { this._plusBound = true; this.scroll.addEventListener('scroll', () => this.placePlus(), { passive: true }); }
+    this.placePlus();
     this.updateCTI(false);
     this.drawWaveforms();
+  }
+
+  /** CapCut: o "+" do fim da faixa principal fica sempre à vista na borda direita. */
+  placePlus() {
+    const b = this.rows.querySelector('.lplus'); if (!b) return;
+    const max = this.scroll.scrollLeft + this.scroll.clientWidth - this.names - 50;
+    b.style.left = `${Math.max(0, Math.min(+b.dataset.end, max))}px`;
   }
 
   /**
@@ -270,8 +286,8 @@ export class Timeline {
       if (store.isKeySelected(k)) times.get(key).sel = true;
     }
     let out = `
-      <div class="tl-row layer ${sel ? 'sel' : ''} ${layer.visible ? '' : 'off'}" data-layer="${layer.id}">
-        <div class="tl-name" data-act="name">
+      <div class="tl-row layer ${sel ? 'sel' : ''} ${layer.visible ? '' : 'off'} ${layer.id === this._main ? 'main' : ''}" data-layer="${layer.id}">
+        <div class="tl-name" data-act="name">${layer.id === this._main && simple ? layoutMainSide(this._muted) : ''}
           ${simple ? `<span class="tbadge" style="--c:${color}" title="${TYPE_NAME[layer.type] || layer.type}">${TYPE_ICON[layer.type] || '•'}</span><span class="tnm">${escapeHtml(TYPE_NAME[layer.type] || '')}</span>` : ''}
           <button class="tw" data-act="expand" aria-label="Propriedades">${props.length || layer.effects.length ? (open ? '▾' : '▸') : ''}</button>
           <button class="eye" data-act="eye" aria-label="Visibilidade">${layer.visible ? '◉' : '○'}</button>
@@ -287,6 +303,7 @@ export class Timeline {
             ${sel && simple ? `<span class="dur">${dur < 10 ? dur.toFixed(1) : Math.round(dur)}s</span>` : ''}
             ${sel ? '<div class="handle l" data-act="trim-in"></div><div class="handle r" data-act="trim-out"></div>' : ''}
           </div>
+          ${layer.id === this._main && simple ? `<button class="lplus" data-act="lcmd" data-c="add-media" data-end="${left + width + 8}" style="left:${left + width + 8}px" aria-label="Adicionar clipe">＋</button>` : ''}
           ${!open ? [...times.values()].map((k) => `<span class="kf agg ${k.sel ? 'sel' : ''}" data-act="aggkey" data-t="${k.t}" style="left:${this.tToX(k.t)}px"></span>`).join('') : ''}
         </div>
       </div>`;
@@ -427,6 +444,10 @@ export class Timeline {
       row.addEventListener('pointerdown', (e) => this.onDown(e, row));
     });
     this.rows.querySelector('[data-act="add-layer"]')?.addEventListener('click', () => this.hooks.onAdd?.());
+    this.rows.querySelectorAll('[data-act="lcmd"]').forEach((b) => {
+      b.addEventListener('pointerdown', (e) => e.stopPropagation());
+      b.addEventListener('click', (e) => { e.stopPropagation(); this.hooks.cmd?.(b.dataset.c); });
+    });
   }
 
   snapTimes(exceptLayer) {
