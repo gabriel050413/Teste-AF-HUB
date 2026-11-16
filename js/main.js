@@ -1418,7 +1418,12 @@ async function openProject() {
 
 async function compSettings() {
   const p = store.project;
-  const res = await compDialog({ mode: 'edit', project: p, resolution: qualitySel.value });
+  // layouts de app: a mesma folha de "Novo projeto" do app (proporção, resolução, fps, duração, fundo), em modo edição
+  const appLay = !['studio', 'ae'].includes(editorLayout());
+  const res = appLay
+    ? await newProjectSheet({ name: p.name, width: p.width, height: p.height, fps: p.fps, duration: p.duration, background: p.background, title: { capcut: 'Proporção e projeto', blurrr: 'Configurações do projeto', alight: 'Configurações do projeto', nova: 'Projeto' }[editorLayout()] || 'Projeto', ok: 'Salvar' })
+      .then((r) => r && { ...r, anchor: [0.5, 0.5], scaleLayers: false, resolution: qualitySel.value, startTC: p.startTC })
+    : await compDialog({ mode: 'edit', project: p, resolution: qualitySel.value });
   if (!res) return;
   applyResolution(res.resolution);
   const sx = res.width / p.width, sy = res.height / p.height;
@@ -1501,8 +1506,17 @@ function showApps() {
   [{ label: 'Fechar', value: null }]);
 }
 
+const APP_MENU = [
+  ['Projeto', [['new', 'plus', 'Novo projeto'], ['comp', 'settings', 'Configurações do projeto'], ['open', 'folder', 'Abrir projeto (.json)'], ['save', 'save', 'Salvar projeto (.json)'], ['home', 'home', 'Meus projetos']]],
+  ['Importar', [['ffx', 'import', 'Preset .ffx do After Effects'], ['aep', 'ae', 'Projeto .aep do After Effects'], ['xml', 'xml', 'XML (Alight / Premiere / Final Cut / DaVinci)'], ['font', 'font', 'Fontes (.ttf / .otf / .woff)']]],
+  ['Ajuda', [['tour', 'help', 'Tutorial deste layout'], ['help', 'info', 'Como usar (passo a passo)'], ['keys', 'keyboard', 'Atalhos de teclado'], ['about', 'effects', 'Sobre os efeitos e plugins']]],
+  ['App', [['account', 'account', 'Conta e acesso'], ['apps', 'download', 'Baixar o app (PC / Android)'], ['lang', 'globe', 'Idioma / Language'], ['ui', 'ae', 'Interface avançada (After Effects)']]],
+];
 async function showMenu() {
-  const res = await modal('Menu', `<div class="menu-list">
+  const L = editorLayout();
+  const extra = [...(flatLayers(store.project.layers).some((l) => l.missing) ? [['relinkOffline', 'link', 'Religar mídias offline']] : []), ...(flatLayers(store.project.layers).some((l) => l.props?.aeMedia) ? [['relink', 'link', 'Conectar mídias do projeto do AE'], ['relinksub', 'reverse', 'Usar outros vídeos no lugar']] : [])];
+  const appMenu = !['studio', 'ae'].includes(L) ? `<div class="lmenu lmenu-${L}">${(extra.length ? [['Mídias', extra], ...APP_MENU] : APP_MENU).map(([g, items]) => `<div class="lmenu-g"><div class="lmenu-h">${g}</div>${items.map(([k, i, l]) => `<button data-m="${k}">${ico(i)}<span>${l}</span><i>›</i></button>`).join('')}</div>`).join('')}</div>` : null;
+  const res = await modal('Menu', appMenu || `<div class="menu-list">
     <button data-m="ui">🎚 Interface: ${getSettings().uiMode === 'ae' ? 'Avançada (After Effects) → trocar para Simples' : 'Simples → trocar para Avançada (After Effects)'}</button>
     <button data-m="home">⌂ Meus projetos</button>
     <button data-m="account">🔑 Conta e acesso</button>

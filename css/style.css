@@ -1799,3 +1799,40 @@ body[data-elayout="nova"] :is(.tr-panel, .composer) button.primary { background:
   body[data-pc] .modal .exp-sheet { gap: 10px; }
 }
 @media (min-width: 1100px) { body[data-pc] .app .lpanel .lp-body > .pane > :not(.dock-head) { display: block !important; } }
+
+/* ===================== v1.9.8 ===================== */
+/* Transições e Animações: duração e aplicar logo abaixo das abas (como no CapCut), sem cobrir a grade */
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-top, .cmp-bar) { order: 1 !important; position: static !important; margin: 0 0 10px !important; padding: 8px 10px !important; border-radius: 10px; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-panel .chips, .composer .chips) { order: 0 !important; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .composer .fx-search { order: 0; margin-bottom: 8px; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) :is(.tr-grid, .cmp-grid) { order: 2 !important; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-info { flex-direction: row !important; flex-wrap: wrap; align-items: center; gap: 8px 12px !important; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-info > b { flex: 1 1 100%; font-size: 13px; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-dur { flex: 1 1 180px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+body:is([data-elayout="capcut"], [data-elayout="blurrr"], [data-elayout="alight"], [data-elayout="nova"]) .tr-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+body[data-elayout="capcut"] :is(.tr-top, .cmp-bar) { background: #1f1f1f !important; }
+body[data-elayout="blurrr"] :is(.tr-top, .cmp-bar) { background: #f4f4f4 !important; }
+body[data-elayout="alight"] :is(.tr-top, .cmp-bar) { background: #2b2f3b !important; }
+body[data-elayout="nova"] :is(.tr-top, .cmp-bar) { background: #141c2b !important; }
+/* Menu dos layouts de app: grupos com ícones e "›" */
+.lmenu { display: flex; flex-direction: column; gap: 14px; }
+.lmenu-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8a8a8a; margin: 0 0 6px 4px; }
+.lmenu-g { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; }
+.lmenu button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border: 0; border-radius: 0; background: #ffffff0d; color: inherit; text-align: left; font-size: 14px; white-space: normal; }
+.lmenu button + button { border-top: 1px solid #ffffff0f; }
+.lmenu button .ico { width: 20px; height: 20px; flex: none; opacity: .9; }
+.lmenu button span { flex: 1; }
+.lmenu button i { font-style: normal; opacity: .4; font-size: 18px; }
+.lmenu-capcut button { background: #2a2a2a; } .lmenu-capcut button .ico { color: #23c4dc; }
+.lmenu-blurrr .lmenu-g { background: #f4f4f4; border-radius: 18px; }
+.lmenu-blurrr button { background: transparent; color: #111; } .lmenu-blurrr button + button { border-color: #e6e6e6; }
+.lmenu-alight button { background: #2b2f3b; } .lmenu-alight button .ico { color: #2fd38a; }
+.lmenu-nova button { background: #141c2b; } .lmenu-nova button .ico { color: #22d97a; }
+/* folha de projeto (nova / editar) por app */
+.ml-capcut .np-ratios button.on { border-color: #23c4dc; color: #23c4dc; }
+.ml-blurrr .np-ratios button { background: #f1f1f1; color: #333; border-color: transparent; }
+.ml-blurrr .np-ratios button.on { background: #d6f53c; color: #111; }
+.ml-blurrr .np-in { background: #f1f1f1; color: #111; border-color: #e6e6e6; }
+.ml-alight .np-ratios button.on { border-color: #2fd38a; color: #2fd38a; }
+.ml-alight input[type="range"] { accent-color: #2fd38a; }
+.ml-blurrr :is(select, input[type="number"], input[type="text"], input[type="search"], textarea) { background: #f1f1f1 !important; color: #111 !important; border-color: #e6e6e6 !important; }
