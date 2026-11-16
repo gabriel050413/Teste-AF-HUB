@@ -82,8 +82,25 @@ function drawFit(ctx, src, sw, sh, w, h, fit) {
   ctx.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, w, h);
 }
 
+/** Contador "Num" (pseudo-efeito do Type/AE Screens usado pela expressão do Source Text): texto = o número formatado. */
+function numCounterText(layer, t) {
+  const fx = layer.effects?.find((e) => e.enabled !== false && /(^|\/)Num$/.test(e.matchName || '') && e.params?.p1);
+  if (!fx) return null;
+  const v = (k, d) => { const q = fx.params[k]; const x = q ? valueAt(q, t) : d; return Number.isFinite(+x) ? +x : d; };
+  let num = v('p1', 0) * Math.pow(10, v('p11', 0));
+  const prec = Math.max(0, Math.round(v('p4', 0)));
+  const whole = Math.abs(prec ? Math.trunc(+num.toFixed(prec)) : Math.round(num));
+  let w = String(whole); const fixed = Math.round(v('p7', 0)); while (fixed > 1 && w.length < fixed) w = `0${w}`;
+  const ts = ['', ',', '.', '_', "'", ' '][Math.round(v('p2', 1)) - 1] || '';
+  if (ts) w = w.replace(/\B(?=(\d{3})+(?!\d))/g, ts);
+  const dec = prec ? (['.', ',', '_', "'", ' '][Math.round(v('p3', 1)) - 1] || '.') + num.toFixed(prec).split('.')[1] : '';
+  const sym = Math.round(v('p5', 1));
+  return `${num < 0 ? '-' : ''}${sym === 2 ? '$' : ''}${w}${dec}${sym === 3 ? '%' : ''}`;
+}
+
 function drawContent(ctx, layer, w, h, extra) {
-  const p = layer.props;
+  let p = layer.props;
+  if (layer.type === 'text') { const nt = numCounterText(layer, extra?.lt ?? 0); if (nt != null) p = { ...p, text: nt }; }
   switch (layer.type) {
     case 'text': {
       if (p.fontShiftY) { ctx.save(); ctx.translate(0, p.fontShiftY * p.fontSize); } // Inter assenta ~0,1 em abaixo da SF Pro (medido no render do After)
