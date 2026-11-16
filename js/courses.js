@@ -58,6 +58,7 @@ const fxOn = (l, type, params) => { l.effects.push(createEffectInstance(type, pa
 // ---------------------------------------------------------------- aulas
 // passo: [texto, { t: segundos, sel: nome da camada, cmd: comando do app, play: true }]
 const C = [MOGRAPH_MODULE];
+const FIRST = ['mograph2', 'futmanga'];
 const mod = (id, title, icon, desc, lessons) => C.push({ id, title, icon, desc, lessons });
 
 mod('basico', 'Conceitos básicos', '🎓', 'Keyframes, easing, camadas e ritmo — a base de qualquer edit.', [
@@ -310,6 +311,7 @@ mod('efeitos', 'Efeitos principais', '🎛', 'Os efeitos do After Effects mais u
     ['Todos os efeitos com busca e prévia ficam em Efeitos.', { t: 4, cmd: 'browse-fx' }],
   ] },
 ]);
+C.sort((a, b) => (FIRST.includes(b.id) ? 1 : 0) - (FIRST.includes(a.id) ? 1 : 0) || FIRST.indexOf(a.id) - FIRST.indexOf(b.id));
 export const COURSES = C;
 export const lessonById = (id) => { for (const m of C) for (const l of m.lessons) if (l.id === id) return { mod: m, lesson: l }; return null; };
 
@@ -324,7 +326,7 @@ export function coursesHtml(ico) {
 
 // ---------------------------------------------------------------- treinador (aula aberta no editor)
 let coach = null;
-const CMD_LABEL = { props: 'propriedades', effects: 'efeitos', composer: 'Composer', 'beat-sync': 'batidas', presets: 'presets', 'add-media': 'mídia', 'browse-fx': 'efeitos', headbop: 'Headbop', 'manga-anim': 'Animar personagem', 'manga-edit': 'Edit de mangá', 'ai-assets': 'elementos .ai', 'track-matte': 'Track Matte' };
+const CMD_LABEL = { props: 'propriedades', effects: 'efeitos', composer: 'Composer', 'beat-sync': 'batidas', presets: 'presets', 'add-media': 'mídia', 'browse-fx': 'efeitos', headbop: 'Headbop', 'manga-anim': 'Animar personagem', 'manga-edit': 'Edit de mangá', 'ai-assets': 'elementos .ai', 'track-matte': 'Track Matte', 'cam-to-beats': 'câmera nas batidas' };
 /** Abre a aula: cria o projeto (via hook), e mostra o cartão com os passos. api: { store, commands, openProject(p), setPlaying } */
 export async function startLesson(id, api) {
   const f = lessonById(id); if (!f) return;

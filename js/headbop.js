@@ -125,42 +125,80 @@ function cutout(img, mask, W, H, { above = null, below = null, feather = 6 } = {
 
 const blobOf = (c) => new Promise((r) => c.toBlob(r, 'image/png'));
 
+/** Máscara a partir do alfa (PNG já recortado) ou null se a imagem for opaca. */
+function alphaMask(img, W, H) {
+  const c = canvas(W, H), x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(img, 0, 0, W, H);
+  const d = x.getImageData(0, 0, W, H).data, a = new Float32Array(W * H);
+  let clear = 0;
+  for (let i = 0; i < a.length; i++) { a[i] = d[i * 4 + 3] / 255; if (d[i * 4 + 3] < 16) clear++; }
+  return clear > a.length * 0.04 ? a : null;
+}
+
+/** Recorte com a máscara amaciada (sem halo): borda erodida 1px e suavizada. */
+function softCut(img, mask, W, H) {
+  const c = canvas(W, H), x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, W, H);
+  const id = x.getImageData(0, 0, W, H), d = id.data;
+  for (let y = 1; y < H - 1; y++) for (let xx = 1; xx < W - 1; xx++) {
+    const i = y * W + xx;
+    const m = Math.min(mask[i], mask[i - 1], mask[i + 1], mask[i - W], mask[i + W]) * 0.6 + mask[i] * 0.4;
+    d[i * 4 + 3] = Math.round(d[i * 4 + 3] * Math.min(1, Math.max(0, (m - 0.3) / 0.45)));
+  }
+  x.putImageData(id, 0, 0);
+  return c;
+}
+
 /**
- * Monta o headbop. opts: { beats: [s], style: 'nod'|'sway'|'bounce', amount: 0.5..2, bg: 'fill'|'original'|'green', blurBg, zoom }
- * Devolve { bg, body, head } (blobs PNG), info da cabeça (px no tamanho de trabalho) e as funções de keyframe.
+ * Rig do headbop por deformação. Devolve { W, H, rig: {neck, top, feet, headR} normalizados, hasAlpha,
+ * bg (blob do fundo sem a pessoa) e person (blob do recorte) quando a imagem é opaca }.
  */
 export async function buildHeadbop(img, opts = {}) {
   const iw = img.naturalWidth || img.videoWidth, ih = img.naturalHeight || img.videoHeight;
   const k = Math.min(1, MAXW / Math.max(iw, ih)), W = Math.round(iw * k), H = Math.round(ih * k);
-  const mask = await maskOf(img, W, H);
-  const head = findHead(mask, W, H);
-  const neckOverlap = Math.round((head.neck - head.top) * 0.18);
-  let bg;
-  if (opts.bg === 'green') { bg = canvas(W, H); const x = bg.getContext('2d'); x.fillStyle = '#00b140'; x.fillRect(0, 0, W, H); }
-  else if (opts.bg === 'original') { bg = canvas(W, H); bg.getContext('2d').drawImage(img, 0, 0, W, H); }
-  else bg = inpaint(img, mask, W, H);
-  const body = cutout(img, mask, W, H, { below: head.neck - neckOverlap * 0.3 });
-  const headC = cutout(img, mask, W, H, { above: head.neck + neckOverlap });
-  return { W, H, head, bg: await blobOf(bg), body: await blobOf(body), headImg: await blobOf(headC) };
+  let mask = alphaMask(img, W, H);
+  const hasAlpha = !!mask;
+  if (!mask) mask = await maskOf(img, W, H);
+  const hd = findHead(mask, W, H);
+  // base: onde o corpo some (pés ou corte da foto)
+  let bx = 0, bn = 0;
+  for (let x = 0; x < W; x++) if (mask[hd.bot * W + x] > 0.5) { bx += x; bn++; }
+  const rig = {
+    neck: [+(hd.cx / W).toFixed(4), +(hd.neck / H).toFixed(4)],
+    top: [+(hd.cx / W).toFixed(4), +(hd.top / H).toFixed(4)],
+    feet: [+((bn ? bx / bn : hd.cx) / W).toFixed(4), +(hd.bot / H).toFixed(4)],
+    headR: +(Math.max(0.03, (hd.r - hd.l) / 2 / W)).toFixed(4),
+  };
+  const out = { W, H, rig, hasAlpha, head: hd };
+  if (!hasAlpha) {
+    let bg;
+    if (opts.bg === 'green') { bg = canvas(W, H); const x = bg.getContext('2d'); x.fillStyle = '#00b140'; x.fillRect(0, 0, W, H); }
+    else bg = inpaint(img, mask, W, H);
+    out.bg = await blobOf(bg);
+    out.person = await blobOf(softCut(img, mask, W, H));
+  }
+  return out;
 }
 
-/** Keyframes da cabeça em cada batida. dims: tamanho da camada (px do projeto) e fator da imagem de trabalho. */
-export function headKeys(beats, { style = 'nod', amount = 1, size = 100, t0 = 0, t1 = 1e9 } = {}) {
-  const pos = [], rot = [], sc = [];
-  const dip = size * 0.07 * amount, tilt = 7 * amount;
-  beats.filter((b) => b >= t0 && b < t1).forEach((b, i) => {
+/**
+ * Keyframes do headbop (parâmetros do efeito headbopWarp) a partir das batidas. Movimento contínuo como na
+ * referência: a inclinação vai de um lado ao outro a cada batida (curva suave, nunca para), o aceno desce no beat
+ * e volta no meio do intervalo, e o corpo quica logo depois da cabeça.
+ */
+export function headbopKeys(beats, { style = 'nod', amount = 1, t0 = 0, t1 = 1e9 } = {}) {
+  const bs = beats.filter((b) => b >= t0 - 1e-3 && b <= t1);
+  const tilt = [], nod = [], bob = [], lean = [];
+  const T = 9 * amount, L = 2.2 * amount;
+  bs.forEach((b, i) => {
+    const iv = (bs[i + 1] ?? b + (bs[i] - (bs[i - 1] ?? b - 0.5))) - b || 0.5;
     const s = i % 2 ? 1 : -1;
-    const up = Math.max(t0, b - 0.06);
-    if (style === 'sway') {
-      rot.push([up, -s * tilt * 0.4, 'easeInOut'], [b + 0.12, s * tilt, 'easeOut']);
-      pos.push([up, [0, 0], 'easeInOut'], [b + 0.12, [s * dip * 0.4, dip * 0.3], 'easeInOut']);
-    } else if (style === 'bounce') {
-      pos.push([up, [0, 0], 'easeIn'], [b, [0, dip], 'easeOut'], [b + 0.18, [0, -dip * 0.35], 'easeInOut'], [b + 0.32, [0, 0], 'easeInOut']);
-      sc.push([up, [100, 100], 'easeIn'], [b, [104, 96], 'easeOut'], [b + 0.2, [98, 102], 'easeInOut'], [b + 0.34, [100, 100], 'easeInOut']);
-    } else { // aceno (o headbop clássico): desce e inclina no beat, volta devagar
-      pos.push([up, [0, 0], 'easeIn'], [b + 0.02, [0, dip], 'easeOut'], [b + 0.3, [0, 0], 'easeInOut']);
-      rot.push([up, 0, 'easeIn'], [b + 0.02, s * tilt, 'easeOut'], [b + 0.3, 0, 'easeInOut']);
-    }
+    const sway = style === 'sway' ? 1.5 : style === 'bounce' ? 0.35 : 1;
+    tilt.push({ t: b, v: s * T * sway, ease: 'easeInOut' });
+    lean.push({ t: b + iv * 0.08, v: s * L * sway, ease: 'easeInOut' });
+    const nd = style === 'sway' ? 0.35 : style === 'bounce' ? 0.8 : 1;
+    nod.push({ t: Math.max(t0, b - iv * 0.5), v: 0, ease: 'easeIn' }, { t: b, v: nd * amount, ease: 'easeOut' });
+    const bb = style === 'bounce' ? 1.6 : style === 'sway' ? 0.4 : 0.8;
+    bob.push({ t: Math.max(t0, b - iv * 0.45), v: 0, ease: 'easeIn' }, { t: b + 0.03, v: bb * amount, ease: 'easeOut' });
   });
-  return { pos, rot, sc };
+  const clean = (ks) => ks.sort((a, b) => a.t - b.t).filter((k, i, a) => !i || k.t - a[i - 1].t > 1e-3).map((k) => ({ ...k, t: +k.t.toFixed(4) }));
+  return { tilt: clean(tilt), nod: clean(nod), bob: clean(bob), lean: clean(lean) };
 }

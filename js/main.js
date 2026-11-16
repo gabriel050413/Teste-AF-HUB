@@ -1805,6 +1805,14 @@ const commands = {
   voice: () => voiceFlow(),
   'beat-sync': () => beatSyncFlow(),
   headbop: () => headbopFlow(),
+  'cam-to-beats': async () => {
+    try {
+      const { snapCameraToBeats } = await import('./mograph-course.js');
+      const n = snapCameraToBeats(flatLayers(store.project.layers), await projectBeats(store));
+      store.commit('structure');
+      toast(n ? `${n} troca(s) de cena encaixada(s) nas batidas ✓` : 'Não achei nulls “CAM ·” com movimentos para encaixar.', n ? 'ok' : 'warn', 5000);
+    } catch (e) { toast(e.message, 'warn', 5000); }
+  },
   'manga-anim': () => animeCharFlow(),
   'manga-edit': () => mangaAnimFlow(),
   'ai-assets': async () => { const { openAiAssets } = await import('./ai-assets.js'); openAiAssets({ addFiles: (fs) => addAiElements(fs) }); },
@@ -2480,41 +2488,30 @@ async function headbopFlow() {
   setPlaying(false);
   toast('Recortando o jogador e separando a cabeça… (na 1ª vez baixa a IA)', 'info', 6000);
   try {
-    const { frameOf, buildHeadbop, headKeys } = await import('./headbop.js');
+    const { frameOf, buildHeadbop, headbopKeys } = await import('./headbop.js');
     const img = await frameOf(target, store.time);
     const r = await buildHeadbop(img, { bg: o.bg });
     const t0 = target.inPoint, t1 = target.outPoint;
     let beats = [];
     if (o.src === 'music') { try { beats = await projectBeats(store); } catch (e) { toast(`${e.message} — usando ${o.bpm} BPM.`, 'warn', 5000); } }
-    if (beats.length < 2) { beats = []; for (let b = t0 + 0.25; b < t1; b += 60 / o.bpm) beats.push(+b.toFixed(3)); }
-    const like = target;
-    const bg = imageLayerFromBlob(r.bg, 'Headbop · Fundo', { like, t0, t1 });
-    if (o.blur && o.bg !== 'green') bg.effects.push(createEffectInstance('blur', { radius: 14 }));
-    const body = imageLayerFromBlob(r.body, 'Headbop · Corpo', { like, t0, t1 });
-    const head = imageLayerFromBlob(r.headImg, 'Headbop · Cabeça', { like, t0, t1 });
-    // âncora da cabeça no pescoço (gira e desce a partir dali)
-    const lw = like.props.width, lh = like.props.height;
-    const sc = (valueAt(like.transform.scale, store.time) || [100, 100]).map((v) => v / 100);
-    const anc = [(r.head.cx / r.W - 0.5) * lw, (r.head.neck / r.H - 0.5) * lh];
-    const p0 = valueAt(like.transform.position, store.time);
-    const base = [p0[0] + anc[0] * sc[0], p0[1] + anc[1] * sc[1]];
-    head.transform.anchor = { value: anc, keys: [] };
-    head.transform.position = { value: base, keys: [] };
-    const headPx = (r.head.neck - r.head.top) / r.H * lh * sc[1];
-    const ks = headKeys(beats, { style: o.style, amount: o.amount, size: headPx * 3, t0, t1 });
-    const K = (list, f = (v) => v) => list.map(([t, v, ease]) => ({ t: +t.toFixed(4), v: f(v), ease }));
-    if (ks.pos.length) head.transform.position = { value: base, keys: K(ks.pos, (v) => [base[0] + v[0], base[1] + v[1]]) };
-    if (ks.rot.length) head.transform.rotation = { value: 0, keys: K(ks.rot) };
-    if (ks.sc.length) head.transform.scale = { value: [sc[0] * 100, sc[1] * 100], keys: K(ks.sc, (v) => [v[0] * sc[0], v[1] * sc[1]]) };
-    // corpo acompanha de leve (respira no beat)
-    if (o.style !== 'sway') {
-      const bp = valueAt(like.transform.position, store.time);
-      body.transform.position = { value: bp, keys: K(ks.pos.filter((_, i) => i % 3 !== 2), (v) => [bp[0], bp[1] + v[1] * 0.18]) };
+    if (beats.length < 2) { beats = []; for (let b = t0 + 0.2; b < t1; b += 60 / o.bpm) beats.push(+b.toFixed(3)); }
+    const ks = headbopKeys(beats, { style: o.style, amount: o.amount, t0, t1 });
+    const fx = createEffectInstance('headbopWarp', { ...r.rig, tilt: { keys: ks.tilt }, nod: { keys: ks.nod }, bob: { keys: ks.bob }, lean: { keys: ks.lean } });
+    const added = [];
+    let person = target;
+    if (!r.hasAlpha && o.bg !== 'original') { // foto com fundo: fundo limpo embaixo + pessoa recortada que se mexe
+      const bg = imageLayerFromBlob(r.bg, 'Headbop · Fundo', { like: target, t0, t1 });
+      if (o.blur && o.bg !== 'green') bg.effects.push(createEffectInstance('blur', { radius: 12 }));
+      person = imageLayerFromBlob(r.person, 'Headbop · Jogador', { like: target, t0, t1 });
+      added.push(bg, person);
+      target.visible = false;
     }
-    target.visible = false;
-    for (const l of [bg, body, head]) store.addLayer(l);
+    person.effects = person.effects.filter((e) => e.type !== 'headbopWarp');
+    person.effects.unshift(fx);
+    for (const l of added) store.addLayer(l);
+    store.select(person.id);
     store.commit('structure');
-    toast(`Headbop pronto ✓ — ${beats.filter((b) => b >= t0 && b < t1).length} batidas. A camada original ficou oculta; ajuste a força em Cabeça › Animar.`, 'ok', 7000);
+    toast(`Headbop pronto ✓ — ${ks.tilt.length} batidas. Ajuste em Efeitos › Headbop (deformação): inclinação, aceno, quique e os pinos.`, 'ok', 7000);
   } catch (e) { toast(`Headbop: ${e.message}`, 'error', 8000); }
 }
 
