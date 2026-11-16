@@ -4,7 +4,7 @@ Servidor leve (Node 22, sem dependências) com: contas, pontos, mercado de prese
 
 ## Publicar com 1 clique (Render)
 
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gabriel050413/Teste-AF-HUB)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/gabriel050413/Teste-AF-HUB/tree/claude/brave-mccarthy-867880)
 
 1. Clique no botão, entre no Render com a conta do GitHub e confirme o blueprint (`render.yaml` na raiz do repositório).
 2. Quando pedir `ANTHROPIC_API_KEY`, cole a chave da IA (crie em console.anthropic.com › API Keys) ou deixe vazio para usar o gerador automático de paletas.
