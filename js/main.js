@@ -23,6 +23,8 @@ import { serializePreset, parsePresetJSON } from './presets.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
 import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
 import { startTour, maybeStartTour } from './tour.js';
+import { compToLocal, localToComp as localToCompPt } from './tracker.js';
+import { ensureRotoModel, rotoStatus, setRotoListener } from './roto.js';
 import { FRAG_TITLE } from './inspector.js';
 import { initDragScroll, initPcLayouts, applyPcLayout, pcOpenLeft, pcActive, pcLeftPanes } from './pc-layouts.js';
 import { FxBrowser } from './fx-browser.js';
@@ -291,6 +293,7 @@ function drawOverlay() {
   octx.setTransform(1, 0, 0, 1, 0, 0);
   octx.clearRect(0, 0, overlay.width, overlay.height);
   trackerPanel.drawOverlay(octx, k, window.devicePixelRatio || 1);
+  drawRotoOverlay(octx, k);
   const layer = store.layer();
   // prévia limpa: a caixa só aparece enquanto você arrasta/redimensiona a camada
   if (!gesture?.moved) return;
@@ -462,6 +465,7 @@ overlay.addEventListener('pointerdown', (e) => {
   const toComp = (ev) => [((ev.clientX - r.left) / r.width) * store.project.width, ((ev.clientY - r.top) / r.height) * store.project.height];
   if (trackPick) { const cb = trackPick; trackPick = null; cb(toComp(e)); return; }
   if (drawMode) { drawPointer('down', toComp(e), e.pointerId, toComp); return; }
+  if (rotoMode) { rotoPointer('down', toComp(e), e, toComp); return; }
   // tracker aberto: arrastar a caixa do Track Point / cantos das regiões (como no AE)
   const th = trackerPanel.hit(...toComp(e), overlay.width / store.project.width);
   if (th) { trackDrag = { ...th, toComp, id: e.pointerId }; return; }
@@ -482,6 +486,7 @@ overlay.addEventListener('pointerdown', (e) => {
 overlay.addEventListener('pointermove', (e) => {
   if (trackDrag && e.pointerId === trackDrag.id) { trackerPanel.drag(trackDrag, ...trackDrag.toComp(e)); drawOverlay(); return; }
   if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('move', drawMode.stroke.toComp(e)); return; }
+  if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('move', rotoMode.stroke.toComp(e), e); return; }
   if (!gesture || !pointers.has(e.pointerId)) return;
   pointers.set(e.pointerId, gesture.toComp(e));
   const { layer } = gesture;
@@ -509,7 +514,7 @@ const endPointer = (e) => {
     dirty = true;
   }
 };
-overlay.addEventListener('pointerup', (e) => { if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
+overlay.addEventListener('pointerup', (e) => { if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
 overlay.addEventListener('pointercancel', endPointer);
 
 // ---- editar texto com toque duplo (na prévia ou no clipe da timeline), como em todos os editores
@@ -538,6 +543,67 @@ function editTextInline(layer) {
   box.querySelector('.tx-x').addEventListener('click', () => done(false));
   box.addEventListener('pointerdown', (e) => { if (e.target === box) done(true); });
   setTimeout(() => { ta.focus(); ta.select(); }, 30);
+}
+
+// ---- Roto Brush (como o do After): pincel verde = primeiro plano, vermelho (ou Alt) = fundo
+let rotoMode = null; // { layer, fx, fg, stroke }
+setRotoListener(() => { dirty = true; frameCacheClear?.(); });
+function rotoFx(layer) { return layer.effects.find((f) => f.type === 'rotoBrush'); }
+async function startRoto() {
+  const l = store.layer();
+  if (!l || !['video', 'image', 'group'].includes(l.type)) return toast('Selecione o clipe (vídeo ou foto) que você quer recortar.', 'warn', 3500);
+  setPlaying(false); closeSheet();
+  let fx = rotoFx(l);
+  if (!fx) { fx = createEffectInstance('rotoBrush', {}); l.effects.unshift(fx); store.commit(); }
+  rotoMode = { layer: l, fx, fg: true, stroke: null };
+  if (rotoStatus() !== 'ready') { toast('Baixando o modelo do Roto Brush (só na 1ª vez, ~6 MB)…', 'info', 3000); ensureRotoModel(); }
+  document.querySelector('.draw-bar')?.remove();
+  document.getElementById('stage').insertAdjacentHTML('beforeend', `<div class="draw-bar roto-bar"><button data-r="fg" class="on fg">＋ Manter</button><button data-r="bg" class="bg">− Tirar</button><button data-r="undo">${ico('undo')}</button><button data-r="clear">Limpar</button><button data-r="done" class="ok">${ico('check')} Concluir</button></div>`);
+  const bar = document.querySelector('.roto-bar');
+  bar.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-r]'); if (!b || !rotoMode) return;
+    const k = b.dataset.r, list = rotoStrokes();
+    if (k === 'fg' || k === 'bg') { rotoMode.fg = k === 'fg'; bar.querySelector('.fg').classList.toggle('on', rotoMode.fg); bar.querySelector('.bg').classList.toggle('on', !rotoMode.fg); }
+    if (k === 'undo') { list.pop(); setRotoStrokes(list); }
+    if (k === 'clear') { setRotoStrokes([]); }
+    if (k === 'done') endRoto();
+  });
+  toast('Roto Brush: pinte de verde o que fica (Alt ou “− Tirar” para pintar o fundo). A máscara acompanha o objeto nos outros quadros.', 'info', 5000);
+  drawOverlay();
+}
+const rotoStrokes = () => { const v = rotoMode?.fx.params.strokes; return Array.isArray(v?.value) ? v.value.slice() : Array.isArray(v) ? v.slice() : []; };
+function setRotoStrokes(list) {
+  const fx = rotoMode.fx;
+  if (fx.params.strokes && typeof fx.params.strokes === 'object' && 'value' in fx.params.strokes) fx.params.strokes.value = list; else fx.params.strokes = list;
+  store.commit(); drawOverlay();
+}
+function rotoPointer(kind, pt, e, toComp) {
+  const R = rotoMode; if (!R) return;
+  const l = R.layer, w = l.props.width || store.project.width, h = l.props.height || store.project.height;
+  const norm = (q) => { const { lx, ly } = compToLocal(l, store.time, q[0], q[1]); return [+(lx / w + 0.5).toFixed(4), +(ly / h + 0.5).toFixed(4)]; };
+  if (kind === 'down') { R.stroke = { id: e.pointerId, toComp, fg: e.altKey ? false : R.fg, pts: [norm(pt)], comp: [pt] }; }
+  else if (kind === 'move' && R.stroke) { const last = R.stroke.comp[R.stroke.comp.length - 1]; if (Math.hypot(pt[0] - last[0], pt[1] - last[1]) < 4) return; R.stroke.pts.push(norm(pt)); R.stroke.comp.push(pt); drawOverlay(); }
+  else if (kind === 'up' && R.stroke) {
+    const st = R.stroke; R.stroke = null;
+    const list = rotoStrokes(); list.push({ t: +store.time.toFixed(4), fg: st.fg, pts: st.pts });
+    setRotoStrokes(list);
+  }
+}
+function drawRotoOverlay(ctx, k) {
+  if (!rotoMode) return;
+  const l = rotoMode.layer, w = l.props.width || store.project.width, h = l.props.height || store.project.height;
+  const fps = store.project.fps || 30, f = Math.round(store.time * fps);
+  const toC = (u, v) => { const [x, y] = localToCompPt(l, store.time, (u - 0.5) * w, (v - 0.5) * h); return [x * k, y * k]; };
+  const all = rotoStrokes().filter((s) => Math.round(s.t * fps) === f);
+  if (rotoMode.stroke) all.push({ fg: rotoMode.stroke.fg, pts: rotoMode.stroke.pts });
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 10;
+  for (const s of all) { ctx.strokeStyle = s.fg ? 'rgba(60,220,90,.85)' : 'rgba(240,60,60,.85)'; ctx.beginPath(); s.pts.forEach(([u, v], i) => { const [x, y] = toC(u, v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
+  ctx.restore();
+}
+function endRoto() {
+  rotoMode = null; document.querySelector('.roto-bar')?.remove(); drawOverlay();
+  openSheet('effects');
+  toast('Recorte pronto ✓ Ajuste a borda em Efeitos › Roto Brush (Suavizar, Encolher). Pinte em outro quadro se o objeto mudar muito.', 'ok', 4500);
 }
 
 // ---- desenho livre / vetorial (como no Alight Motion): cada traço vira um caminho numa camada de formas
@@ -1031,7 +1097,7 @@ function simpleItems(layer, t, many) {
       ['composer', '❖', 'Animações prontas'],
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
-      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
       ['calibrate', '🎯', 'Igualar cor'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
@@ -1094,7 +1160,7 @@ function advancedItems(layer, t, many) {
       ['effects', '✦', 'Efeitos', true], ['presets', '★', 'Presets'], ['transitions', 'transition', 'Transições'], ['composer', '❖', 'Composer'],
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
-      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush']] : []),
       ['calibrate', '🎯', 'Calibrar CC'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
@@ -1844,6 +1910,7 @@ const commands = {
   'add-3d': () => { addLayer('rect'); const l = store.layer(); if (l) { setThreeD(l, true, anim); l.name = 'Forma 3D'; store.commit('structure'); toast('Camada 3D criada: gire em X/Y e use Posição Z (Propriedades). Adicione uma Câmera para perspectiva.', 'info', 4000); } },
   'add-particle': () => { addLayer('adjustment'); const l = store.layer(); if (l) { l.name = 'Partículas'; l.effects.push(createEffectInstance('sparkles', {})); store.commit('structure'); openSheet('effects'); } },
   'add-brush': () => startDraw(false),
+  roto: () => startRoto(),
   'add-vector': () => startDraw(true),
   opacity: () => openProps('blend'),
   'motion-blur': () => {
@@ -1884,7 +1951,7 @@ export const SHORTCUTS = [
   ['Camadas', [['Ctrl+Y', 'Novo sólido'], ['Ctrl+Alt+Y', 'Nova camada de ajuste'], ['Ctrl+Alt+Shift+Y', 'Novo Null'], ['Ctrl+Alt+Shift+T', 'Novo texto'], ['Ctrl+Alt+Shift+C', 'Nova câmera 3D'], ['Ctrl+D', 'Duplicar'], ['Ctrl+Shift+D', 'Dividir camada no playhead'], ['Ctrl+Shift+C', 'Pré-compor (1 ou mais camadas)'], ['Ctrl+C / Ctrl+X / Ctrl+V', 'Copiar / recortar / colar camadas'], ['Delete', 'Excluir'], ['Ctrl+A', 'Selecionar todas as camadas'], ['Ctrl+Shift+A / F2', 'Tirar a seleção'], ['Ctrl+↑ / Ctrl+↓', 'Selecionar camada de cima / de baixo'], ['Ctrl+] / Ctrl+[', 'Subir / descer a camada'], ['Ctrl+Shift+] / Ctrl+Shift+[', 'Trazer para o topo / mandar para o fundo'], ['Ctrl+L', 'Travar / destravar'], ['Ctrl+Alt+F', 'Ajustar à composição'], ['Ctrl+Alt+R', 'Inverter no tempo (reverse)'], ['Ctrl+Alt+T', 'Ativar Time Remap'], ['Ctrl+Shift+E', 'Remover todos os efeitos']]],
   ['Tempo', [['← / →  ou  Page Up / Page Down', 'Voltar / avançar 1 quadro'], ['Shift + ← / →', '10 quadros'], ['Home / End', 'Início / fim da composição'], ['I / O', 'Ir para a entrada / saída da camada'], ['[ / ]', 'Mover a camada para começar / terminar no playhead'], ['Alt+[ / Alt+]', 'Cortar entrada / saída no playhead'], ['J / K', 'Keyframe anterior / próximo'], ['M ou *', 'Marcador'], ['= / -', 'Zoom da timeline']]],
   ['CapCut / Blurrr / Nova', [['Ctrl+B', 'Dividir o clipe na agulha'], ['Q', 'Apagar a parte do clipe à esquerda da agulha'], ['W', 'Apagar a parte do clipe à direita da agulha'], ['Toque duplo no texto', 'Editar o texto (prévia ou timeline)']]],
-  ['Extras (After Effects)', [['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['B / N', 'Início / fim da área de trabalho (a reprodução repete nela)'], ['Ctrl+Alt+B', 'Remover a área de trabalho'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
+  ['Extras (After Effects)', [['Alt+W', 'Roto Brush (pintar o que fica / Alt = fundo)'], ['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['B / N', 'Início / fim da área de trabalho (a reprodução repete nela)'], ['Ctrl+Alt+B', 'Remover a área de trabalho'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
   ['Propriedades e keyframes', [['P / S / R / T / A', 'Mostrar Posição / Escala / Rotação / Opacidade / Ancoragem'], ['U', 'Keyframes da camada'], ['E', 'Efeitos da camada'], ['Alt+Shift+P / S / R / T / A', 'Keyframe em Posição / Escala / Rotação / Opacidade / Ancoragem'], ['Shift+K', 'Keyframe em todas as transformações'], ['F9', 'Easy Ease nos keyframes selecionados'], ['Shift+F9 / Ctrl+Shift+F9', 'Easy Ease In / Out'], ['Ctrl+Alt+A', 'Selecionar todos os keyframes'], ['Esc', 'Tirar seleção de keyframes']]],
 ];
 export function showShortcuts() {
@@ -2084,6 +2151,7 @@ document.addEventListener('keydown', async (e) => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
   const mod = e.ctrlKey || e.metaKey, alt = e.altKey, sh = e.shiftKey, code = e.code;
   const go = (fn) => { e.preventDefault(); fn(); };
+  if (alt && !mod && code === 'KeyW') return go(() => commands.roto()); // Roto Brush (Alt+W no After)
   if (mod && alt && code === 'KeyB') return go(() => { delete store.project.workArea; store.commit(); timeline.drawRuler(); toast('Área de trabalho removida.', 'ok', 1200); });
   if (alt && sh && code === 'KeyJ') return go(async () => { // ir para o tempo
     const v = await modal('Ir para o tempo', '<input type="text" data-f="t" placeholder="segundos ou 0:05.12" style="width:100%" autofocus>', [{ label: 'Cancelar', value: null }, { label: 'Ir', primary: true, value: (w) => w.querySelector('[data-f="t"]').value }]);

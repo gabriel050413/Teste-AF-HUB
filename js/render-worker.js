@@ -20,6 +20,7 @@ import { prepare, setWorkerMedia, setExporting, exactFramesReady } from './media
 import { getGL, glLost } from './gl.js';
 import { loadFontsInWorker } from './fonts.js';
 import { prepareBgModels, bgStatus } from './bgremove.js';
+import { prepareRoto } from './roto.js';
 import { flatLayers } from './state.js';
 
 let P = null, canvas = null, ctx = null, scale = 1, preview = false;
@@ -37,6 +38,7 @@ self.onmessage = async ({ data: m }) => {
       // Remover fundo: o modelo de IA carrega aqui também; se não der, a exportação segue na tela principal
       const layers = flatLayers(P.layers);
       const models = new Set(); for (const l of layers) for (const fx of l.effects || []) if (fx.enabled !== false && fx.type === 'bgRemove') models.add(Math.round(fx.params.model?.value ?? 1));
+      await prepareRoto(layers).catch(() => {});
       if (models.size) { await prepareBgModels(layers); for (const md of models) if (bgStatus(md) !== 'ready') throw new Error('modelo de Remover fundo não carregou no Worker'); }
       self.postMessage({ type: 'ready' });
     } else if (m.type === 'frame') {

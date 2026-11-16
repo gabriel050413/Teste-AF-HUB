@@ -8,6 +8,7 @@ import { renderMix, stopAudio } from './audio.js';
 import { modal, toast } from './ui.js';
 import { saveFile, keepAwake } from './platform.js';
 import { prepareBgModels } from './bgremove.js';
+import { prepareRoto } from './roto.js';
 import { flatLayers } from './state.js';
 
 const withTimeout = (pr, ms, msg) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(msg)), ms))]);
@@ -123,7 +124,7 @@ export async function exportMP4(store, { scale = 1, bitrate, fpsOverride } = {})
 
   let ui = progressModal('Exportando vídeo…', `${width}×${height} · ${fps} fps · ${video.config.codec}`);
   store.exporting = true; setExporting(true); resetRenderCaches();
-  try { await prepareBgModels(flatLayers(store.project.layers)); } catch { /* segue sem IA */ }
+  try { await prepareBgModels(flatLayers(store.project.layers)); await prepareRoto(flatLayers(store.project.layers)); } catch { /* segue sem IA */ }
   stopAudio();
   pauseAll();
   keepAwake(true);
@@ -286,7 +287,7 @@ export async function exportRealtime(store, { scale = 1, bitrate } = {}) {
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
   const ui = progressModal('Gravando (tempo real)…', mix ? 'Gravando vídeo e som em tempo real.' : 'Gravação em tempo real.');
   store.exporting = true; setExporting(true);
-  try { await prepareBgModels(flatLayers(store.project.layers)); } catch { /* segue sem IA */ }
+  try { await prepareBgModels(flatLayers(store.project.layers)); await prepareRoto(flatLayers(store.project.layers)); } catch { /* segue sem IA */ }
   if (ac) await ac.resume().catch(() => {});
   rec.start(250);
   srcNode?.start();
@@ -316,7 +317,7 @@ export async function exportRealtime(store, { scale = 1, bitrate } = {}) {
 
 export async function exportPNG(store) {
   const { project } = store;
-  try { await prepareBgModels(flatLayers(project.layers)); } catch { /* segue sem IA */ }
+  try { await prepareBgModels(flatLayers(project.layers)); await prepareRoto(flatLayers(project.layers)); } catch { /* segue sem IA */ }
   const c = document.createElement('canvas');
   c.width = project.width; c.height = project.height;
   await prepare(project, store.time, { exact: true });

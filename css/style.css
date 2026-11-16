@@ -1849,3 +1849,6 @@ body[data-elayout="nova"] :is(.tr-top, .cmp-bar) { background: #141c2b !importan
   body[data-pc="nova"] .toolbar { flex-wrap: wrap; overflow: visible; row-gap: 2px; max-height: 30vh; overflow-y: auto; }
   body[data-pc="nova"] .toolbar .tool { min-width: 64px; }
 }
+/* Roto Brush */
+.roto-bar button.fg.on { background: #2fbf55; }
+.roto-bar button.bg.on { background: #e04040; }
