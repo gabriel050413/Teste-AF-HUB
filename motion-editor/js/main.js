@@ -25,6 +25,7 @@ import { cloud } from './cloud.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
 import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
 import { startTour, maybeStartTour } from './tour.js';
+import { FRAG_TITLE } from './inspector.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -631,7 +632,14 @@ if (desktop.matches) sheet.classList.add('open');
   });
 })();
 
+let propsInspector = null;
+let propsFocusNext = null; // painel fragmentado (só uma parte das propriedades), como nos cartões do Alight/CapCut/Blurrr
+function openProps(focus) {
+  if (focus && !store.layer()) { toast('Selecione uma camada.', 'warn'); return; }
+  propsFocusNext = focus || null; openSheet('props');
+}
 function openSheet(name, backTo = null) {
+  if (name === 'props' && propsInspector) { const f = propsFocusNext; propsFocusNext = null; if (propsInspector.focus !== f) { propsInspector.focus = f; propsInspector.render(); } }
   if (name === 'composer') setTimeout(() => composer.startPreview(), 0); // o Composer só monta (e anima) quando aberto
   if (desktop.matches) {
     // PC: abre (ou traz de volta) o painel no canto, sem fechar os outros
@@ -647,7 +655,7 @@ function openSheet(name, backTo = null) {
   sheetPane = name;
   sheetBackTo = backTo;
   document.querySelectorAll('.sheet .pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === name));
-  sheetTitle.textContent = paneTitle(name) || TITLES[name] || '';
+  sheetTitle.textContent = (name === 'props' && propsInspector?.focus && FRAG_TITLE[propsInspector.focus]) || paneTitle(name) || TITLES[name] || '';
   sheet.classList.add('open');
   appEl.classList.toggle('docked', !desktop.matches);
   sheet.classList.toggle('has-back', !!backTo);
@@ -695,7 +703,7 @@ const timeline = new Timeline(document.getElementById('timeline'), store, {
   onAdd: () => commands.add?.(),
   cmd: (c) => commands[c]?.(),
 });
-new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
+const effectsInspector = new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
   browse: () => openSheet('browser', 'effects'),
   duplicateEffect: (layer, fx) => {
     const copy = deepClone(fx);
@@ -705,7 +713,8 @@ new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
   savePreset: () => library.saveLayer(),
   sceneSetup: (layer, fx) => openSceneSetup(store, layer, fx, viewProject()),
 });
-new Inspector(document.getElementById('propsPanel'), store, 'props', {
+propsInspector = new Inspector(document.getElementById('propsPanel'), store, 'props', {
+  addFx: (layer, type) => { layer.effects.push(createEffectInstance(type, {})); store.commit(); },
   speed: (layer) => { ensureSpeedEffect(layer); openSheet('effects'); },
   beats: (layer) => addBeatMarkers(layer),
   track: (layer) => openTracker(layer, 'point'),
@@ -1638,7 +1647,7 @@ function timeReverse(l) {
 }
 
 const commands = {
-  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
+  layout: async () => { await cloud.init().catch(() => {}); await layoutPopover(cloud, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); library.render(); effectsInspector.render(); propsInspector.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
   'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
   menu: showMenu,
   more: async () => {
@@ -1694,12 +1703,17 @@ const commands = {
   marker: () => store.toggleMarker(store.time),
   deselect: () => { store.select(null); closeSheet(); },
   effects: () => openSheet('effects'),
-  presets: () => openSheet('presets'),
+  presets: () => { library.render(); openSheet('presets'); },
   composer: () => openSheet('composer'),
   transitions: () => { transPanel.render(); openSheet('trans'); },
   'logo-anim': () => animateLogoFlow(),
   'font-id': async () => { const { fontIdDialog } = await import('./fontid-ui.js'); await fontIdDialog(store, { toast }); renderToolbar(); },
-  props: () => openSheet('props'),
+  props: () => openProps(null),
+  'props-move': () => openProps('move'),
+  'props-fill': () => openProps('fill'),
+  'props-border': () => openProps('border'),
+  'props-mask': () => openProps('mask'),
+  'props-sound': () => openProps('sound'),
   keys: () => openSheet('keys'),
   speed: () => { ensureSpeedEffect(store.layer()); openSheet('effects'); },
   split: () => { if (!store.layer() || !store.splitLayer(store.selectedLayerId, store.time)) toast('Posicione o playhead dentro da camada para dividir.', 'warn'); },
@@ -1770,7 +1784,7 @@ const commands = {
   'add-particle': () => { addLayer('adjustment'); const l = store.layer(); if (l) { l.name = 'Partículas'; l.effects.push(createEffectInstance('sparkles', {})); store.commit('structure'); openSheet('effects'); } },
   'add-brush': () => startDraw(false),
   'add-vector': () => startDraw(true),
-  opacity: () => { if (!store.layer()) return toast('Selecione uma camada.', 'warn'); revealProp('opacity'); },
+  opacity: () => openProps('blend'),
   'motion-blur': () => {
     const l = store.layer(); if (!l) return toast('Selecione uma camada.', 'warn');
     const i = l.effects.findIndex((fx) => fx.type === 'motionBlur');
@@ -1796,7 +1810,7 @@ const commands = {
       toast('Capa definida com o quadro atual ✓ (aparece na lista de projetos)', 'ok', 2500);
     } catch { toast('Não foi possível capturar a capa.', 'error'); }
   },
-  sound: () => { openSheet('props'); setTimeout(() => document.querySelector('#propsPanel [data-section="sound"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); },
+  sound: () => { if (editorLayout() !== 'studio' && editorLayout() !== 'ae') return openProps('sound'); openSheet('props'); setTimeout(() => document.querySelector('#propsPanel [data-section="sound"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); },
 };
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
 initEditorLayouts(commands);

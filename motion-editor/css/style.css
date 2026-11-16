@@ -1371,3 +1371,120 @@ body.ui-simple[data-elayout="capcut"] .tl-zoom, body.ui-simple[data-elayout="blu
 .app.docked .toolbar, body[data-elayout] .app.docked .toolbar, body[data-elayout] .app.docked .toolbar.sel, body[data-elayout] .app.docked .toolbar.has-ltop { display: none !important; }
 body[data-elayout="blurrr"] .sheet input:not([type="color"]):not([type="range"]):not([type="checkbox"]), body[data-elayout="blurrr"] .sheet select, body[data-elayout="blurrr"] .sheet textarea { background: #f1f1f1 !important; color: #111 !important; border-color: #e2e2e2 !important; }
 body[data-elayout="blurrr"] .sheet, body[data-elayout="blurrr"] .sheet label, body[data-elayout="blurrr"] .sheet h4 { color: #222; }
+
+/* ===================== v1.9.5: painéis no estilo de cada app ===================== */
+.frag { padding-top: 4px; }
+.frag-fx { margin: 10px 0; padding: 8px 10px; border-radius: 12px; background: color-mix(in srgb, currentColor 6%, transparent); }
+.frag-fx-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.frag-fx-h button { border: 0; background: none; color: inherit; opacity: .6; font-size: 15px; }
+.frag-add { margin: 8px 0; }
+/* máscaras (CapCut) */
+.mask-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; margin: 6px 0 14px; }
+.mask-grid button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 8px; border: 2px solid transparent; border-radius: 10px; background: color-mix(in srgb, currentColor 8%, transparent); color: inherit; font-size: 11.5px; }
+.mask-grid button .ico { width: 26px; height: 26px; }
+.mask-grid button.on { border-color: var(--accent); }
+body[data-elayout="capcut"] .mask-grid button.on { border-color: #23c4dc; }
+body[data-elayout="blurrr"] .mask-grid button.on { border-color: #b9dc21; background: #f4fcd2; }
+/* bola de girar (Alight Motion) */
+.am-dial { position: relative; flex: none; width: 74px; height: 74px; border-radius: 50%; background: radial-gradient(circle, #2b2f3b 55%, #353a48 56%); box-shadow: inset 0 0 0 2px #444a5a; touch-action: none; cursor: grab; }
+.am-dial i { position: absolute; inset: 0; border-radius: 50%; }
+.am-dial i::before { content: ''; position: absolute; left: 50%; top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px #0008; }
+.am-dial i::after { content: ''; position: absolute; left: 50%; top: 18px; bottom: 50%; width: 2px; margin-left: -1px; background: #ffffff55; }
+.am-dial b { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: #2fd38a; }
+/* régua de arrastar (Blurrr) */
+.bl-ruler { flex: 1; min-width: 90px; height: 34px; border-radius: 8px; background-color: #f1f1f1; touch-action: none; cursor: ew-resize; position: relative;
+  background-image: repeating-linear-gradient(90deg, #9a9a9a 0 1px, transparent 1px 8px), repeating-linear-gradient(90deg, #222 0 2px, transparent 2px 40px); background-size: 100% 40%, 100% 70%; background-repeat: repeat-x; background-position-y: 50%, 50%; }
+.bl-ruler::after { content: ''; position: absolute; left: 50%; top: 3px; bottom: 3px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: #b9dc21; }
+
+/* ---------- Alight Motion: linhas com keyframe à esquerda, números grandes, rótulos em cima ---------- */
+body[data-elayout="alight"] .sheet, body[data-elayout="alight"] .sheet-head { background: #1f222b; }
+body[data-elayout="alight"] .prop-row { grid-template-columns: 34px minmax(0, 1fr); grid-template-areas: "kf label" "kf inputs"; row-gap: 4px; padding: 8px 0; border-bottom: 1px solid #2c303c; }
+body[data-elayout="alight"] .prop-row .plabel { grid-area: label; color: #9b9eaa; font-size: 12px; }
+body[data-elayout="alight"] .prop-row .pinputs { grid-area: inputs; }
+body[data-elayout="alight"] .prop-row .kfnav { grid-area: kf; flex-direction: column; align-items: center; }
+body[data-elayout="alight"] .prop-row .kfnav button:not(.kbtn) { display: none; }
+body[data-elayout="alight"] .prop-row .kbtn { font-size: 20px; color: #5b6070; }
+body[data-elayout="alight"] .pinputs input[type="number"] { background: #2b2f3b; border: 0; border-radius: 8px; height: 40px; font-size: 17px; text-align: center; color: #fff; }
+body[data-elayout="alight"] .prop-row[data-kind="angle"] .pinputs { gap: 14px; }
+body[data-elayout="alight"] .prop-row[data-kind="angle"] .pinputs input { max-width: 110px; }
+body[data-elayout="alight"] .fx-card { background: #2b2f3b; border: 0; border-radius: 10px; }
+body[data-elayout="alight"] .add-fx { background: #2b2f3b !important; color: #fff; border: 0; border-radius: 10px; height: 48px; font-size: 16px; font-weight: 500; }
+body[data-elayout="alight"] .insp-sec h4 { color: #9b9eaa; }
+
+/* ---------- CapCut: sliders brancos finos com valor, painel preto ---------- */
+body[data-elayout="capcut"] .sheet, body[data-elayout="capcut"] .sheet-head { background: #141414; }
+body[data-elayout="capcut"] .prop-row, body[data-elayout="capcut"] .frag .row { grid-template-columns: 1fr; gap: 6px; padding: 6px 0; }
+body[data-elayout="capcut"] .prop-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label kf" "inputs inputs"; }
+body[data-elayout="capcut"] .prop-row .plabel { grid-area: label; color: #e6e6e6; font-size: 13.5px; }
+body[data-elayout="capcut"] .prop-row .pinputs { grid-area: inputs; }
+body[data-elayout="capcut"] .prop-row .kfnav { grid-area: kf; }
+body[data-elayout="capcut"] .prop-row .kfnav button:not(.kbtn) { display: none; }
+body[data-elayout="capcut"] .sheet input[type="range"], body[data-elayout="nova"] .sheet input[type="range"] { -webkit-appearance: none; appearance: none; height: 22px; background: transparent; }
+body[data-elayout="capcut"] .sheet input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: #4a4a4a; }
+body[data-elayout="capcut"] .sheet input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8.5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px #000a; }
+body[data-elayout="capcut"] .sheet input[type="range"]::-moz-range-track { height: 3px; background: #4a4a4a; }
+body[data-elayout="capcut"] .sheet input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #fff; }
+body[data-elayout="capcut"] .pinputs input[type="number"] { background: transparent; border: 0; color: #fff; text-align: right; width: 54px; flex: none; font-size: 14px; }
+body[data-elayout="capcut"] .fx-card { background: transparent; border: 0; }
+body[data-elayout="capcut"] .fx-head { padding: 4px 0; }
+
+/* ---------- Blurrr: claro, régua de arrastar, cartões arredondados ---------- */
+body[data-elayout="blurrr"] .prop-row { grid-template-columns: 1fr auto; grid-template-areas: "label kf" "inputs inputs"; padding: 6px 0; }
+body[data-elayout="blurrr"] .prop-row .plabel { grid-area: label; color: #333; font-weight: 600; }
+body[data-elayout="blurrr"] .prop-row .pinputs { grid-area: inputs; }
+body[data-elayout="blurrr"] .prop-row .kfnav { grid-area: kf; }
+body[data-elayout="blurrr"] .prop-row .kfnav button { color: #999; }
+body[data-elayout="blurrr"] .prop-row .pinputs input.num, body[data-elayout="blurrr"] .prop-row[data-kind="angle"] input { width: 70px; flex: none; text-align: center; border-radius: 8px; }
+body[data-elayout="blurrr"] .fx-card { background: #f6f6f6; border: 0; border-radius: 14px; color: #111; }
+body[data-elayout="blurrr"] .insp-sec h4 { color: #555; }
+
+/* ---------- efeitos aplicados em faixa de miniaturas (CapCut / Blurrr / Nova) ---------- */
+.fxs-hint { font-size: 13px; color: #888; margin: 2px 0 8px; }
+.fxs-strip { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 4px 2px 12px; }
+.fxs-tile, .fxs-add { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 5px; border: 0; background: none; color: inherit; padding: 0; }
+.fxs-th { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 8px; border: 2px solid transparent; color: #fff; font-size: 26px; }
+.fxs-th .ico { width: 26px; height: 26px; }
+.fxs-add .fxs-th { background: #262626; }
+.fxs-tile.on .fxs-th { border-color: #fff; }
+.fxs-tile.off { opacity: .45; }
+.fxs-nm { font-size: 10.5px; line-height: 1.15; text-align: center; max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #cfcfcf; }
+.fxs .fx-card.collapsed .fx-body { display: block; }
+.fxs .fx-clip { margin-top: 10px; }
+.fxs-capcut .fxs-tile.on .fxs-th { border-color: #23c4dc; }
+.fxs-blurrr .fxs-add .fxs-th { background: #d6f53c; color: #111; border-radius: 16px; }
+.fxs-blurrr .fxs-th { border-radius: 16px; }
+.fxs-blurrr .fxs-tile.on .fxs-th { border-color: #111; }
+.fxs-blurrr .fxs-nm { color: #444; }
+.fxs-nova .fxs-tile.on .fxs-th { border-color: #22d97a; }
+
+/* ---------- presets no estilo de cada app ---------- */
+.lib-tabs { display: flex; gap: 18px; overflow-x: auto; scrollbar-width: none; padding: 2px 0 10px; align-items: center; }
+.lib-tabs button { flex: none; background: none; border: 0; color: #8a8a8a; font-size: 14px; padding: 4px 0; white-space: nowrap; border-bottom: 2px solid transparent; }
+.lib-tabs button.on { color: #fff; border-bottom-color: #fff; font-weight: 700; }
+.lib-sep { flex: none; width: 1px; height: 18px; background: #ccc; }
+.lib-m .lib-search { width: 100%; margin-bottom: 10px; }
+.lib-m .lib-grid { grid-template-columns: repeat(4, 1fr); gap: 12px 8px; }
+.lib-m .preset { border: 0; padding: 0; background: none; text-align: center; }
+.lib-m .preset-thumb { height: auto; aspect-ratio: 1; border-radius: 8px; margin-bottom: 4px; }
+.lib-m .preset-name { font-weight: 500; font-size: 11px; color: #ddd; }
+.lib-m .preset-meta { display: none; }
+.lib-m .preset-actions { opacity: 0; }
+.lib-m .preset:hover .preset-actions { opacity: 1; }
+.preset .pframes { display: none; }
+.lib-more { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid #ffffff14; }
+.lib-more button { font-size: 12px; padding: 7px 10px; }
+.lib-more .fit-toggle { flex: 1 1 100%; display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
+.lib-capcut .preset-thumb { border: 2px solid transparent; }
+.lib-capcut .preset:active .preset-thumb { border-color: #23c4dc; }
+.lib-blurrr .lib-tabs button { font-style: italic; font-size: 17px; color: #777; border: 0; }
+.lib-blurrr .lib-tabs button.on { color: #111; }
+.lib-blurrr .preset-thumb { border-radius: 14px; position: relative; }
+.lib-blurrr .preset { position: relative; }
+.lib-blurrr .preset .pframes { display: block; position: absolute; right: 6px; top: calc(100% - 46px); font: 800 11px system-ui; font-style: normal; color: #fff; text-shadow: 0 1px 3px #000; z-index: 2; }
+.lib-blurrr .preset-name { color: #555; font-size: 12px; }
+.lib-blurrr .lib-more { border-color: #eee; }
+.lib-alight .lib-grid { grid-template-columns: repeat(3, 1fr); }
+.lib-alight .preset-thumb { border: 3px solid #fff; border-radius: 8px; }
+.lib-alight .lib-tabs button.on { color: #2fd38a; border-bottom-color: #2fd38a; }
+.lib-nova .lib-grid { grid-template-columns: repeat(3, 1fr); }
+.lib-nova .lib-tabs button.on { color: #22d97a; border-bottom-color: #22d97a; }

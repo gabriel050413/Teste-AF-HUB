@@ -9,6 +9,38 @@ import { toast, modal } from './ui.js';
 import { pickFont, ensureFont } from './fonts.js';
 import { exportFFX } from './ffx-export-ui.js';
 import { exprError, EXPR_PRESETS } from './expr.js';
+import { thumbStyle, fxIcon } from './fx-browser.js';
+import { ico } from './icons.js';
+
+const lay = () => document.body.dataset.elayout || 'studio';
+// Máscaras prontas (como as do CapCut): caminho fechado no espaço da camada (0..w, 0..h)
+const MASKS = [['none', 'Nenhuma'], ['linear', 'Linear'], ['mirror', 'Espelho'], ['circle', 'Círculo'], ['rect', 'Retângulo'], ['heart', 'Coração'], ['star', 'Estrela']];
+const MASK_ICON = {
+  none: '<circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/>', linear: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16" stroke-dasharray="2 2"/><path d="M4 12h16v8H4z" fill="currentColor" stroke="none" opacity=".5"/>',
+  mirror: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16v6H4z" fill="currentColor" stroke="none" opacity=".5"/>', circle: '<circle cx="12" cy="12" r="7"/>',
+  rect: '<rect x="5" y="7" width="14" height="10" rx="1"/>', heart: '<path d="M12 19s-7-4.4-7-9.2A3.8 3.8 0 0112 7.6a3.8 3.8 0 017 2.2C19 14.6 12 19 12 19z"/>',
+  star: '<path d="M12 4l2.4 5 5.4.6-4 3.7 1.1 5.3L12 16l-4.9 2.6 1.1-5.3-4-3.7 5.4-.6z"/>',
+};
+function maskPath(kind, w, h, size = 1) {
+  const cx = w / 2, cy = h / 2, P = (pts) => { const out = []; pts.forEach((v, i) => out.push(v, v, pts[(i + 1) % pts.length])); return out; };
+  const s = Math.max(0.05, size);
+  if (kind === 'linear') return P([[-w, cy], [w * 2, cy], [w * 2, h * 2], [-w, h * 2]]);
+  if (kind === 'mirror') { const b = h * 0.18 * s; return P([[-w, cy - b], [w * 2, cy - b], [w * 2, cy + b], [-w, cy + b]]); }
+  if (kind === 'rect') { const a = w * 0.32 * s, b = h * 0.22 * s; return P([[cx - a, cy - b], [cx + a, cy - b], [cx + a, cy + b], [cx - a, cy + b]]); }
+  if (kind === 'star') { const out = [], R = Math.min(w, h) * 0.38 * s; for (let i = 0; i < 10; i++) { const r = i % 2 ? R * 0.45 : R, a = -Math.PI / 2 + (i * Math.PI) / 5; out.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); } return P(out); }
+  if (kind === 'circle') {
+    const r = Math.min(w, h) * 0.35 * s, k = r * 0.5523, V = [[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]], T = [[k, 0], [0, k], [-k, 0], [0, -k]];
+    const out = []; for (let i = 0; i < 4; i++) { const n = (i + 1) % 4; out.push(V[i], [V[i][0] + T[i][0], V[i][1] + T[i][1]], [V[n][0] - T[n][0], V[n][1] - T[n][1]]); } return out;
+  }
+  if (kind === 'heart') {
+    const r = Math.min(w, h) * 0.36 * s, q = (x, y) => [cx + x * r, cy + y * r];
+    return [q(0, -0.45), q(0.25, -1.05), q(1.1, -0.85), q(1, -0.25), q(0.95, 0.35), q(0.35, 0.65), q(0, 1), q(-0.35, 0.65), q(-0.95, 0.35), q(-1, -0.25), q(-1.1, -0.85), q(-0.25, -1.05)];
+  }
+  return null;
+}
+const layerSize = (l, p) => [l.props?.width || p.width, l.props?.height || p.height];
+const FRAG_TITLE = { move: 'Mover e transformar', fill: 'Cor e preenchimento', border: 'Borda e sombra', blend: 'Mesclagem e opacidade', mask: 'Máscara', sound: 'Volume', crop: 'Recortar' };
+export { FRAG_TITLE };
 
 /**
  * Campo numérico arrastável (como no After Effects): segurar e arrastar para os lados muda o valor;
@@ -219,6 +251,7 @@ export class Inspector {
     if (!['audio', 'adjustment', 'camera'].includes(layer.type)) rows.push(f('Camada 3D (câmera)', `<label class="switch"><input type="checkbox" data-three ${layer.threeD ? 'checked' : ''}><i></i></label>`));
     rows.push(f('Entrada (s)', `<input type="number" inputmode="decimal" data-layer="inPoint" step="0.01" value="${layer.inPoint.toFixed(2)}">`));
     rows.push(f('Saída (s)', `<input type="number" inputmode="decimal" data-layer="outPoint" step="0.01" value="${layer.outPoint.toFixed(2)}">`));
+    const parts = { layer: rows.join(''), sound: '', blendop: '', transform: '' };
     let html = this.section('layer', TYPE_NAMES[layer.type] || 'Camada', rows.join(''));
     if (layer.type === 'audio' || layer.type === 'video') {
       const sr = [];
@@ -228,20 +261,53 @@ export class Inspector {
       sr.push(f('Mudo', `<label class="switch"><input type="checkbox" data-prop="muted" ${p.muted ? 'checked' : ''}><i></i></label>`));
       sr.push(f('Fade in (s)', num('fadeIn', 0.05, 0, 30)));
       sr.push(f('Fade out (s)', num('fadeOut', 0.05, 0, 30)));
+      parts.sound = sr.join('');
       html += `<div data-section="sound">${this.section('sound', '🔊 Som', sr.join(''))}</div>`;
     }
     if (layer.type !== 'audio') {
       // Mesclagem e opacidade (Alight Motion): modo, opacidade e estilos prontos
       const op = Math.round(valueAt(layer.transform.opacity, this.store.time) ?? 100);
-      html += this.section('blendop', '◐ Mesclagem e opacidade', [
+      parts.blendop = [
         f('Modo', `<select data-layer="blend">${Object.entries(BLENDS).map(([k, l]) => `<option value="${k}" ${layer.blend === k ? 'selected' : ''}>${l}</option>`).join('')}</select>`),
         f('Opacidade %', `<input type="range" data-opacity min="0" max="100" step="1" value="${op}"><input type="number" class="num" data-opacity min="0" max="100" step="1" value="${op}">`),
         f('Duração do estilo (s)', `<input type="number" class="num" data-opdur min="0.05" max="10" step="0.05" value="${this.opDur ?? 0.4}">`),
         `<div class="op-styles">${OP_STYLES.map(([k, l]) => `<button data-opstyle="${k}">${l}</button>`).join('')}</div>`,
-      ].join(''));
-      html += this.section('transform', layer.threeD ? 'Transformar (3D)' : 'Transformar', transformDefs(layer).filter((d) => layer.transform[d.key]).map((d) => this.propRow(`transform.${d.key}`, d)).join(''));
+      ].join('');
+      html += this.section('blendop', '◐ Mesclagem e opacidade', parts.blendop);
+      parts.transform = transformDefs(layer).filter((d) => layer.transform[d.key]).map((d) => this.propRow(`transform.${d.key}`, d)).join('');
+      html += this.section('transform', layer.threeD ? 'Transformar (3D)' : 'Transformar', parts.transform);
     }
+    if (this.focus) return this.fragHtml(layer, this.focus, parts);
     return html;
+  }
+
+  /** Painel "fragmentado" (como os cartões do Alight Motion / ferramentas do CapCut): só uma parte das propriedades. */
+  fragHtml(layer, focus, parts) {
+    const L = lay();
+    let body = '';
+    if (focus === 'move') body = parts.transform || '<div class="empty-note">Esta camada não tem transformação.</div>';
+    else if (focus === 'fill') body = parts.layer;
+    else if (focus === 'blend') body = parts.blendop || '<div class="empty-note">Sem opacidade nesta camada.</div>';
+    else if (focus === 'sound') body = parts.sound || '<div class="empty-note">Esta camada não tem som.</div>';
+    else if (focus === 'border') {
+      const p = layer.props;
+      const f = (label, input) => `<label class="row"><span>${label}</span>${input}</label>`;
+      const rows = [];
+      if ('strokeWidth' in p) rows.push(f('Espessura da borda', `<input type="range" data-prop="strokeWidth" min="0" max="60" step="0.5" value="${p.strokeWidth || 0}"><input type="number" class="num" data-prop="strokeWidth" min="0" step="0.5" value="${p.strokeWidth || 0}">`), f('Cor da borda', `<input type="color" data-prop="strokeColor" value="${p.strokeColor || '#ffffff'}">`));
+      for (const type of ['outline', 'dropShadow']) {
+        const fx = layer.effects.find((e) => e.type === type);
+        const def = getEffectDef(type);
+        if (fx) rows.push(`<div class="frag-fx"><div class="frag-fx-h"><b>${escapeHtml(def.label)}</b><button data-delfx="${fx.id}" aria-label="Remover">✕</button></div>${def.params.filter((pd) => !pd.advanced && pd.kind !== 'hidden').map((pd) => this.propRow(`fx:${fx.id}.${pd.key}`, pd)).join('')}</div>`);
+        else rows.push(`<button class="wide frag-add" data-addfx="${type}">＋ ${type === 'outline' ? 'Borda (contorno)' : 'Sombra'}</button>`);
+      }
+      body = rows.join('');
+    } else if (focus === 'mask') {
+      const kind = layer.maskKind || 'none', m = (layer.masks || [])[0];
+      const fe = m ? (valueAt(m.feather, this.store.time)?.[0] ?? 0) : 0;
+      body = `<div class="mask-grid">${MASKS.map(([k, l]) => `<button class="${k === kind ? 'on' : ''}" data-mask="${k}"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">${MASK_ICON[k]}</svg><span>${l}</span></button>`).join('')}<button class="${m?.inverted ? 'on' : ''}" data-mask="invert"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor" opacity=".35"/><circle cx="12" cy="12" r="5" fill="var(--panel,#111)"/></svg><span>Inverter</span></button></div>
+        ${m ? `<label class="row"><span>Tamanho</span><input type="range" data-masksize min="0.1" max="2.5" step="0.01" value="${layer.maskSize ?? 1}"></label><label class="row"><span>Suavizar borda</span><input type="range" data-maskfeather min="0" max="300" step="1" value="${fe}"></label>` : '<div class="note muted">Escolha um formato para recortar a camada. Inverter mostra o lado de fora.</div>'}`;
+    }
+    return `<div class="frag frag-${focus} frag-${L}">${body}</div>`;
   }
 
   effectsHtml(layer) {
@@ -267,7 +333,24 @@ export class Inspector {
       </div>`;
     });
     const clip = fxClipboard();
-    return `<button class="wide primary add-fx" data-hook="browse">＋ Adicionar efeito</button>
+    const L = lay();
+    if (['capcut', 'blurrr', 'nova'].includes(L)) {
+      // CapCut/Blurrr/Nova: faixa de miniaturas dos efeitos aplicados; toca numa para ajustar só ela (painel fragmentado)
+      const sel = layer.effects.find((f) => f.id === this.selFx) || layer.effects[layer.effects.length - 1];
+      const idx = sel ? layer.effects.indexOf(sel) : -1;
+      const tile = (fx) => { const def = fx.type === 'generic' ? { label: fx.label, category: '' } : getEffectDef(fx.type) || {}; const e = { ...def, type: fx.type, label: fx.label || def.label || fx.type }; return `<button class="fxs-tile ${fx === sel ? 'on' : ''} ${fx.enabled ? '' : 'off'}" data-fxsel="${fx.id}"><span class="fxs-th" style="${thumbStyle(e)}">${ico(fxIcon(e))}</span><span class="fxs-nm">${escapeHtml(e.label.replace(/\s*\(.*?\)/g, ''))}</span></button>`; };
+      return `<div class="fxs fxs-${L}">
+        ${L === 'blurrr' ? '<div class="fxs-hint">Adicione efeitos e depois ajuste</div>' : ''}
+        <div class="fxs-strip"><button class="fxs-add" data-hook="browse"><span class="fxs-th">＋</span><span class="fxs-nm">Adicionar</span></button>${layer.effects.map(tile).join('')}</div>
+        ${sel ? cards[idx] : '<div class="empty-note">Nenhum efeito ainda. Toque em ＋ para escolher.</div>'}
+        <div class="fx-clip">
+          <button data-clip="copy" ${layer.effects.length ? '' : 'disabled'}>⎘ Copiar</button>
+          <button data-clip="paste" ${clip.length ? '' : 'disabled'}>📋 Colar${clip.length ? ` (${clip.length})` : ''}</button>
+          <button data-clip="save" ${layer.effects.length ? '' : 'disabled'}>★ Preset</button>
+          <button data-clip="ffx" ${layer.effects.length ? '' : 'disabled'}>⤓ .ffx</button>
+        </div></div>`;
+    }
+    return `<button class="wide primary add-fx" data-hook="browse">${L === 'alight' ? '+ Adicionar efeito' : '＋ Adicionar efeito'}</button>
       <div class="fx-clip">
         <button data-clip="copy" ${layer.effects.length ? '' : 'disabled'}>⎘ Copiar efeitos</button>
         <button data-clip="paste" ${clip.length ? '' : 'disabled'}>📋 Colar ${clip.length ? `(${clip.length})` : 'efeitos'}</button>
@@ -316,11 +399,18 @@ export class Inspector {
       case 'color': inputs = '<input type="color" data-i="c">'; break;
       case 'bool': inputs = '<label class="switch"><input type="checkbox" data-i="b"><i></i></label>'; break;
       case 'select': inputs = `<select data-i="s">${(d.options || []).map((o, i) => `<option value="${i + 1}">${escapeHtml(o)}</option>`).join('')}</select>`; break;
-      case 'angle': inputs = `<input type="number" inputmode="decimal" data-i="n" data-fid="${fid}" step="1"><span class="unit">°</span>`; break;
+      case 'angle': {
+        const L = lay();
+        const w = L === 'alight' ? '<span class="am-dial" data-pact="dial" title="Arraste em volta para girar"><i></i><b></b></span>'
+          : L === 'capcut' || L === 'nova' ? '<input type="range" data-i="r" min="-360" max="360" step="1">'
+          : L === 'blurrr' ? '<span class="bl-ruler" data-pact="ruler"></span>' : '';
+        inputs = `${w}<input type="number" inputmode="decimal" data-i="n" data-fid="${fid}" step="1"><span class="unit">°</span>`; break;
+      }
       case 'text': inputs = '<textarea data-i="t" rows="1" class="ptext"></textarea>'; break;
       default: {
         const hasRange = d.max !== undefined && d.min !== undefined;
-        inputs = `${hasRange ? `<input type="range" data-i="r" min="${d.min}" max="${d.max}" step="${d.step ?? 0.1}">` : ''}<input type="number" inputmode="decimal" class="num" data-i="n" data-fid="${fid}" step="${d.step ?? 0.1}">`;
+        const ruler = lay() === 'blurrr' ? '<span class="bl-ruler" data-pact="ruler"></span>' : '';
+        inputs = `${ruler || (hasRange ? `<input type="range" data-i="r" min="${d.min}" max="${d.max}" step="${d.step ?? 0.1}">` : '')}<input type="number" inputmode="decimal" class="num" data-i="n" data-fid="${fid}" step="${d.step ?? 0.1}" ${hasRange ? `data-min="${d.min}" data-max="${d.max}"` : ''}>`;
       }
     }
     return `<div class="prop-row" data-path="${path}" data-kind="${d.kind}">
@@ -376,6 +466,27 @@ export class Inspector {
       applyOpacityStyle(layer, b.dataset.opstyle, this.opDur ?? 0.4, store.project.fps);
       store.commit();
     }));
+    // painéis fragmentados: borda/sombra e máscaras prontas
+    root.querySelectorAll('[data-addfx]').forEach((b) => b.addEventListener('click', () => this.hooks.addFx?.(layer, b.dataset.addfx)));
+    root.querySelectorAll('[data-delfx]').forEach((b) => b.addEventListener('click', () => { layer.effects = layer.effects.filter((e) => e.id !== b.dataset.delfx); store.commit(); }));
+    const setMask = (kind, keepInv) => {
+      const [w, h] = layerSize(layer, store.project);
+      const old = (layer.masks || [])[0];
+      if (kind === 'none') { layer.masks = []; delete layer.maskKind; store.commit(); return; }
+      const pts = maskPath(kind, w, h, layer.maskSize ?? 1);
+      layer.maskKind = kind;
+      layer.masks = [{ name: 'Máscara', mode: 1, inverted: keepInv ? !!old?.inverted : false, path: { shapes: [{ closed: true, pts }], times: [] }, feather: old?.feather || anim([0, 0]), opacity: anim(100), expansion: anim(0) }];
+    };
+    root.querySelectorAll('[data-mask]').forEach((b) => b.addEventListener('click', () => {
+      const k = b.dataset.mask;
+      if (k === 'invert') { const m = (layer.masks || [])[0]; if (!m) return toast('Escolha um formato de máscara primeiro.', 'warn'); m.inverted = !m.inverted; store.commit(); return; }
+      setMask(k, true); store.commit();
+    }));
+    root.querySelector('[data-masksize]')?.addEventListener('input', (e) => { layer.maskSize = +e.target.value; setMask(layer.maskKind || 'circle', true); store.emit('preview'); });
+    root.querySelector('[data-masksize]')?.addEventListener('change', () => store.commit());
+    root.querySelector('[data-maskfeather]')?.addEventListener('input', (e) => { const m = (layer.masks || [])[0]; if (!m) return; m.feather = anim([+e.target.value, +e.target.value]); store.emit('preview'); });
+    root.querySelector('[data-maskfeather]')?.addEventListener('change', () => store.commit());
+    root.querySelectorAll('[data-fxsel]').forEach((b) => b.addEventListener('click', () => { this.selFx = b.dataset.fxsel; this.render(); }));
     root.querySelector('[data-parent]')?.addEventListener('change', (e) => {
       const np = store.layers.find((o) => o.id === e.target.value) || null;
       for (const o of new Set([layer, ...(store.selectedLayers?.() || [])])) if (o !== np) reparent(o, np, store.project, store.time);
@@ -524,6 +635,26 @@ export class Inspector {
         });
         return;
       }
+      if (act === 'dial' || act === 'ruler') {
+        el.addEventListener('pointerdown', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          el.setPointerCapture(e.pointerId);
+          const v0 = valueAt(prop, store.time), num = row.querySelector('[data-i="n"]');
+          const step = parseFloat(num?.step) || 1, mn = parseFloat(num?.dataset.min), mx = parseFloat(num?.dataset.max);
+          const clamp = (v) => Math.max(Number.isFinite(mn) ? mn : -Infinity, Math.min(Number.isFinite(mx) ? mx : Infinity, v));
+          const r = el.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          const ang = (ev) => (Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI;
+          let last = ang(e), acc = 0, moved = false;
+          const x0 = e.clientX;
+          el.onpointermove = (ev) => {
+            moved = true;
+            if (act === 'dial') { const a = ang(ev); let d = a - last; if (d > 180) d -= 360; if (d < -180) d += 360; last = a; acc += d; write(Math.round((v0 + acc) * 10) / 10); }
+            else write(clamp(Math.round((v0 + (x0 - ev.clientX) * step * (step < 1 ? 1 : 0.5)) * 100) / 100));
+          };
+          el.onpointerup = () => { el.onpointermove = null; if (moved) store.commit(); };
+        });
+        return;
+      }
       if (act === 'expr') {
         el.classList.toggle('on', !!prop.expr && prop.exprOn !== false);
         row.classList.toggle('has-expr', !!prop.expr && prop.exprOn !== false);
@@ -557,6 +688,8 @@ export class Inspector {
       else if (kind === 'select') set('[data-i="s"]', Math.round(v));
       else if (kind === 'text') set('[data-i="t"]', v ?? '');
       else { set('[data-i="n"]', round(v)); set('[data-i="r"]', v); }
+      const dial = row.querySelector('.am-dial i'); if (dial) dial.style.transform = `rotate(${v}deg)`;
+      const rl = row.querySelector('.bl-ruler'); if (rl && typeof v === 'number') rl.style.backgroundPositionX = `${-v * 4}px`;
       row.classList.toggle('animated', isAnimated(prop));
       row.classList.toggle('on-key', keyIndexAt(prop, t) >= 0);
     }

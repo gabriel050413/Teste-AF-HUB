@@ -30,13 +30,13 @@ const MOBILE_TABS = [['Em alta', null], ['Básico', ['Cor', 'Desfoque']], ['Fest
 const HUE = { 'Luz e brilho': 45, Movimento: 200, Tempo: 260, Desfoque: 215, Estilizar: 320, Distorção: 290, Cor: 25, '3D': 180, Transições: 150, 'Fundos animados': 340 };
 const hashN = (str) => { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 // miniatura: cor da categoria variando por efeito + forma (raios, ondas, grade…) — cada efeito fica com cara própria
-const thumbStyle = (e) => {
+export const thumbStyle = (e) => {
   const n = hashN(e.type), h = ((HUE[e.category] ?? n % 360) + (n % 50) - 25 + 360) % 360, a = 120 + (n % 120);
   const pat = [`radial-gradient(circle at ${20 + (n % 60)}% ${25 + (n >> 3) % 50}%,hsl(${h} 90% 70% / .9),transparent 55%)`, `repeating-linear-gradient(${n % 180}deg,hsl(${h} 80% 60% / .25) 0 6px,transparent 6px 14px)`, `conic-gradient(from ${n % 360}deg,hsl(${h} 80% 55% / .6),transparent 40%,hsl(${(h + 60) % 360} 80% 55% / .5) 70%,transparent)`][n % 3];
   return `background:${pat},linear-gradient(${a}deg,hsl(${h} 65% 38%),hsl(${(h + 45) % 360} 70% 16%))`;
 };
 const FX_ICON = [[/glow|bril|light|luz|flare|shine|starg/i, 'sun'], [/shake|tremor|wiggle|twitch/i, 'wave'], [/blur|desfoq/i, 'blur'], [/glitch|rgb|chrom|vhs|datamosh/i, 'distort'], [/zoom|scale|escala/i, 'max'], [/tempo|time|echo|eco|twixtor|speed|veloc/i, 'speed'], [/color|cor|cc|tint|lut|look|grade/i, 'color'], [/3d|cube|camera/i, 'cube'], [/wipe|transi/i, 'transition'], [/noise|grain|ruído|film/i, 'sparkle']];
-const fxIcon = (e) => FX_ICON.find(([re]) => re.test(`${e.type} ${e.label}`))?.[1] || ICON[e.category] || 'effects';
+export const fxIcon = (e) => FX_ICON.find(([re]) => re.test(`${e.type} ${e.label}`))?.[1] || ICON[e.category] || 'effects';
 
 /** Escolhe arquivos .aex ou uma pasta inteira (o navegador lista tudo o que há dentro). */
 function pickAex(folder) {
