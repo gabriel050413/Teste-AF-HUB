@@ -1,7 +1,7 @@
 // IA que gera interfaces (temas/layouts) para o MotionFrame. Usa a API da Anthropic se ANTHROPIC_API_KEY existir;
 // senão cai num gerador procedural (cores e formas derivadas do texto do pedido), então sempre devolve algo utilizável.
 export const FONTS = ['Inter', 'system', 'serif', 'mono', 'rounded'];
-export const LAYOUTS = ['nova', 'capcut', 'blurrr', 'motion', 'ae'];
+export const LAYOUTS = ['studio', 'capcut', 'blurrr', 'motion', 'ae'];
 
 const hex = (v, d) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v).toLowerCase() : d);
 const clamp = (n, a, b, d) => (Number.isFinite(+n) ? Math.min(b, Math.max(a, +n)) : d);
@@ -12,7 +12,7 @@ export function sanitizeTheme(t, prompt = '') {
     name: String(t.name || prompt || 'Interface IA').slice(0, 40),
     bg: hex(t.bg, '#141414'), panel: hex(t.panel, '#1d1d1d'), panel2: hex(t.panel2, '#262626'), line: hex(t.line, '#333333'),
     text: hex(t.text, '#eeeeee'), muted: hex(t.muted, '#9a9a9a'), accent: hex(t.accent, '#2d8ceb'), accent2: hex(t.accent2, '#6fb7ff'),
-    radius: clamp(t.radius, 0, 24, 12), font: FONTS.includes(t.font) ? t.font : 'Inter', layout: LAYOUTS.includes(t.layout) ? t.layout : 'nova',
+    radius: clamp(t.radius, 0, 24, 12), font: FONTS.includes(t.font) ? t.font : 'Inter', layout: LAYOUTS.includes(t.layout) ? t.layout : 'studio',
     rows: ['compact', 'normal', 'big'].includes(t.rows) ? t.rows : 'normal',
   };
 }
@@ -43,14 +43,14 @@ export function proceduralTheme(prompt) {
     line: light ? hsl2hex(hue, 12, 82) : hsl2hex(hue, 12, 24), text: light ? '#15171a' : '#f2f2f5', muted: light ? '#6a6f78' : '#9a9aa6',
     accent: hsl2hex(hue, sat, neon ? 58 : 55), accent2: hsl2hex((hue + (neon ? 40 : 20)) % 360, sat, 68),
     radius: round ? 22 : sharp ? 3 : 12, font: mono ? 'mono' : /el?egante|serif|cl[aá]ssic|revista/i.test(p) ? 'serif' : round ? 'rounded' : 'Inter',
-    layout: /capcut|tiktok/i.test(p) ? 'capcut' : /after|ae\b|pro\b/i.test(p) ? 'ae' : /motion|anima/i.test(p) ? 'motion' : /blur/i.test(p) ? 'blurrr' : 'nova',
+    layout: /capcut|tiktok/i.test(p) ? 'capcut' : /after|ae\b|pro\b/i.test(p) ? 'ae' : /motion|anima/i.test(p) ? 'motion' : /blur/i.test(p) ? 'blurrr' : 'studio',
     rows: /compact|denso|pequen/i.test(p) ? 'compact' : /grande|big|toque|dedo/i.test(p) ? 'big' : 'normal',
   }, p);
 }
 
 const SYSTEM = `Você desenha interfaces para um editor de vídeo/motion mobile (MotionFrame). Responda APENAS um JSON com os campos:
 name (curto), bg, panel, panel2, line, text, muted, accent, accent2 (hex #rrggbb; mantenha contraste legível entre text e bg/panel),
-radius (0-24), font (Inter|system|serif|mono|rounded), layout (nova|capcut|blurrr|motion|ae), rows (compact|normal|big).`;
+radius (0-24), font (Inter|system|serif|mono|rounded), layout (studio|capcut|blurrr|motion|ae), rows (compact|normal|big).`;
 
 export async function generateTheme(prompt, { apiKey = '', model = 'claude-sonnet-5-5', fetchImpl = fetch } = {}) {
   if (!apiKey) return { theme: proceduralTheme(prompt), engine: 'procedural' };

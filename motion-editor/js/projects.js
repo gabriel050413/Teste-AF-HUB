@@ -1,14 +1,15 @@
 // Projetos (como no Alight Motion): vários projetos salvos no aparelho, tela inicial com a lista,
 // criar/abrir/duplicar/renomear/excluir/exportar e configurações do app.
 import { storage, modal, toast } from './ui.js';
+import { ico } from './icons.js';
 import { escapeHtml, uid } from './util.js';
 import { flatLayers } from './state.js';
 import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v181';
-export const APP_LABEL = 'v1.8.1';
+export const APP_VERSION = 'v182';
+export const APP_LABEL = 'v1.8.2';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -134,16 +135,11 @@ const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padSta
 const fmtDate = (t) => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 /** Tela inicial. hooks: open(id), create(), importProject(), importAE(), presets(), settings() */
-/** Ferramentas de IA da tela inicial: [comando, ícone, nome, descrição]. */
+/** Ferramentas da tela inicial: [comando, ícone, nome]. */
 const AI_TOOLS = [
-  ['bg-remove', '✂', 'Recortar fundo', 'Isola o sujeito e deixa o fundo transparente'],
-  ['topaz', '⤢', 'Aumentar resolução', 'Qualidade de cinema com modelos estilo Topaz'],
-  ['captions', 'CC', 'Legendas automáticas', 'Transcreve a fala e cria as legendas'],
-  ['voice', '🎙', 'Narração', 'Gera voz para o seu texto'],
-  ['beat-sync', '♪', 'Cortar na batida', 'Sincroniza os cortes com a música'],
-  ['font-id', '🔤', 'Identificar fonte', 'Descobre a fonte de um print'],
-  ['logo-anim', '✦', 'Animar logo', 'Dá vida à sua logo em segundos'],
-  ['calibrate', '🎨', 'Copiar CC de um print', 'Iguala as cores a um frame do After Effects'],
+  ['bg-remove', 'scissors', 'Recortar fundo'], ['topaz', 'upscale', 'Aumentar qualidade'], ['captions', 'captions', 'Legendas'],
+  ['voice', 'mic', 'Narração'], ['beat-sync', 'beat', 'Cortar na batida'], ['font-id', 'font', 'Achar fonte'],
+  ['logo-anim', 'wand', 'Animar logo'], ['calibrate', 'palette', 'CC de um print'],
 ];
 
 export class HomeScreen {
@@ -160,52 +156,49 @@ export class HomeScreen {
 
   tabNav() {
     const t = this.tab || 'home';
-    const b = (id, ic, lb, extra = '') => `<button class="${t === id ? 'on' : ''}" data-h="tab" data-id="${id}"><span>${ic}</span>${lb}</button>${extra}`;
-    return `<nav class="c-nav home-nav">${b('home', '⌂', 'Início')}${b('projects', '▤', 'Projetos')}<button class="nav-plus" data-h="plus" aria-label="Novo"><span>＋</span></button>${b('presets', '★', 'Presets')}${b('profile', '☺', 'Perfil')}</nav>`;
+    const b = (id, icon, lb) => `<button class="${t === id ? 'on' : ''}" data-h="tab" data-id="${id}">${ico(icon)}<span>${lb}</span></button>`;
+    return `<nav class="mf-nav">${b('home', 'home', 'Início')}${b('projects', 'grid', 'Projetos')}<button class="mf-plus" data-h="plus" aria-label="Criar">${ico('plus')}</button>${b('presets', 'presets', 'Presets')}${b('profile', 'user', 'Perfil')}</nav>`;
   }
 
   projectCard(p, small) {
-    return `<div class="proj-card ${small ? 'small' : ''}" data-id="${p.id}">
-      <button class="proj-thumb" data-h="open" data-id="${p.id}" style="aspect-ratio:${small ? '1/1' : `${p.w}/${p.h}`}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<span class="muted">sem prévia</span>'}<span class="proj-dur">${fmtDur(p.duration || 0)}</span></button>
-      <div class="proj-info"><div class="proj-name">${escapeHtml(p.name)}</div><div class="muted small">${p.w}×${p.h} · ${p.fps}fps · ${fmtDate(p.updated)}</div></div>
-      <button class="icon proj-more" data-h="more" data-id="${p.id}" aria-label="Opções">⋯</button></div>`;
+    return `<div class="mf-proj ${small ? 'small' : ''}" data-id="${p.id}">
+      <button class="mf-thumb" data-h="open" data-id="${p.id}" style="aspect-ratio:${small ? '3/4' : `${p.w}/${p.h}`}">${p.thumb ? `<img src="${p.thumb}" alt="">` : `<span class="mf-noprev">${ico('media')}</span>`}
+        <span class="mf-proj-meta"><b>${escapeHtml(p.name)}</b><small>${fmtDur(p.duration || 0)} · ${p.w}×${p.h}</small></span></button>
+      <button class="mf-more" data-h="more" data-id="${p.id}" aria-label="Opções">${ico('more')}</button></div>`;
   }
 
   render() {
     const list = listProjects();
     const tab = this.tab || 'home';
-    const logo = `<div class="home-logo"><img class="logo-mark" src="icons/icon.svg" alt="" width="28" height="28" style="vertical-align:-7px;border-radius:7px"> MotionFrame <span class="muted small" style="font-weight:400" title="build ${APP_VERSION}">${APP_LABEL}</span></div>`;
-    const top = (title, sub) => `<header class="home-top">${tab === 'home' ? logo : `<div><div class="home-title">${title}</div>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`}
-      <span class="home-top-btns"><button class="icon" data-h="interface" aria-label="Interface e layouts" title="Interface e layouts">🎨</button><button class="icon" data-h="settings" aria-label="Configurações">⚙</button></span></header>`;
+    const icoBtn = (h, icon, label) => `<button class="mf-icon" data-h="${h}" aria-label="${label}" title="${label}">${ico(icon)}</button>`;
+    const top = (title, sub) => `<header class="mf-top">${tab === 'home'
+      ? `<div class="mf-brand"><img src="icons/icon.svg" alt="" width="30" height="30"><span>MotionFrame<small title="build ${APP_VERSION}">${APP_LABEL}</small></span></div>`
+      : `<div><h1 class="mf-h1">${title}</h1>${sub ? `<div class="mf-sub">${sub}</div>` : ''}</div>`}
+      <span class="mf-top-btns">${icoBtn('interface', 'layout', 'Interface e layouts')}${icoBtn('settings', 'settings', 'Configurações')}</span></header>`;
+    const row = (h, icon, title, sub, id = '') => `<button class="mf-row" data-h="${h}" ${id ? `data-id="${id}"` : ''}><span class="mf-row-ic">${ico(icon)}</span><span><b>${title}</b><small>${sub}</small></span>${ico('back', 'mf-chev')}</button>`;
     let body = '';
     if (tab === 'home') {
-      body = `${top()}<div class="home-body">
-        <div class="home-sec"><h3>Seus projetos</h3>${list.length > 4 ? '<button class="c-link" data-h="tab" data-id="projects">Ver todos ›</button>' : ''}</div>
-        ${list.length ? `<div class="home-strip">${list.slice(0, 8).map((p) => this.projectCard(p, true)).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋</b> para começar.</div>'}
-        <div class="home-sec"><h3>Ferramentas de IA</h3></div>
-        <div class="tool-grid">${AI_TOOLS.map(([id, ic, name, desc]) => `<button class="tool-card" data-h="tool" data-id="${id}"><span class="tool-ic">${ic}</span><b>${name}</b><small class="muted">${desc}</small></button>`).join('')}</div>
-        <div class="home-sec"><h3>Comunidade</h3></div>
-        <div class="tool-grid two"><button class="tool-card" data-h="cloud" data-id="feed"><span class="tool-ic">▶</span><b>Feed de edits</b><small class="muted">Veja, poste e venda edits</small></button>
-          <button class="tool-card" data-h="cloud" data-id="market"><span class="tool-ic">★</span><b>Mercado de presets</b><small class="muted">Compre e venda por pontos</small></button></div>
+      body = `${top()}<div class="mf-body">
+        <section class="mf-hero"><div class="mf-hero-txt"><h2>O que vamos criar hoje?</h2><p>Edits, motion e CC com presets e efeitos do After Effects.</p></div>
+          <div class="mf-hero-btns"><button class="mf-btn primary" data-h="newProject">${ico('plus')}Novo projeto</button><button class="mf-btn" data-h="create">${ico('media')}Usar vídeos</button></div></section>
+        <div class="mf-sec"><h3>Recentes</h3>${list.length ? '<button class="mf-link" data-h="tab" data-id="projects">Ver todos</button>' : ''}</div>
+        ${list.length ? `<div class="mf-strip">${list.slice(0, 10).map((p) => this.projectCard(p, true)).join('')}</div>` : `<div class="mf-empty">${ico('folder')}<span>Seus projetos aparecem aqui.</span></div>`}
+        <div class="mf-sec"><h3>Ferramentas</h3></div>
+        <div class="mf-tools">${AI_TOOLS.map(([id, icon, name]) => `<button class="mf-tool" data-h="tool" data-id="${id}"><span>${ico(icon)}</span><small>${name}</small></button>`).join('')}</div>
+        <div class="mf-sec"><h3>Comunidade</h3></div>
+        <div class="mf-list">${row('cloud', 'feed', 'Feed de edits', 'Poste, curta e venda seus edits', 'feed')}${row('cloud', 'store', 'Mercado de presets', 'Compre e venda com pontos', 'market')}${row('cloud', 'chat', 'Conversas', 'Fale com outros editores', 'chat')}</div>
         <div class="home-recover"></div></div>`;
     } else if (tab === 'projects') {
-      body = `${top('Seus projetos', 'Organize, edite e continue criando.')}<div class="home-body">
-        <div class="home-actions"><button data-h="createAdvanced"><span>⚙</span>Personalizado</button><button data-h="importProject"><span>📂</span>Abrir projeto</button><button data-h="importLink"><span>🔗</span>De link</button><button data-h="importAE"><span>Ae</span>Do After Effects</button></div>
+      body = `${top('Projetos', `${list.length} projeto(s) neste aparelho`)}<div class="mf-body">
+        <div class="mf-chips"><button data-h="newProject">${ico('plus')}Novo</button><button data-h="importProject">${ico('folder')}Abrir</button><button data-h="importLink">${ico('link')}Link</button><button data-h="importAE">${ico('ae')}After Effects</button><button data-h="transfer">${ico('export')}Transferir</button></div>
         <div class="home-recover"></div>
-        <h3 class="home-h">Projetos <span class="muted small">${list.length}</span></h3>
-        ${list.length ? `<div class="home-grid">${list.map((p) => this.projectCard(p, false)).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋</b> para começar.</div>'}
-        <details class="home-more"><summary>Mais opções</summary><div class="home-actions">
-          <button data-h="transfer"><span>📦</span>Transferir tudo</button><button data-h="plugins"><span>⤒</span>Plugins (.aex)</button>
-          <button data-h="logoAnim"><span>✦</span>Animar minha logo</button><button data-h="demoLogo"><span>▶</span>Demo: logo animada</button></div></details></div>`;
+        ${list.length ? `<div class="mf-grid">${list.map((p) => this.projectCard(p, false)).join('')}</div>` : `<div class="mf-empty">${ico('folder')}<span>Nenhum projeto ainda. Toque em ＋ para começar.</span></div>`}
+        <div class="mf-list" style="margin-top:18px">${row('logoAnim', 'wand', 'Animar minha logo', 'Logo animada em segundos')}${row('demoLogo', 'play', 'Projeto de exemplo', 'Logo animada editável')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins do After Effects')}</div></div>`;
     } else if (tab === 'presets') {
-      body = `${top('Presets', 'Presets de verdade, rodando no app. Toque para ver.')}<div class="home-body">
-        <button class="home-new" data-h="presets"><span class="plus">★</span><span><b>Meus presets e biblioteca</b><br><span class="muted small">Shakes, CCs, transições, textos e os .ffx que você importou</span></span></button>
-        <div class="tool-grid two"><button class="tool-card" data-h="cloud" data-id="market"><span class="tool-ic">⬇</span><b>Comunidade</b><small class="muted">Baixe presets de outros editores</small></button>
-          <button class="tool-card" data-h="cloudSell"><span class="tool-ic">⬆</span><b>Vender preset</b><small class="muted">Publique e ganhe pontos</small></button>
-          <button class="tool-card" data-h="importAE"><span class="tool-ic">Ae</span><b>Importar do After Effects</b><small class="muted">.ffx, .aep — efeitos e keyframes viram presets</small></button>
-          <button class="tool-card" data-h="plugins"><span class="tool-ic">⤒</span><b>Plugins (.aex)</b><small class="muted">Mapeia seus plugins para efeitos do app</small></button></div></div>`;
+      body = `${top('Presets', 'Biblioteca, comunidade e After Effects')}<div class="mf-body">
+        <div class="mf-list">${row('presets', 'presets', 'Minha biblioteca', 'Shakes, CCs, transições, textos e seus .ffx')}${row('cloud', 'download', 'Presets da comunidade', 'Baixe presets de outros editores', 'market')}${row('cloudSell', 'upload', 'Vender um preset', 'Publique e ganhe pontos')}${row('importAE', 'ae', 'Importar do After Effects', '.ffx e .aep viram presets com efeitos e keyframes')}${row('plugins', 'plug', 'Plugins (.aex)', 'Mapeia seus plugins para efeitos do app')}</div></div>`;
     } else {
-      body = `${top('Perfil')}<div class="home-body"><div class="home-empty">Abrindo perfil…</div></div>`;
+      body = `${top('Perfil')}<div class="mf-body"><div class="mf-empty">${ico('user')}<span>Abrindo perfil…</span></div></div>`;
     }
     this.el.innerHTML = `${body}${this.tabNav()}`;
     this.el.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => this.action(b.dataset.h, b.dataset.id)));
@@ -215,7 +208,7 @@ export class HomeScreen {
 
   /** Botão ＋ do meio: o que você quer criar. */
   async plus() {
-    const r = await modal('Criar', `<div class="menu-list"><button data-m="new">🆕 Novo projeto (escolher formato)</button><button data-m="quick">🎞 Começar com vídeos / fotos</button><button data-m="open">📂 Abrir projeto ou arquivo .aep</button><button data-m="link">🔗 Importar de link</button></div>`, [{ label: 'Fechar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))) });
+    const r = await modal('Criar', `<div class="mf-list"><button class="mf-row" data-m="new"><span class="mf-row-ic">${ico('plus')}</span><span><b>Novo projeto</b><small>Formato, resolução e fps</small></span></button><button class="mf-row" data-m="quick"><span class="mf-row-ic">${ico('media')}</span><span><b>Começar com vídeos</b><small>Os clipes entram em sequência, com som</small></span></button><button class="mf-row" data-m="open"><span class="mf-row-ic">${ico('folder')}</span><span><b>Abrir arquivo</b><small>Projeto, .aep, XML ou .zip</small></span></button><button class="mf-row" data-m="link"><span class="mf-row-ic">${ico('link')}</span><span><b>Importar de link</b><small>Google Drive, Dropbox ou OneDrive</small></span></button></div>`, [{ label: 'Fechar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))) });
     if (r === 'new') this.hooks.newProject?.(); else if (r === 'quick') this.hooks.create?.(); else if (r === 'open') this.hooks.importProject?.(); else if (r === 'link') this.hooks.importLink?.();
   }
 
@@ -223,6 +216,7 @@ export class HomeScreen {
     if (h === 'more') return this.more(id);
     if (h === 'tab') { this.tab = id; this.render(); return; }
     if (h === 'plus') return this.plus();
+    if (h === 'newProject') return this.hooks.newProject?.();
     if (h === 'tool') return this.hooks.tool?.(id);
     await this.hooks[h]?.(id);
   }
