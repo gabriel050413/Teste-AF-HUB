@@ -1881,3 +1881,12 @@ body[data-elayout="nova"] :is(.tr-top, .cmp-bar) { background: #141c2b !importan
 .crs-coach .crs-btn:disabled{opacity:.35}
 .crs-coach.min h4,.crs-coach.min .crs-txt{display:none}
 body[data-pc] .crs-coach{left:auto;right:18px;transform:none}
+
+/* ---- v1.9.10: elementos .ai grátis */
+.aia-tabs{margin:8px 0}
+.aia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;max-height:55vh;overflow:auto;padding:2px}
+.aia-it{display:flex;flex-direction:column;gap:4px;align-items:stretch;font-size:12px}
+.aia-it span{opacity:.8;line-height:1.2}
+.aia-add{aspect-ratio:1;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:repeating-conic-gradient(#d9d9de 0 25%,#f2f2f5 0 50%) 0 0/16px 16px;display:grid;place-items:center;padding:8px;cursor:pointer}
+.aia-add img{max-width:100%;max-height:100%;object-fit:contain}
+.aia-dl{font-size:11px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;cursor:pointer}

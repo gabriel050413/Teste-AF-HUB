@@ -214,7 +214,7 @@ export class Inspector {
         rows.push(f('Cor contorno', color('strokeColor')));
         // caixa atrás do texto (estilo "fundo" do TikTok / Instagram)
         rows.push(f('Caixa de fundo', `<label class="switch"><input type="checkbox" data-prop="bgOn" ${p.bgOn ? 'checked' : ''}><i></i></label>`));
-        if (p.bgOn) rows.push(f('Cor da caixa', `<input type="color" data-prop="bgColor" value="${p.bgColor || '#ffffff'}">`), f('Opacidade caixa %', `<input type="number" class="num" data-prop="bgOpacity" min="0" max="100" step="1" value="${p.bgOpacity ?? 100}">`), f('Margem da caixa', `<input type="number" class="num" data-prop="bgPad" min="0" step="1" value="${p.bgPad ?? Math.round(p.fontSize * 0.22)}">`), f('Arredondar', `<input type="number" class="num" data-prop="bgRadius" min="0" step="1" value="${p.bgRadius ?? Math.round(p.fontSize * 0.22)}">`));
+        if (p.bgOn) rows.push(f('Cor da caixa', `<input type="color" data-prop="bgColor" value="${p.bgColor || '#ffffff'}">`), f('Opacidade caixa %', `<input type="number" class="num" data-prop="bgOpacity" min="0" max="100" step="1" value="${p.bgOpacity ?? 100}">`), f('Margem da caixa', `<input type="number" class="num" data-prop="bgPad" min="0" step="1" value="${p.bgPad ?? Math.round(p.fontSize * 0.22)}">`), f('Arredondar', `<input type="number" class="num" data-prop="bgRadius" min="0" step="1" value="${p.bgRadius ?? Math.round(p.fontSize * 0.22)}">`, f('Contorno da caixa', `<input type="number" class="num" data-prop="bgStrokeW" min="0" step="1" value="${p.bgStrokeW ?? 0}">`), f('Cor do contorno', `<input type="color" data-prop="bgStroke" value="${p.bgStroke || '#111111'}">`)));
         break;
       case 'video':
         rows.push(f('Início no vídeo (s)', num('sourceStart', 0.01, 0)));

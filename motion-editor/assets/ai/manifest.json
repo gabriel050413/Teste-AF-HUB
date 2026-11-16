@@ -1,0 +1,340 @@
+{
+ "packs": {
+  "iphone": "iPhone / iOS",
+  "retro": "Retrô / Y2K",
+  "mograph": "Mograph (rabiscos e caixas)",
+  "manga": "Mangá"
+ },
+ "license": "Desenhos originais do MotionFrame — livres para usar em edits (uso pessoal e comercial).",
+ "items": [
+  {
+   "pack": "iphone",
+   "id": "status-bar",
+   "name": "Barra de status",
+   "svg": "assets/ai/iphone/status-bar.svg",
+   "ai": "assets/ai/iphone/status-bar.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "dynamic-island",
+   "name": "Ilha (pílula preta)",
+   "svg": "assets/ai/iphone/dynamic-island.svg",
+   "ai": "assets/ai/iphone/dynamic-island.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "notification",
+   "name": "Notificação",
+   "svg": "assets/ai/iphone/notification.svg",
+   "ai": "assets/ai/iphone/notification.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "bubble-blue",
+   "name": "Balão azul (enviado)",
+   "svg": "assets/ai/iphone/bubble-blue.svg",
+   "ai": "assets/ai/iphone/bubble-blue.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "bubble-gray",
+   "name": "Balão cinza (recebido)",
+   "svg": "assets/ai/iphone/bubble-gray.svg",
+   "ai": "assets/ai/iphone/bubble-gray.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "search-bar",
+   "name": "Barra de busca",
+   "svg": "assets/ai/iphone/search-bar.svg",
+   "ai": "assets/ai/iphone/search-bar.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "world-clock",
+   "name": "Relógio mundial",
+   "svg": "assets/ai/iphone/world-clock.svg",
+   "ai": "assets/ai/iphone/world-clock.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "notes",
+   "name": "Notas (página)",
+   "svg": "assets/ai/iphone/notes.svg",
+   "ai": "assets/ai/iphone/notes.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "language",
+   "name": "Idiomas (lista com globo)",
+   "svg": "assets/ai/iphone/language.svg",
+   "ai": "assets/ai/iphone/language.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "music-player",
+   "name": "Player de música",
+   "svg": "assets/ai/iphone/music-player.svg",
+   "ai": "assets/ai/iphone/music-player.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "lock-time",
+   "name": "Hora da tela bloqueada",
+   "svg": "assets/ai/iphone/lock-time.svg",
+   "ai": "assets/ai/iphone/lock-time.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "keyboard",
+   "name": "Teclado",
+   "svg": "assets/ai/iphone/keyboard.svg",
+   "ai": "assets/ai/iphone/keyboard.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "control-tiles",
+   "name": "Central de controle (blocos)",
+   "svg": "assets/ai/iphone/control-tiles.svg",
+   "ai": "assets/ai/iphone/control-tiles.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "map-pin",
+   "name": "Mapa com pino",
+   "svg": "assets/ai/iphone/map-pin.svg",
+   "ai": "assets/ai/iphone/map-pin.ai"
+  },
+  {
+   "pack": "iphone",
+   "id": "alarm",
+   "name": "Alarme (card)",
+   "svg": "assets/ai/iphone/alarm.svg",
+   "ai": "assets/ai/iphone/alarm.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "window",
+   "name": "Janela retrô",
+   "svg": "assets/ai/retro/window.svg",
+   "ai": "assets/ai/retro/window.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "error",
+   "name": "Caixa de erro retrô",
+   "svg": "assets/ai/retro/error.svg",
+   "ai": "assets/ai/retro/error.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "cassette",
+   "name": "Fita cassete",
+   "svg": "assets/ai/retro/cassette.svg",
+   "ai": "assets/ai/retro/cassette.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "crt-tv",
+   "name": "TV de tubo (moldura)",
+   "svg": "assets/ai/retro/crt-tv.svg",
+   "ai": "assets/ai/retro/crt-tv.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "pixel-heart",
+   "name": "Coração pixel",
+   "svg": "assets/ai/retro/pixel-heart.svg",
+   "ai": "assets/ai/retro/pixel-heart.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "y2k-stars",
+   "name": "Estrelas Y2K",
+   "svg": "assets/ai/retro/y2k-stars.svg",
+   "ai": "assets/ai/retro/y2k-stars.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "floppy",
+   "name": "Disquete",
+   "svg": "assets/ai/retro/floppy.svg",
+   "ai": "assets/ai/retro/floppy.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "loading",
+   "name": "Barra de carregamento retrô",
+   "svg": "assets/ai/retro/loading.svg",
+   "ai": "assets/ai/retro/loading.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "cursor",
+   "name": "Cursor e ampulheta pixel",
+   "svg": "assets/ai/retro/cursor.svg",
+   "ai": "assets/ai/retro/cursor.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "vhs-play",
+   "name": "VHS PLAY ▶",
+   "svg": "assets/ai/retro/vhs-play.svg",
+   "ai": "assets/ai/retro/vhs-play.ai"
+  },
+  {
+   "pack": "retro",
+   "id": "synthwave",
+   "name": "Sol synthwave com grade",
+   "svg": "assets/ai/retro/synthwave.svg",
+   "ai": "assets/ai/retro/synthwave.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "scribble-circle",
+   "name": "Círculo rabiscado (vermelho)",
+   "svg": "assets/ai/mograph/scribble-circle.svg",
+   "ai": "assets/ai/mograph/scribble-circle.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "squiggle",
+   "name": "Sublinhado ondulado (erro)",
+   "svg": "assets/ai/mograph/squiggle.svg",
+   "ai": "assets/ai/mograph/squiggle.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "cross",
+   "name": "X riscado",
+   "svg": "assets/ai/mograph/cross.svg",
+   "ai": "assets/ai/mograph/cross.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "select-box",
+   "name": "Caixa de seleção com alças",
+   "svg": "assets/ai/mograph/select-box.svg",
+   "ai": "assets/ai/mograph/select-box.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "word-box",
+   "name": "Palavra em caixa",
+   "svg": "assets/ai/mograph/word-box.svg",
+   "ai": "assets/ai/mograph/word-box.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "highlight",
+   "name": "Marca-texto (bloco preto)",
+   "svg": "assets/ai/mograph/highlight.svg",
+   "ai": "assets/ai/mograph/highlight.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "arrow",
+   "name": "Seta desenhada à mão",
+   "svg": "assets/ai/mograph/arrow.svg",
+   "ai": "assets/ai/mograph/arrow.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "waveform",
+   "name": "Forma de onda de áudio",
+   "svg": "assets/ai/mograph/waveform.svg",
+   "ai": "assets/ai/mograph/waveform.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "quotes",
+   "name": "Aspas grandes",
+   "svg": "assets/ai/mograph/quotes.svg",
+   "ai": "assets/ai/mograph/quotes.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "burst",
+   "name": "Estouro de linhas",
+   "svg": "assets/ai/mograph/burst.svg",
+   "ai": "assets/ai/mograph/burst.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "edited-by",
+   "name": "Assinatura “Edited by”",
+   "svg": "assets/ai/mograph/edited-by.svg",
+   "ai": "assets/ai/mograph/edited-by.ai"
+  },
+  {
+   "pack": "mograph",
+   "id": "cursor-text",
+   "name": "Cursor de texto piscando",
+   "svg": "assets/ai/mograph/cursor-text.svg",
+   "ai": "assets/ai/mograph/cursor-text.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "speech",
+   "name": "Balão de fala",
+   "svg": "assets/ai/manga/speech.svg",
+   "ai": "assets/ai/manga/speech.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "shout",
+   "name": "Balão de grito (espinhos)",
+   "svg": "assets/ai/manga/shout.svg",
+   "ai": "assets/ai/manga/shout.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "thought",
+   "name": "Balão de pensamento",
+   "svg": "assets/ai/manga/thought.svg",
+   "ai": "assets/ai/manga/thought.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "impact",
+   "name": "Explosão de impacto",
+   "svg": "assets/ai/manga/impact.svg",
+   "ai": "assets/ai/manga/impact.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "exclaim",
+   "name": "Sinais “!?”",
+   "svg": "assets/ai/manga/exclaim.svg",
+   "ai": "assets/ai/manga/exclaim.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "focus-lines",
+   "name": "Linhas de foco (moldura)",
+   "svg": "assets/ai/manga/focus-lines.svg",
+   "ai": "assets/ai/manga/focus-lines.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "sweat",
+   "name": "Gota de suor",
+   "svg": "assets/ai/manga/sweat.svg",
+   "ai": "assets/ai/manga/sweat.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "anger",
+   "name": "Veia de raiva",
+   "svg": "assets/ai/manga/anger.svg",
+   "ai": "assets/ai/manga/anger.ai"
+  },
+  {
+   "pack": "manga",
+   "id": "panel-frame",
+   "name": "Moldura de quadrinho (3 quadros)",
+   "svg": "assets/ai/manga/panel-frame.svg",
+   "ai": "assets/ai/manga/panel-frame.ai"
+  }
+ ]
+}
