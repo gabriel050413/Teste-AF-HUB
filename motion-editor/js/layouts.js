@@ -3,16 +3,18 @@ import { getSettings, setSettings } from './projects.js';
 import { modal, toast } from './ui.js';
 import { escapeHtml as esc } from './util.js';
 import { ico } from './icons.js';
+import { LAYOUT_FEATS as FEATS } from './editor-layouts.js';
 
 const FONT = { Inter: 'Inter, system-ui, sans-serif', system: 'system-ui, -apple-system, "Segoe UI", sans-serif', serif: 'Georgia, "Times New Roman", serif', mono: 'ui-monospace, "SF Mono", Consolas, monospace', rounded: '"Nunito", "Quicksand", system-ui, sans-serif' };
 
 /** Layouts prontos: o visual do MotionFrame e variações inspiradas em outros editores (tokens próprios). */
 export const BUILTIN = {
   studio: { name: 'MotionFrame', uiMode: 'simple', rows: 'normal', bg: '#0f1013', panel: '#17181d', panel2: '#20222a', line: '#2b2d36', text: '#eef0f5', muted: '#9298a6', accent: '#3d7bff', accent2: '#7fb0ff', radius: 14, font: 'Inter', layout: 'studio' },
-  capcut: { name: 'CapCut', uiMode: 'simple', rows: 'big', bg: '#000000', panel: '#0d0d0d', panel2: '#181818', line: '#242424', text: '#ffffff', muted: '#8b8b8b', accent: '#00e5c0', accent2: '#7dfbe4', radius: 10, font: 'system', layout: 'capcut' },
-  blurrr: { name: 'Blurrr', uiMode: 'simple', rows: 'normal', bg: '#0e1116', panel: '#161b22cc', panel2: '#1f2630cc', line: '#2d3643', text: '#e8edf5', muted: '#8d99ab', accent: '#4aa3ff', accent2: '#9bd0ff', radius: 20, font: 'Inter', layout: 'blurrr' },
-  motion: { name: 'Motion', uiMode: 'simple', rows: 'compact', bg: '#17140f', panel: '#201c15', panel2: '#2a251c', line: '#3a3326', text: '#f1ebdd', muted: '#a39a85', accent: '#ff8a1f', accent2: '#ffc27a', radius: 8, font: 'Inter', layout: 'motion' },
-  ae: { name: 'After Effects', uiMode: 'ae', rows: 'compact', bg: '#1a1a1a', panel: '#232323', panel2: '#2b2b2b', line: '#3b3b3b', text: '#e6e6e6', muted: '#9a9a9a', accent: '#2d8ceb', accent2: '#3fc1ff', radius: 4, font: 'Inter', layout: 'ae' },
+  nova: { name: 'Nova', uiMode: 'simple', rows: 'normal', bg: '#0a0e16', panel: '#111723', panel2: '#18202f', line: '#232d40', text: '#e9edf6', muted: '#8892a8', accent: '#22d97a', accent2: '#5ef0a2', radius: 12, font: 'Inter', layout: 'nova' },
+  capcut: { name: 'CapCut', uiMode: 'simple', rows: 'big', bg: '#000000', panel: '#111111', panel2: '#1c1c1c', line: '#262626', text: '#ffffff', muted: '#9a9a9a', accent: '#35d0e3', accent2: '#7ee6f1', radius: 8, font: 'system', layout: 'capcut' },
+  blurrr: { name: 'Blurrr', uiMode: 'simple', rows: 'normal', bg: '#ffffff', panel: '#f4f4f4', panel2: '#ebebeb', line: '#e0e0e0', text: '#121212', muted: '#8a8a8a', accent: '#cdee4f', accent2: '#a9cf22', radius: 14, font: 'Inter', layout: 'blurrr' },
+  alight: { name: 'Alight Motion', uiMode: 'simple', rows: 'compact', bg: '#1b1b1d', panel: '#242427', panel2: '#2d2d31', line: '#38383d', text: '#f1f1f3', muted: '#9a9aa0', accent: '#5b8cff', accent2: '#9db8ff', radius: 10, font: 'Inter', layout: 'alight' },
+  ae: { name: 'After Effects', uiMode: 'ae', rows: 'compact', bg: '#1d1d1d', panel: '#232323', panel2: '#2b2b2b', line: '#3b3b3b', text: '#d6d6d6', muted: '#8f8f8f', accent: '#2d8ceb', accent2: '#3fc1ff', radius: 3, font: 'Inter', layout: 'ae' },
 };
 
 const lighten = (hex, k) => { const n = parseInt(hex.slice(1, 7), 16); const f = (v) => Math.min(255, Math.round(v + (255 - v) * k)); return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, '0')).join('')}`; };
@@ -21,7 +23,7 @@ const VARS = ['--bg', '--panel', '--panel-2', '--panel-3', '--line', '--text', '
 /** Aplica o tema salvo (settings.custom) ao documento. Chamada pelo applyUIMode do app. */
 export function applyCustom(st = getSettings()) {
   const b = document.body; let t = st.custom;
-  if (t && (t.layout === 'nova' || t.name === 'Nova')) { t = null; setSettings({ ...st, custom: null }); } // layout antigo removido
+  if (t && t.layout === 'motion') t = { ...t, layout: 'alight' };
   for (const v of VARS) b.style.removeProperty(v);
   b.style.removeProperty('font-family');
   if (!t) { delete b.dataset.layout; return; }
@@ -91,8 +93,7 @@ export async function interfaceDialog(cloud, onChange) {
   return interfaceDialog(cloud, onChange);
 }
 
-const FEATS = { studio: ['layers', 'effects', 'presets', 'sparkle', 'captions'], capcut: ['scissors', 'audio', 'text', 'effects', 'captions'], blurrr: ['media', 'audio', 'sparkle', 'text', 'max'], motion: ['layers', 'graph', 'keys', 'effects', 'wand'], ae: ['pointer', 'hand', 'zoom', 'null', 'camera'] };
-const DESC = { studio: 'O visual padrão do app', capcut: 'Botões grandes, foco no corte', blurrr: 'Painéis translúcidos', motion: 'Compacto, para keyframes', ae: 'Painéis do After Effects' };
+const DESC = { studio: 'O visual padrão do MotionFrame', nova: 'Cartões de edição e barra Adicionar · IA · Biblioteca', capcut: 'Exportar no topo, Editar · Áudio · Texto · Efeitos embaixo', blurrr: 'Claro, com blocos grandes de Vídeo · Música · Efeitos', alight: 'Camadas e keyframes, como o Alight Motion', ae: 'Menus e painéis do After Effects' };
 const NOTE = { ae: 'Precisa de tela grande' };
 
 /** Nome do layout atual (para o botão da barra do editor). */

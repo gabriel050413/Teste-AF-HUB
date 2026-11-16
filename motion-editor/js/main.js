@@ -23,6 +23,7 @@ import { newProjectSheet } from './new-project.js';
 import { serializePreset, parsePresetJSON } from './presets.js';
 import { cloud } from './cloud.js';
 import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
+import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop } from './editor-layouts.js';
 import { FxBrowser } from './fx-browser.js';
 import { ComposerPanel } from './composer.js';
 import { findInstalled } from './plugins-installed.js';
@@ -902,6 +903,8 @@ function applyUIMode() {
   document.body.dataset.theme = st.theme || 'ae'; // aparência (como os "looks" do Frameify)
   document.body.dataset.rows = st.rows || 'normal';
   applyCustom(st);
+  let pname = ''; try { pname = store.project?.name || ''; } catch { /* store ainda não existe (início) */ }
+  applyEditorLayout(st.custom?.layout === 'motion' ? 'alight' : st.custom?.layout || 'studio', pname);
   refreshLayoutChip();
 }
 let toolbarMore = false; // modo simples: "Mais" mostra as ferramentas avançadas
@@ -948,7 +951,8 @@ function renderToolbar() {
   const many = store.selectedLayers().length;
   applyUIMode();
   const simple = document.body.classList.contains('ui-simple');
-  const items = simple ? simpleItems(layer, t, many) : many > 1
+  const lay = simple ? layoutToolItems(layer, many) : null;
+  const items = lay || (simple ? simpleItems(layer, t, many) : many > 1
     ? [
       ['deselect', '✕', 'Limpar seleção'], ['sep'],
       ['group', '⊞', `Pré-compor (${many})`, true], ['props', '☰', `Ajustar ${many} juntas`, true], ['presets', '★', 'Preset em todas'], ['effects', '✦', 'Efeitos'],
@@ -973,8 +977,10 @@ function renderToolbar() {
       ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
       ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
       ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
-    ];
-  toolbar.innerHTML = items.map(([cmd, icon, label, hot]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span></button>`)).join('');
+    ]);
+  const ltop = lay ? layoutToolTop(layer) : null;
+  toolbar.classList.toggle('has-ltop', !!ltop);
+  toolbar.innerHTML = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span></button>`)).join('');
   toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
   // faixa de ajuda: diz o que está selecionado e o próximo passo
   hintBar.hidden = !getSettings().showTips;
@@ -1682,6 +1688,7 @@ const commands = {
   sound: () => { openSheet('props'); setTimeout(() => document.querySelector('#propsPanel [data-section="sound"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); },
 };
 document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+initEditorLayouts(commands);
 
 // ------------------------------------------------------------------ atalhos de teclado (os do After Effects)
 export const SHORTCUTS = [
