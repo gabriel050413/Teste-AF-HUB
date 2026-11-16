@@ -984,3 +984,15 @@ body[data-layout="capcut"] button.primary, body[data-layout="blurrr"] button.pri
 .cloud .c-body { padding-bottom: 110px; }
 .mf-strip { scroll-padding-left: 18px; }
 .mf-strip::after { content: ''; flex: 0 0 6px; }
+/* comunidade: ícones SVG */
+.cloud .ico { width: 18px; height: 18px; vertical-align: -4px; }
+.c-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.c-actions button.on .ico { color: #ff4d6d; }
+.c-item .ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent-2); }
+.c-item .ic .ico { width: 22px; height: 22px; }
+.c-prev > span .ico { width: 30px; height: 30px; color: var(--muted); }
+.c-prev i .ico { color: #ffd166; }
+.c-card b .ico { color: var(--accent-2); }
+.cloud .mf-nav > button span { font-size: 10.5px; line-height: 1.2; }
+.c-post-card h4, .c-h { text-transform: none; letter-spacing: -.1px; color: var(--text); font-size: 15px; }
+.cloud { background: radial-gradient(120% 50% at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%), var(--bg, #141414); }
