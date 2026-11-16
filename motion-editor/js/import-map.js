@@ -43,14 +43,20 @@ export function looksCurveLUT(v, str = 1) {
 
 /** Curva do S Curve do Looks em 17 pontos (master; R, G, B neutros), misturada pela força da ferramenta. */
 export function sCurveLut(v, str = 1) {
-  const c = Math.max(0, v[0] ?? 0), m = clampN(v[1] ?? 0.5, 0.02, 0.98), b = clampN(v[2] ?? 0.5, 0.02, 0.98);
+  // Ferramenta "S Curve" do Looks (id logc): [Contrast, Exposure Compensation, Pivot, Black Point, White Point, …] — mesma
+  // ideia da ferramenta Contrast do manual da Maxon ("contraste em S com ponto de inflexão (pivot) e compensação de
+  // exposição"). Antes o 2º/3º valor eram lidos como midpoint/brilho, o que escurecia demais (Koreiia Purple, Sonhei).
+  const T = globalThis.__MF_TUNE || {};
+  const c = Math.max(0, v[0] ?? 0), e = v[1] ?? 0, p = clampN(v[2] ?? 0.5, 0.02, 0.98);
   const bp = v[3] || 0, wp = v[4] ?? 1;
-  const g = Math.log(m) / Math.log(b); // gama que leva o Brightness (entrada) ao Midpoint (saída)
-  const k = Math.log1p(c) * 0.6 * (globalThis.__MF_TUNE?.scurve ?? 1);       // Contrast → expoente do S (0 = reto; calibrado no print do AE, Wdzik CC)
+  const k = c * (T.scK ?? 0.8);
+  const S = (x) => (x < p ? p * (x / p) ** (1 + k) : 1 - (1 - p) * ((1 - x) / (1 - p)) ** (1 + k));
+  // Exposure Compensation: devolve (na proporção do valor) a exposição que o S tirou/pôs no meio-tom
+  const gain = Math.pow(0.5 / Math.max(1e-3, S(0.5)), clampN(e, 0, 1) * (T.scE ?? 1));
   const f = (x0) => {
-    let x = clampN((x0 - bp) / Math.max(1e-3, wp - bp), 0, 1);
-    x = x ** g;
-    const y = x < m ? m * (x / m) ** (1 + k) : 1 - (1 - m) * ((1 - x) / (1 - m)) ** (1 + k);
+    const x = clampN((x0 - bp) / Math.max(1e-3, wp - bp), 0, 1);
+    const y0 = S(x);
+    const y = clampN(y0 * gain, 0, 1);
     return x0 + (y - x0) * str;
   };
   const master = Array.from({ length: 17 }, (_, i) => +f(i / 16).toFixed(4));
@@ -264,13 +270,14 @@ export function looksFromTools(tools, strength = 100) {
         // ex.: Vampy CC = Bleach 85 + Cool/Warm −40 (fria) + Exposure +0,3 → cor apagada e azulada
         {
           const k = (v[11] ?? 100) / 100;
-          p.mojo = Math.max(p.mojo, (v[0] || 0) * k);
+          p.mojo = Math.max(p.mojo, (v[0] || 0) * k * (globalThis.__MF_TUNE?.mojoAmt ?? 1));
           p.punch += (v[2] || 0) * k;
-          p.bleach += (v[3] || 0) * k;
+          p.bleach += (v[3] || 0) * k * (globalThis.__MF_TUNE?.mojoBleach ?? 1);
           p.fade += (v[4] || 0) * 0.5 * k; // Fade It: levanta os pretos
           if (v[5] > 0) p.mojoCool = clampN(25 + v[5] * 0.5, 0, 100); // Blue Squeeze: no AE (Galego CC) a grama continua verde
           if (v[6] > 0) p.mojoSkin = clampN(50 + v[6], 0, 100);
-          p.exposure += (v[7] || 0) * k;
+          // Exposure do Mojo II: no AE o valor negativo CLAREIA (Galego CC: −0,5 → imagem bem mais clara no print do AE)
+          p.exposure -= (v[7] || 0) * k * (globalThis.__MF_TUNE?.mojoExp ?? 1);
           p.temperature += (v[8] || 0) * 0.35 * k; // Cool/Warm do Mojo II: negativo = frio (conferido com o Vampy CC renderizado no Frameify)
           p.tint -= (v[9] || 0) * 0.5 * k; // Green/Magenta positivo deixa esverdeado no AE (ZAZ Dark: cinza-esverdeado)
           p.mojoTint = (v[1] || 0) * k;
@@ -367,7 +374,7 @@ export function looksFromTools(tools, strength = 100) {
       // 4-Way Color (nomes confirmados nos presets .rgx do Looks): [Exposure, Contrast, Strength,
       // Highlight R G B Sat, Midtone R G B Sat, Shadow R G B Sat, Master R G B Sat, Midpoint, Width, …] — cores: 0,5 = neutro
       case '4way': {
-        const k = (v[2] ?? 100) / 100, o = (i) => ((v[i] ?? 0.5) - 0.5) * 2 * k;
+        const k = (v[2] ?? 100) / 100 * (globalThis.__MF_TUNE?.w4 ?? 1), o = (i) => ((v[i] ?? 0.5) - 0.5) * 2 * k;
         p.exposure += (v[0] || 0) * k; p.contrast += (v[1] || 0) * k;
         ['R', 'G', 'B'].forEach((c, i) => {
           p[`gain${c}`] *= 1 + o(3 + i) * 0.5 + o(15 + i) * 0.5;
@@ -702,7 +709,14 @@ export const IMPORT_RULES = [
   // S_MathOps: A × Lights + Darks direto no valor da imagem (não em luz linear) → Níveis
   { vendor: 'Sapphire', plugin: 'S_MathOps', to: 'levels', test: /s_mathops/i,
     expand: (fx, raw) => {
-      const L = Math.max(0.01, (raw('a lights') ?? 1) * (raw('dest lights') ?? 1)), D = (raw('a darks') || 0) + (raw('dest darks') || 0);
+      const L = Math.max(0.01, (raw('a lights') ?? 1) * (raw('dest lights') ?? 1) * (globalThis.__MF_TUNE?.mathGain ?? 1)), D = (raw('a darks') || 0) + (raw('dest darks') || 0);
+      const T = globalThis.__MF_TUNE || {};
+      if (T.mathOp) { // experimento de calibração: operação com B = A
+        const op = T.mathOpacity ?? 1;
+        const f = (x) => { const a = Math.max(0, Math.min(1, x * L + D)); const y = T.mathOp === 'screen' ? 1 - (1 - a) * (1 - a) : T.mathOp === 'add' ? Math.min(1, 2 * a) : a; return Math.max(0, Math.min(1, x + (y - x) * op)); };
+        const m = Array.from({ length: 17 }, (_, i) => +f(i / 16).toFixed(4)); const id = Array.from({ length: 17 }, (_, i) => +(i / 16).toFixed(4));
+        return [{ type: 'curves', label: 'S_MathOps', params: { lut: [...m, ...id, ...id, ...id] } }];
+      }
       const p = { inBlack: 0, inWhite: 255, gamma: 1, outBlack: 0, outWhite: 255 };
       if (D < 0) p.inBlack = Math.min(254, (-D / L) * 255); else p.outBlack = Math.min(254, D * 255);
       if (L >= 1) p.inWhite = Math.max(p.inBlack + 1, Math.min(255, 255 / L)); else p.outWhite = Math.max(p.outBlack + 1, L * 255);
