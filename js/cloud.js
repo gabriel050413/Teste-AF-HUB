@@ -160,7 +160,7 @@ export function fileToAvatar(file, size = 256) {
   });
 }
 
-export const BADGES = { fire: '🔥', gold: '🏆', diamond: '💎' };
+export const BADGES = { fire: '🔥', gold: '🏆', diamond: '💎', verified: '✔️' };
 export const initials = (name) => String(name || '?').slice(0, 1).toUpperCase();
 export function timeAgo(ms) {
   const s = Math.max(1, Math.round((Date.now() - ms) / 1000));

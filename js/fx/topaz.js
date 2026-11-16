@@ -217,6 +217,12 @@ export const TZ_MODELS = [
   { name: 'Dione Dehalo', code: 'dtvs-2', sliders: 'dione', deint: 1, dehalo: 70 },
   { name: 'Gaia (fonte boa, app)', code: 'ghq-5', sliders: 'artemis' },
   { name: 'Rhea (detalhe máximo, app)', code: 'rhea-1', sliders: 'all', upscale: 3 },
+  // modelos da documentação da Topaz (developer.topazlabs.com/docs/video-models) que o plugin do AE não lista; recriados por família
+  { name: 'Theia - Fine Tune Detail (app)', code: 'thd-3', sliders: 'all' },
+  { name: 'Theia - Fine Tune Fidelity (app)', code: 'thf-4', sliders: 'all' },
+  { name: 'Gaia CG (animação, app)', code: 'gcg-5', sliders: 'artemis', cg: true },
+  { name: 'Nyx XL (app)', code: 'nxl-1', sliders: 'nyx' },
+  { name: 'Rhea XL (app)', code: 'rhxl-1', sliders: 'all', upscale: 4 },
 ];
 // valores "Auto" de cada modelo (o que o estimador da Topaz costuma dar para clipes de rede social) — LQ / MQ / HQ
 const Q3 = (lq, mq, hq) => [lq, mq, hq];
@@ -230,10 +236,14 @@ const AUTO = {
   Dione: Q3({ c: 50, d: 25, s: 20, n: 60, h: 25, a: 10 }, { c: 35, d: 25, s: 20, n: 45, h: 25, a: 10 }, { c: 20, d: 25, s: 18, n: 30, h: 20, a: 5 }),
   Aliasing: Q3({ c: 45, d: 30, s: 20, n: 35, h: 25, a: -70 }, { c: 40, d: 30, s: 20, n: 30, h: 25, a: -60 }, { c: 25, d: 30, s: 18, n: 20, h: 20, a: -50 }),
   Gaia: Q3({ c: 40, d: 60, s: 40, n: 25, h: 40, a: 35 }, { c: 25, d: 60, s: 40, n: 15, h: 40, a: 35 }, { c: 15, d: 60, s: 40, n: 8, h: 40, a: 35 }),
+  // Theia (docs): recupera nitidez/textura; "Detail" empurra o realce, "Fidelity" fica fiel ao original (pouco realce, mais limpeza)
+  TheiaDetail: Q3({ c: 55, d: 65, s: 50, n: 30, h: 35, a: 25 }, { c: 40, d: 65, s: 48, n: 22, h: 30, a: 25 }, { c: 25, d: 65, s: 45, n: 12, h: 25, a: 20 }),
+  TheiaFid: Q3({ c: 60, d: 30, s: 15, n: 40, h: 30, a: 10 }, { c: 45, d: 28, s: 12, n: 28, h: 25, a: 8 }, { c: 28, d: 25, s: 10, n: 15, h: 20, a: 5 }),
+  GaiaCG: Q3({ c: 50, d: 40, s: 55, n: 40, h: 45, a: 70 }, { c: 35, d: 40, s: 55, n: 25, h: 45, a: 70 }, { c: 20, d: 40, s: 50, n: 12, h: 40, a: 65 }),
   Rhea: Q3({ c: 65, d: 80, s: 55, n: 40, h: 55, a: 55 }, { c: 50, d: 80, s: 55, n: 30, h: 55, a: 55 }, { c: 30, d: 80, s: 55, n: 15, h: 55, a: 55 }),
 };
 function autoFor(m, q) {
-  const fam = m.name.startsWith('Iris') ? 'Iris' : m.name.startsWith('Nyx') ? 'Nyx' : m.aliasing ? 'Aliasing' : m.name.startsWith('Artemis') ? 'Artemis'
+  const fam = m.name.startsWith('Theia - Fine Tune Detail') ? 'TheiaDetail' : m.name.startsWith('Theia') ? 'TheiaFid' : m.cg ? 'GaiaCG' : m.name.startsWith('Iris') ? 'Iris' : m.name.startsWith('Nyx') ? 'Nyx' : m.aliasing ? 'Aliasing' : m.name.startsWith('Artemis') ? 'Artemis'
     : m.name.startsWith('Themis') ? 'Themis' : m.name.startsWith('Dione') ? 'Dione' : m.name.startsWith('Gaia') ? 'Gaia' : m.name.startsWith('Rhea') ? 'Rhea' : 'Proteus';
   const v = { ...AUTO[fam][Math.max(0, Math.min(2, q - 1))] };
   if (m.dehalo) v.h = m.dehalo;

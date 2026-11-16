@@ -313,7 +313,7 @@ export class CloudUI {
       <div class="c-card"><b>Você vendeu</b> ${pts(sales.earned)} <span class="muted small">em ${sales.listings.length} item(ns)</span></div>
       <h4 class="c-h">Loja de pontos</h4><div class="c-grid">${store.items.map((s) => `<div class="c-item"><span class="ic">${s.icon}</span><b>${esc(s.name)}</b><small class="muted">${esc(s.desc)}</small>
         ${s.kind === 'cosmetic' && own(s.id) ? `<button class="c-btn" data-equip="${s.id}">${user[s.slot] === s.value ? 'Equipado ✓' : 'Equipar'}</button>` : `<button class="c-btn primary" data-store="${s.id}">◈ ${s.price}</button>`}</div>`).join('')}</div>
-      <div class="c-card"><b>Seu estoque</b><div class="muted small">🎬 exportações limpas: ${inventory.export_clean || 0} · 🧠 usos de IA: ${inventory.ai_use || 0} · ☁️ vagas de nuvem: ${store.cloud.slots} (${store.cloud.used} em uso)</div></div>
+      <div class="c-card"><b>Seu estoque</b><div class="muted small">🧠 gerações de IA em pacote: ${inventory.ai_use || 0} · ☁️ vagas de nuvem: ${store.cloud.slots} (${store.cloud.used} em uso)</div></div>
       <h4 class="c-h">Nuvem</h4><div class="c-card"><button class="c-btn" data-backup>☁️ Salvar projeto aberto na nuvem</button><div data-cloudlist class="muted small"></div></div>
       <div class="c-card"><b>Servidor</b><div class="muted small">${esc(cloud.api)}</div><button class="c-btn" data-srv>Trocar</button> <button class="c-btn danger" data-out>Sair da conta</button></div>`;
     const q = (s) => this.body.querySelector(s);
