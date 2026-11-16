@@ -1,0 +1,38 @@
+# Publica o MotionFrame no site (branch gh-pages) a cada push: é isso que faz o app instalado achar a atualização.
+# Mantém a pasta downloads/ (APK e EXE) que já está no gh-pages. Também dá para rodar à mão em Actions › Run workflow.
+name: MotionFrame — publicar site
+
+on:
+  push:
+    branches: [main, claude/brave-mccarthy-867880]
+    paths: ['motion-editor/**', '.github/workflows/deploy-pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: motion-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Monta o site (www + version.json + app-update.zip)
+        run: node tools/build-presets.mjs && node tools/build-www.mjs && node tools/make-update.mjs
+      - name: Publica no gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: motion-editor/www
+          publish_branch: gh-pages
+          keep_files: true
+          commit_message: "deploy ${{ github.sha }}"
