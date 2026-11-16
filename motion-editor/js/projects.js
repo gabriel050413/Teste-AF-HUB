@@ -7,8 +7,8 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v172';
-export const APP_LABEL = 'v1.7.2';
+export const APP_VERSION = 'v180';
+export const APP_LABEL = 'v1.8.0';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
 const SETTINGS = 'motionframe.settings.v1';
@@ -134,6 +134,18 @@ const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padSta
 const fmtDate = (t) => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 
 /** Tela inicial. hooks: open(id), create(), importProject(), importAE(), presets(), settings() */
+/** Ferramentas de IA da tela inicial: [comando, ícone, nome, descrição]. */
+const AI_TOOLS = [
+  ['bg-remove', '✂', 'Recortar fundo', 'Isola o sujeito e deixa o fundo transparente'],
+  ['topaz', '⤢', 'Aumentar resolução', 'Qualidade de cinema com modelos estilo Topaz'],
+  ['captions', 'CC', 'Legendas automáticas', 'Transcreve a fala e cria as legendas'],
+  ['voice', '🎙', 'Narração', 'Gera voz para o seu texto'],
+  ['beat-sync', '♪', 'Cortar na batida', 'Sincroniza os cortes com a música'],
+  ['font-id', '🔤', 'Identificar fonte', 'Descobre a fonte de um print'],
+  ['logo-anim', '✦', 'Animar logo', 'Dá vida à sua logo em segundos'],
+  ['calibrate', '🎨', 'Copiar CC de um print', 'Iguala as cores a um frame do After Effects'],
+];
+
 export class HomeScreen {
   constructor(hooks) {
     this.hooks = hooks;
@@ -146,48 +158,72 @@ export class HomeScreen {
   show() { this.render(); this.el.hidden = false; document.body.classList.add('at-home'); }
   hide() { this.el.hidden = true; document.body.classList.remove('at-home'); }
 
+  tabNav() {
+    const t = this.tab || 'home';
+    const b = (id, ic, lb, extra = '') => `<button class="${t === id ? 'on' : ''}" data-h="tab" data-id="${id}"><span>${ic}</span>${lb}</button>${extra}`;
+    return `<nav class="c-nav home-nav">${b('home', '⌂', 'Início')}${b('projects', '▤', 'Projetos')}<button class="nav-plus" data-h="plus" aria-label="Novo"><span>＋</span></button>${b('presets', '★', 'Presets')}${b('profile', '☺', 'Perfil')}</nav>`;
+  }
+
+  projectCard(p, small) {
+    return `<div class="proj-card ${small ? 'small' : ''}" data-id="${p.id}">
+      <button class="proj-thumb" data-h="open" data-id="${p.id}" style="aspect-ratio:${small ? '1/1' : `${p.w}/${p.h}`}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<span class="muted">sem prévia</span>'}<span class="proj-dur">${fmtDur(p.duration || 0)}</span></button>
+      <div class="proj-info"><div class="proj-name">${escapeHtml(p.name)}</div><div class="muted small">${p.w}×${p.h} · ${p.fps}fps · ${fmtDate(p.updated)}</div></div>
+      <button class="icon proj-more" data-h="more" data-id="${p.id}" aria-label="Opções">⋯</button></div>`;
+  }
+
   render() {
     const list = listProjects();
-    this.el.innerHTML = `
-      <header class="home-top">
-        <div class="home-logo"><img class="logo-mark" src="icons/icon.svg" alt="" width="28" height="28" style="vertical-align:-7px;border-radius:7px"> MotionFrame <span class="muted small" style="font-weight:400" title="build ${APP_VERSION}">${APP_LABEL}</span></div>
-        <button class="icon" data-h="settings" aria-label="Configurações">⚙</button>
-      </header>
-      <div class="home-body">
-        <button class="home-new" data-h="create"><span class="plus">＋</span><span><b>Novo projeto</b><br><span class="muted small">Escolha seus vídeos e comece a editar</span></span></button>
-        <div class="home-actions">
-          <button data-h="createAdvanced"><span>⚙</span>Projeto personalizado</button>
-          <button data-h="importProject"><span>📂</span>Abrir projeto</button>
-          <button data-h="importLink"><span>🔗</span>Importar de link</button>
-          <button data-h="presets"><span>★</span>Meus presets</button>
-          <button data-h="interface"><span>🎨</span>Interface e layouts</button>
-        </div>
-        <details class="home-more"><summary>Mais opções</summary><div class="home-actions">
-          <button data-h="transfer"><span>📦</span>Transferir tudo (projetos, mídias, acesso)</button>
-          <button data-h="importAE"><span>Ae</span>Importar do After Effects</button>
-          <button data-h="plugins"><span>⤒</span>Plugins (.aex)</button>
-          <button data-h="logoAnim"><span>✦</span>Animar minha logo</button>
-          <button data-h="demoLogo"><span>▶</span>Demo: logo animada</button>
-        </div></details>
+    const tab = this.tab || 'home';
+    const logo = `<div class="home-logo"><img class="logo-mark" src="icons/icon.svg" alt="" width="28" height="28" style="vertical-align:-7px;border-radius:7px"> MotionFrame <span class="muted small" style="font-weight:400" title="build ${APP_VERSION}">${APP_LABEL}</span></div>`;
+    const top = (title, sub) => `<header class="home-top">${tab === 'home' ? logo : `<div><div class="home-title">${title}</div>${sub ? `<div class="muted small">${sub}</div>` : ''}</div>`}
+      <span class="home-top-btns"><button class="icon" data-h="interface" aria-label="Interface e layouts" title="Interface e layouts">🎨</button><button class="icon" data-h="settings" aria-label="Configurações">⚙</button></span></header>`;
+    let body = '';
+    if (tab === 'home') {
+      body = `${top()}<div class="home-body">
+        <div class="home-sec"><h3>Seus projetos</h3>${list.length > 4 ? '<button class="c-link" data-h="tab" data-id="projects">Ver todos ›</button>' : ''}</div>
+        ${list.length ? `<div class="home-strip">${list.slice(0, 8).map((p) => this.projectCard(p, true)).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋</b> para começar.</div>'}
+        <div class="home-sec"><h3>Ferramentas de IA</h3></div>
+        <div class="tool-grid">${AI_TOOLS.map(([id, ic, name, desc]) => `<button class="tool-card" data-h="tool" data-id="${id}"><span class="tool-ic">${ic}</span><b>${name}</b><small class="muted">${desc}</small></button>`).join('')}</div>
+        <div class="home-sec"><h3>Comunidade</h3></div>
+        <div class="tool-grid two"><button class="tool-card" data-h="cloud" data-id="feed"><span class="tool-ic">▶</span><b>Feed de edits</b><small class="muted">Veja, poste e venda edits</small></button>
+          <button class="tool-card" data-h="cloud" data-id="market"><span class="tool-ic">★</span><b>Mercado de presets</b><small class="muted">Compre e venda por pontos</small></button></div>
+        <div class="home-recover"></div></div>`;
+    } else if (tab === 'projects') {
+      body = `${top('Seus projetos', 'Organize, edite e continue criando.')}<div class="home-body">
+        <div class="home-actions"><button data-h="createAdvanced"><span>⚙</span>Personalizado</button><button data-h="importProject"><span>📂</span>Abrir projeto</button><button data-h="importLink"><span>🔗</span>De link</button><button data-h="importAE"><span>Ae</span>Do After Effects</button></div>
         <div class="home-recover"></div>
         <h3 class="home-h">Projetos <span class="muted small">${list.length}</span></h3>
-        ${list.length ? `<div class="home-grid">${list.map((p) => `
-          <div class="proj-card" data-id="${p.id}">
-            <button class="proj-thumb" data-h="open" data-id="${p.id}" style="aspect-ratio:${p.w}/${p.h}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<span class="muted">sem prévia</span>'}<span class="proj-dur">${fmtDur(p.dur || 0)}</span></button>
-            <div class="proj-info">
-              <div class="proj-name">${escapeHtml(p.name)}</div>
-              <div class="muted small">${p.w}×${p.h} · ${p.fps}fps · ${fmtDate(p.updated)}</div>
-            </div>
-            <button class="icon proj-more" data-h="more" data-id="${p.id}" aria-label="Opções">⋯</button>
-          </div>`).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋ Novo projeto</b> para começar.</div>'}
-      </div>
-      <nav class="c-nav home-nav">${[['', '⌂', 'Início'], ['feed', '▶', 'Feed'], ['market', '★', 'Presets'], ['chat', '✉', 'Chat'], ['me', '☺', 'Perfil']].map(([t, ic, lb]) => `<button class="${t ? '' : 'on'}" ${t ? `data-h="cloud" data-id="${t}"` : ''}><span>${ic}</span>${lb}</button>`).join('')}</nav>`;
+        ${list.length ? `<div class="home-grid">${list.map((p) => this.projectCard(p, false)).join('')}</div>` : '<div class="home-empty">Nenhum projeto ainda. Toque em <b>＋</b> para começar.</div>'}
+        <details class="home-more"><summary>Mais opções</summary><div class="home-actions">
+          <button data-h="transfer"><span>📦</span>Transferir tudo</button><button data-h="plugins"><span>⤒</span>Plugins (.aex)</button>
+          <button data-h="logoAnim"><span>✦</span>Animar minha logo</button><button data-h="demoLogo"><span>▶</span>Demo: logo animada</button></div></details></div>`;
+    } else if (tab === 'presets') {
+      body = `${top('Presets', 'Presets de verdade, rodando no app. Toque para ver.')}<div class="home-body">
+        <button class="home-new" data-h="presets"><span class="plus">★</span><span><b>Meus presets e biblioteca</b><br><span class="muted small">Shakes, CCs, transições, textos e os .ffx que você importou</span></span></button>
+        <div class="tool-grid two"><button class="tool-card" data-h="cloud" data-id="market"><span class="tool-ic">⬇</span><b>Comunidade</b><small class="muted">Baixe presets de outros editores</small></button>
+          <button class="tool-card" data-h="cloudSell"><span class="tool-ic">⬆</span><b>Vender preset</b><small class="muted">Publique e ganhe pontos</small></button>
+          <button class="tool-card" data-h="importAE"><span class="tool-ic">Ae</span><b>Importar do After Effects</b><small class="muted">.ffx, .aep — efeitos e keyframes viram presets</small></button>
+          <button class="tool-card" data-h="plugins"><span class="tool-ic">⤒</span><b>Plugins (.aex)</b><small class="muted">Mapeia seus plugins para efeitos do app</small></button></div></div>`;
+    } else {
+      body = `${top('Perfil')}<div class="home-body"><div class="home-empty">Abrindo perfil…</div></div>`;
+    }
+    this.el.innerHTML = `${body}${this.tabNav()}`;
     this.el.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => this.action(b.dataset.h, b.dataset.id)));
-    this.checkRecoverable();
+    if (tab === 'home' || tab === 'projects') this.checkRecoverable();
+    if (tab === 'profile') { this.tab = 'home'; this.hooks.cloud?.('me'); setTimeout(() => this.render(), 50); }
+  }
+
+  /** Botão ＋ do meio: o que você quer criar. */
+  async plus() {
+    const r = await modal('Criar', `<div class="menu-list"><button data-m="new">🆕 Novo projeto (escolher formato)</button><button data-m="quick">🎞 Começar com vídeos / fotos</button><button data-m="open">📂 Abrir projeto ou arquivo .aep</button><button data-m="link">🔗 Importar de link</button></div>`, [{ label: 'Fechar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))) });
+    if (r === 'new') this.hooks.newProject?.(); else if (r === 'quick') this.hooks.create?.(); else if (r === 'open') this.hooks.importProject?.(); else if (r === 'link') this.hooks.importLink?.();
   }
 
   async action(h, id) {
     if (h === 'more') return this.more(id);
+    if (h === 'tab') { this.tab = id; this.render(); return; }
+    if (h === 'plus') return this.plus();
+    if (h === 'tool') return this.hooks.tool?.(id);
     await this.hooks[h]?.(id);
   }
 
