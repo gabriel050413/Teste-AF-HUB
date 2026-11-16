@@ -1367,3 +1367,7 @@ body.ui-simple[data-elayout="capcut"] .tl-zoom, body.ui-simple[data-elayout="blu
 .lfx-am-th { display: grid; place-items: center; width: 100%; aspect-ratio: 1; border-radius: 8px; color: #fff; border: 3px solid #fff; }
 .lfx-am-feat .lfx-am-th { aspect-ratio: 1.3; border: 0; }
 .lfx-am-th .ico { width: 26px; height: 26px; }
+/* painel aberto (modo encaixado): a barra de baixo some em todos os layouts (as grades do Alight/Blurrr não podem reexibi-la) */
+.app.docked .toolbar, body[data-elayout] .app.docked .toolbar, body[data-elayout] .app.docked .toolbar.sel, body[data-elayout] .app.docked .toolbar.has-ltop { display: none !important; }
+body[data-elayout="blurrr"] .sheet input:not([type="color"]):not([type="range"]):not([type="checkbox"]), body[data-elayout="blurrr"] .sheet select, body[data-elayout="blurrr"] .sheet textarea { background: #f1f1f1 !important; color: #111 !important; border-color: #e2e2e2 !important; }
+body[data-elayout="blurrr"] .sheet, body[data-elayout="blurrr"] .sheet label, body[data-elayout="blurrr"] .sheet h4 { color: #222; }
