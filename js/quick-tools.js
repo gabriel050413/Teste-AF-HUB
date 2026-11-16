@@ -150,6 +150,13 @@ export const CAPTION_STYLES = [
   { id: 'pop', name: 'Pop branco (palavra a palavra)', font: '"Montserrat", "Inter", sans-serif', weight: 900, color: '#ffffff', stroke: '#000000', strokeW: 0.09, upper: true, maxWords: 3 },
   { id: 'amarelo', name: 'Amarelo forte (estilo TikTok)', font: '"Anton", Impact, sans-serif', weight: 400, color: '#ffe600', stroke: '#000000', strokeW: 0.08, upper: true, maxWords: 2 },
   { id: 'limpa', name: 'Simples (frase inteira)', font: '"Inter", system-ui, sans-serif', weight: 700, color: '#ffffff', stroke: '#000000', strokeW: 0.05, upper: false, maxWords: 7 },
+  // estilos do editor de texto do TikTok (fonte oficial TikTok Sans, OFL, no Google Fonts)
+  { id: 'tt-classic', name: 'TikTok · Clássico (contorno)', font: '"TikTok Sans", "Inter", sans-serif', weight: 700, color: '#ffffff', stroke: '#000000', strokeW: 0.07, upper: false, maxWords: 4 },
+  { id: 'tt-box', name: 'TikTok · Fundo branco', font: '"TikTok Sans", "Inter", sans-serif', weight: 700, color: '#000000', stroke: '#000000', strokeW: 0, upper: false, maxWords: 5, box: '#ffffff' },
+  { id: 'tt-boxdark', name: 'TikTok · Fundo preto', font: '"TikTok Sans", "Inter", sans-serif', weight: 700, color: '#ffffff', stroke: '#000000', strokeW: 0, upper: false, maxWords: 5, box: '#000000', boxOp: 70 },
+  { id: 'tt-red', name: 'TikTok · Fundo vermelho', font: '"TikTok Sans", "Inter", sans-serif', weight: 800, color: '#ffffff', stroke: '#000000', strokeW: 0, upper: false, maxWords: 4, box: '#fe2c55' },
+  { id: 'tt-type', name: 'TikTok · Máquina de escrever', font: '"Courier Prime", "Courier New", monospace', weight: 700, color: '#ffffff', stroke: '#000000', strokeW: 0.05, upper: false, maxWords: 5, typing: true },
+  { id: 'tt-karaoke', name: 'TikTok · Uma palavra por vez (branco/amarelo)', font: '"TikTok Sans", "Inter", sans-serif', weight: 900, color: '#ffffff', stroke: '#000000', strokeW: 0.08, upper: true, maxWords: 1, hl: '#ffe14d' },
   { id: 'neon', name: 'Neon ciano', font: '"Bebas Neue", Impact, sans-serif', weight: 400, color: '#7ff6ff', stroke: '#003a44', strokeW: 0.06, upper: true, maxWords: 3, glow: true },
 ];
 
@@ -170,7 +177,10 @@ export function buildCaptions(store, words, styleId = 'pop', { posY = 0.72, size
   const layers = groups.map((g, i) => {
     const l = LAYER_FACTORIES.text(P);
     const text = g.map((w) => w.text).join(' ').replace(/\s+([,.!?])/g, '$1');
-    Object.assign(l.props, { text: st.upper ? text.toUpperCase() : text, fontFamily: st.font, fontWeight: st.weight, fontSize: fs, color: st.color, strokeColor: st.stroke, strokeWidth: Math.max(2, Math.round(fs * st.strokeW)), align: 'center' });
+    // quebra em linhas para não passar da tela (estimativa ~0,56 em por caractere; monoespaçada ~0,62)
+    const maxC = Math.max(6, Math.floor((W * 0.84) / (fs * (st.typing ? 0.62 : 0.56))));
+    const wrapped = text.split(' ').reduce((acc, w) => { const last = acc[acc.length - 1]; if (last && (last + ' ' + w).length <= maxC) acc[acc.length - 1] = `${last} ${w}`; else acc.push(w); return acc; }, []).join('\n');
+    Object.assign(l.props, { text: st.upper ? wrapped.toUpperCase() : wrapped, fontFamily: st.font, fontWeight: st.weight, fontSize: fs, color: st.color, strokeColor: st.stroke, strokeWidth: Math.max(2, Math.round(fs * st.strokeW)), align: 'center' });
     l.name = `Legenda ${i + 1}`;
     l.inPoint = +g[0].t0.toFixed(3);
     l.outPoint = +Math.max(g[g.length - 1].t1 + 0.15, g[0].t0 + 0.3).toFixed(3); // segura um pouco depois da última palavra
@@ -179,6 +189,13 @@ export function buildCaptions(store, words, styleId = 'pop', { posY = 0.72, size
     // entrada "pop" (cresce e assenta) como no CapCut
     const t = l.inPoint;
     l.transform.scale = { value: [70, 70], keys: [{ t, v: [70, 70], ease: 'back' }, { t: +(t + 0.12).toFixed(3), v: [100, 100], ease: 'linear' }] };
+    if (st.hl && i % 2) l.props.color = st.hl;
+    if (st.box) Object.assign(l.props, { bgOn: true, bgColor: st.box, bgOpacity: st.boxOp ?? 100, bgPad: Math.round(fs * 0.24), bgRadius: Math.round(fs * 0.24) });
+    if (st.typing) { // letras aparecem uma a uma no ritmo da fala
+      const d = Math.max(0.2, Math.min(l.outPoint - l.inPoint - 0.05, (g[g.length - 1].t1 - g[0].t0) || 0.4));
+      l.props.animators = [{ props: { opacity: { value: 0, keys: [] } }, selectors: [{ type: 'range', based: 1, shape: 1, smooth: 0, start: { value: 0, keys: [{ t: l.inPoint, v: 0, ease: 'linear' }, { t: +(l.inPoint + d).toFixed(3), v: 100, ease: 'linear' }] }, end: { value: 100, keys: [] } }] }];
+      l.transform.scale = { value: [100, 100], keys: [] };
+    }
     if (st.glow) l.effects.push(createEffectInstance('glow', { threshold: 20, radius: 18, intensity: 1.6, color: [0.5, 0.97, 1, 1], useColor: true }, 0));
     return l;
   });

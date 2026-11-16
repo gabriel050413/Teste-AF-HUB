@@ -70,6 +70,7 @@ export function contentSize(layer, proj = project) {
     const lines = String(p.text).split('\n');
     const w = Math.max(1, ...lines.map((s) => ctx.measureText(s).width)) + (p.strokeWidth || 0) * 2 + 8;
     const h = lines.length * p.fontSize * p.lineHeight + (p.strokeWidth || 0) * 2 + 8;
+    if (p.bgOn) { const pad = p.bgPad ?? p.fontSize * 0.22; return { w: w + pad * 2, h: h + pad * 2 }; }
     return { w, h };
   }
   return { w: p.width || 100, h: p.height || 100 };
@@ -98,6 +99,25 @@ function numCounterText(layer, t) {
   return `${num < 0 ? '-' : ''}${sym === 2 ? '$' : ''}${w}${dec}${sym === 3 ? '%' : ''}`;
 }
 
+/** Caixa atrás de cada linha (fundo do texto do TikTok/Instagram): linhas vizinhas se juntam numa forma só. */
+function drawTextBoxes(ctx, p, lines, x, h, lh, pad) {
+  const r = p.bgRadius ?? p.fontSize * 0.22;
+  ctx.save();
+  ctx.globalAlpha *= Math.max(0, Math.min(1, (p.bgOpacity ?? 100) / 100));
+  ctx.fillStyle = p.bgColor || '#ffffff';
+  lines.forEach((line, i) => {
+    if (!line.trim()) return;
+    const tw = ctx.measureText(line).width + (p.strokeWidth || 0) * 2;
+    const y = h / 2 + (i - (lines.length - 1) / 2) * lh;
+    const x0 = p.align === 'left' ? x - pad : p.align === 'right' ? x - tw - pad : x - tw / 2 - pad;
+    const top = y - lh / 2 - (i === 0 ? pad * 0.6 : 0), bot = y + lh / 2 + (i === lines.length - 1 ? pad * 0.6 : 0) + 0.5;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x0, top, tw + pad * 2, bot - top, Math.min(r, (bot - top) / 2)); else ctx.rect(x0, top, tw + pad * 2, bot - top);
+    ctx.fill();
+  });
+  ctx.restore();
+}
+
 function drawContent(ctx, layer, w, h, extra) {
   let p = layer.props;
   if (layer.type === 'text') { const nt = numCounterText(layer, extra?.lt ?? 0); if (nt != null) p = { ...p, text: nt }; }
@@ -117,7 +137,9 @@ function drawContent(ctx, layer, w, h, extra) {
       ctx.textAlign = p.align;
       const lines = String(p.text).split('\n');
       const lh = p.fontSize * p.lineHeight;
-      const x = p.align === 'left' ? 4 + (p.strokeWidth || 0) : p.align === 'right' ? w - 4 - (p.strokeWidth || 0) : w / 2;
+      const bpad = p.bgOn ? (p.bgPad ?? p.fontSize * 0.22) : 0;
+      const x = p.align === 'left' ? 4 + bpad + (p.strokeWidth || 0) : p.align === 'right' ? w - 4 - bpad - (p.strokeWidth || 0) : w / 2;
+      if (p.bgOn) drawTextBoxes(ctx, p, lines, x, h, lh, bpad);
       lines.forEach((line, i) => {
         const y = h / 2 + (i - (lines.length - 1) / 2) * lh;
         if (p.strokeWidth > 0) {

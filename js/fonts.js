@@ -102,7 +102,7 @@ export async function loadFontsInWorker(list = []) {
 
 // ---------------------------------------------------------------- busca de fontes
 // Google Fonts populares em edits (carregadas na hora pelo fonts.googleapis.com quando escolhidas)
-export const GOOGLE_FONTS = ['Anton', 'Bebas Neue', 'Montserrat', 'Poppins', 'Oswald', 'Roboto', 'Roboto Condensed', 'Inter', 'Open Sans', 'Lato', 'Raleway', 'Archivo Black', 'Archivo Narrow',
+export const GOOGLE_FONTS = ['TikTok Sans', 'Courier Prime', 'Anton', 'Bebas Neue', 'Montserrat', 'Poppins', 'Oswald', 'Roboto', 'Roboto Condensed', 'Inter', 'Open Sans', 'Lato', 'Raleway', 'Archivo Black', 'Archivo Narrow',
   'Barlow', 'Barlow Condensed', 'Rubik', 'Work Sans', 'Nunito', 'Kanit', 'Fjalla One', 'Teko', 'Russo One', 'Black Ops One', 'Bangers', 'Permanent Marker', 'Rock Salt', 'Pacifico',
   'Lobster', 'Righteous', 'Bungee', 'Bungee Inline', 'Monoton', 'Orbitron', 'Audiowide', 'Michroma', 'Exo 2', 'Syncopate', 'Unbounded', 'Space Grotesk', 'Space Mono', 'DM Sans',
   'DM Serif Display', 'Playfair Display', 'Cinzel', 'Cormorant Garamond', 'Libre Baskerville', 'Merriweather', 'Abril Fatface', 'Alfa Slab One', 'Ultra', 'Staatliches', 'Chakra Petch',
