@@ -1,6 +1,7 @@
 // Efeitos com IA no aparelho: Remover fundo (vídeo e foto).
 import { frag, num, bool, sel, col, rgb } from './common.js';
 import { personMask, BG_MODELS } from '../bgremove.js';
+import { rotoMask } from '../roto.js';
 
 // máscara refinada pelas cores da imagem (bilateral conjunta): contorno do jogador mais preciso que a máscara do modelo
 const BG = frag(`
@@ -29,6 +30,28 @@ void main() {
 }`);
 
 export default [
+  {
+    type: 'rotoBrush', label: 'Roto Brush', category: 'Chave', plugin: 'Roto Brush (After Effects)',
+    description: 'Como o Roto Brush do After: pinte de verde o que fica e de vermelho o que sai (ferramenta Roto Brush na barra). A IA recorta e acompanha o objeto nos outros quadros. Ajuste a borda com Suavizar e Encolher.',
+    params: [
+      sel('background', 'Fundo', ['Transparente', 'Cor', 'Desfocado'], 1), col('bgColor', 'Cor do fundo', [0, 1, 0, 1]), num('bgBlur', 'Desfoque do fundo', 30, 0, 200),
+      num('threshold', 'Limiar %', 50, 1, 99), num('feather', 'Suavizar borda (Feather) %', 8, 0, 50), num('choke', 'Encolher / expandir (Shift Edge)', 0, -30, 30),
+      bool('invert', 'Inverter primeiro plano/fundo', false), bool('showMask', 'Ver máscara (alfa)', false),
+      { key: 'strokes', label: 'Traços', kind: 'hidden', default: [] },
+    ],
+    render: (src, p, env) => {
+      const { gl } = env;
+      if (!env.srcCanvas || !Array.isArray(p.strokes) || !p.strokes.length) return src;
+      const mc = rotoMask(env.srcCanvas, { layerKey: env.layer?.id, strokes: p.strokes, t: env.t, fps: env.fps || 30 });
+      if (!mc) return src; // modelo carregando
+      const mt = gl.upload(mc);
+      const bgt = p.background === 3 ? gl.blur(src, Math.max(0.5, p.bgBlur * env.scale)) : src;
+      return gl.pass(BG, {
+        u_tex: src, u_mask: mt, u_bgtex: bgt, u_th: p.threshold / 100, u_feather: p.feather / 100, u_choke: p.choke / 100,
+        u_inv: p.invert, u_mode: p.background, u_show: p.showMask, u_bgcol: rgb(p.bgColor), u_mtexel: [1 / src.w, 1 / src.h],
+      });
+    },
+  },
   {
     type: 'bgRemove', label: 'Remover fundo (IA)', category: 'Estilizar', plugin: 'Rotobrush / Roto Brush',
     description: 'Recorta a pessoa do vídeo ou da foto automaticamente, quadro a quadro, no próprio aparelho (nada é enviado para a internet). Na 1ª vez baixa o modelo (~3 MB). Use “Fundo: Desfocado” para o efeito retrato ou coloque outra camada embaixo.',
