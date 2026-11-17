@@ -1,0 +1,3161 @@
+import { Store, LAYER_FACTORIES, RESOLUTIONS, createProject, flatLayers } from './state.js';
+import { compDialog, COMP_PRESETS } from './comp-dialog.js';
+import { HomeScreen, saveBackup, saveProjectData, loadProjectData, loadProjectDataAsync, listProjects, allMediaIds, getSettings, setSettings, settingsDialog } from './projects.js';
+import { parseFFX } from './ffx.js';
+import { ffxToPreset } from './presets.js';
+import { TopazPanel } from './topaz-panel.js';
+import { setBgListener, ensureBgModel, bgStatus } from './bgremove.js';
+import { setGLLostListener, glLost, gpuSync } from './gl.js';
+import { createEffectInstance, setPluginLookup, upgradeLayerEffects, applyPreset } from './presets.js';
+import { renderFrame, hitTest, layerCorners, forgetLayer } from './renderer.js';
+import { startRenderWorker, workerEligible } from './render-client.js';
+import { prepare, prepareEpoch, exactFramesReady, pauseAll, setMediaListener, videoThumb, ensureCaches, setCacheListener, cacheStatus, cacheVersion, detectFps, mediaReady, framesDrawable, liveVideoAt } from './media.js';
+import { loadAudio, playAudio, stopAudio, detectBeats, pruneAudio } from './audio.js';
+import { valueAt, setValue, setKey, anim } from './anim.js';
+import { setThreeD } from './three-d.js';
+import { openSceneSetup } from './e3d-scene.js';
+import { setModelListener } from './model3d.js';
+import { Timeline } from './timeline.js';
+import { Inspector } from './inspector.js';
+import { Library } from './library.js';
+import { newProjectSheet } from './new-project.js';
+import { serializePreset, parsePresetJSON } from './presets.js';
+import { applyCustom, interfaceDialog, layoutPopover, refreshLayoutChip } from './layouts.js';
+import { initEditorLayouts, applyEditorLayout, layoutToolItems, layoutToolTop, paneTitle, paneAllowed, editorLayout, layoutTimecode } from './editor-layouts.js';
+import { startTour, maybeStartTour } from './tour.js';
+import { compToLocal, localToComp as localToCompPt } from './tracker.js';
+import { ensureRotoModel, rotoStatus, setRotoListener } from './roto.js';
+import { FRAG_TITLE } from './inspector.js';
+import { initDragScroll, initPcLayouts, applyPcLayout, pcOpenLeft, pcActive, pcLeftPanes } from './pc-layouts.js';
+import { FxBrowser } from './fx-browser.js';
+import { ComposerPanel } from './composer.js';
+import { findInstalled } from './plugins-installed.js';
+import { KeyTools } from './keytools.js';
+import { deleteKeys, animProps, setEase } from './keyframes.js';
+import { sourceTime, ensureGroupTime } from './timing.js';
+import { exportDialog } from './exporter.js';
+import { probeMp4, needsProxy, proxySupported, makeProxy } from './proxy.js';
+import { keepAwake as keepScreenOn } from './platform.js';
+import { getEffectDef } from './effects.js';
+import { modal, toast, pickFiles, storage } from './ui.js';
+import { syncClipsToBeat, beatEffects, recordVoice, transcribe, buildCaptions, CAPTION_STYLES, projectBeats } from './quick-tools.js';
+import { formatTime, formatSimple, uid, deepClone, escapeHtml } from './util.js';
+import { putMedia, getMedia, pruneMedia, flushMedia, pendingMediaCount, ensurePersistentStorage } from './idb.js';
+import { saveFile, registerServiceWorker } from './platform.js';
+import { getGL } from './gl.js';
+import { TrackerPanel } from './tracker-panel.js';
+import { calibrateFromImage, CALIB_LABEL } from './calibrate.js';
+import { parseAEP, aepToProject, mainComps } from './aep.js';
+import { isAiFile, aiToPngFile, aiToLayerFiles } from './ai-import.js';
+import { xmlToProject } from './xml-import.js';
+import { TransitionsPanel } from './transitions-panel.js';
+import { checkForUpdate, autoUpdate } from './updater.js';
+import { loadCustomEffects, ensureRecipesFromProject, importRecipe, customRecipes } from './custom-fx.js';
+applyUIMode(); loadCustomEffects(); // tema/aparência já na tela inicial · efeitos criados pelo usuário (Efeitos › Meus efeitos) antes de abrir qualquer projeto
+import { ico, iconize } from './icons.js';
+import { translateDOM, getLang, setLang } from './i18n.js';
+import { EFFECTS } from './effects.js';
+import { importFonts, loadSavedFonts, isFontFile, userFonts, removeFont, ensureFont, onFontsChange, resolveGoogleFont, isSFPro, SF_SCALE, SF_SCALE_X, SF_SHIFT_Y } from './fonts.js';
+
+const store = new Store();
+const AUTOSAVE_KEY = 'motionframe.autosave.v2';
+
+// ------------------------------------------------------------------ prévia
+const view = document.getElementById('view');
+const overlay = document.getElementById('overlay');
+const stage = document.getElementById('stage');
+const wrap = document.getElementById('canvasWrap');
+const qualitySel = document.getElementById('quality');
+const timecode = document.getElementById('timecode');
+const ctx = view.getContext('2d');
+const octx = overlay.getContext('2d');
+let dirty = true;
+// "Auto": nítido (resolução cheia) parado; tocando, a resolução se adapta ao que o aparelho aguenta
+// (mede o tempo de cada quadro: se passar do tempo do fps, reduz; se sobrar folga, aumenta)
+const PLAY_STEPS = [0.2, 0.25, 0.33, 0.4, 0.5, 0.6, 0.75, 0.9, 1];
+let playStep = 6, renderMs = 0, fastFrames = 0;
+// Prévia leve (como CapCut/Alight Motion): nunca renderiza mais pixels do que a tela mostra, e tocando fica em até 720p.
+// A exportação não usa isto (sai sempre na resolução escolhida).
+let dispQ = 1;
+const playCap = () => Math.min(1, 720 / Math.max(1, Math.min(store.project.width, store.project.height)));
+const curQuality = () => (qualitySel.value === 'auto'
+  ? (store.playing ? Math.min(PLAY_STEPS[playStep], dispQ, playCap()) : dispQ)
+  : Math.min(parseFloat(qualitySel.value), qualitySel.value === '1' ? 1 : dispQ));
+function adaptQuality(ms) {
+  if (!store.playing || qualitySel.value !== 'auto') return;
+  renderMs = renderMs ? renderMs * 0.8 + ms * 0.2 : ms;
+  const budget = 1000 / Math.min(60, store.project.fps || 30);
+  if (renderMs > budget * 1.15 && playStep > 0) { playStep--; renderMs = 0; fastFrames = 0; }
+  else if (renderMs < budget * 0.45) { if (++fastFrames > 45 && playStep < PLAY_STEPS.length - 1) { playStep++; fastFrames = 0; renderMs = 0; } }
+  else fastFrames = 0;
+}
+let quality = curQuality();
+setMediaListener(() => { dirty = true; });
+setModelListener(() => { dirty = true; });
+setBgListener(() => { dirty = true; frameCacheClear(); });
+
+// ---- Renderização estilo After Effects:
+// 1) o quadro é desenhado num buffer fora da tela e só aparece pronto (nunca pisca preto nem mostra quadro pela metade);
+//    se a GPU cair no meio, a tela continua com o último quadro bom e o quadro é refeito;
+// 2) cache de RAM (como o RAM Preview / barra verde do AE): quadros já renderizados ficam guardados e tocam
+//    na velocidade real sem renderizar de novo, até você mudar algo no projeto.
+const IOS_M = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+// limite do cache de quadros (fica na memória da placa de vídeo): antes ia a 1,3 GB e, somado às texturas dos efeitos,
+// apertava a placa (lag crescendo e quedas). 700 MB = ~25 s de prévia pronta em 1080p na resolução da tela.
+const FRAME_CACHE_BUDGET = IOS_M ? 90e6 : /Android|Mobi/i.test(navigator.userAgent) ? 220e6 : Math.min(700e6, ((navigator.deviceMemory || 8) * 1e9) / 10);
+const frameCache = new Map(); // chave → { c: canvas, bytes }
+let frameCacheBytes = 0;
+const backBuf = document.createElement('canvas');
+const backCtx = backBuf.getContext('2d');
+function frameCacheClear(keepPre = false) {
+  for (const [k, e] of frameCache) {
+    if (keepPre && k.endsWith('|pre')) continue;
+    frameCache.delete(k); frameCacheBytes -= e.bytes;
+    if (e.c.close) e.c.close(); else { e.c.width = e.c.height = 1; } // devolve a memória da placa na hora
+  }
+  if (!frameCache.size) frameCacheBytes = 0;
+}
+function frameCachePut(key, src, own = false) {
+  const bytes = src.width * src.height * 4;
+  if (bytes * 3 > FRAME_CACHE_BUDGET) { if (own) src.close?.(); return; }
+  let e = frameCache.get(key);
+  if (own) {
+    // ImageBitmap vindo do Worker: guarda ele mesmo (sem copiar para outro canvas)
+    if (e) { frameCacheBytes -= e.bytes; frameCache.delete(key); if (e.c.close) e.c.close(); else { e.c.width = e.c.height = 1; } }
+    while (frameCacheBytes + bytes > FRAME_CACHE_BUDGET && frameCache.size) {
+      const [k0, old] = frameCache.entries().next().value;
+      frameCache.delete(k0); frameCacheBytes -= old.bytes;
+      if (old.c.close) old.c.close(); else { old.c.width = old.c.height = 1; }
+    }
+    frameCache.set(key, { c: src, bytes }); frameCacheBytes += bytes;
+    return;
+  }
+  if (!e) {
+    // reaproveita o canvas do quadro mais antigo quando o cache enche (sem criar/destruir canvases sem parar)
+    let reuse = null;
+    while (frameCacheBytes + bytes > FRAME_CACHE_BUDGET && frameCache.size) {
+      const [k0, old] = frameCache.entries().next().value;
+      frameCache.delete(k0); frameCacheBytes -= old.bytes;
+      if (old.c.close) old.c.close();
+      else if (!reuse && old.c.width === src.width && old.c.height === src.height) reuse = old.c;
+      else { old.c.width = old.c.height = 1; }
+    }
+    const c = reuse || document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    e = { c, bytes };
+    frameCacheBytes += bytes;
+  } else frameCache.delete(key);
+  e.c.getContext('2d').drawImage(src, 0, 0);
+  frameCache.set(key, e);
+}
+function frameCacheGet(key) {
+  const e = frameCache.get(key);
+  if (!e) return null;
+  frameCache.delete(key); frameCache.set(key, e); // mais recente
+  return e.c;
+}
+// ---- Pré-renderização (RAM Preview do After Effects / prévia suave do CapCut):
+// com a prévia PARADA e você sem mexer, o app renderiza em segundo plano os próximos segundos a partir do cursor,
+// lendo o vídeo em ordem (leitor rápido da exportação) e guardando no cache de RAM na resolução de reprodução.
+// No play esses quadros tocam do cache: liso mesmo com efeitos pesados. Qualquer edição invalida e recomeça.
+const preQ = () => Math.min(dispQ, playCap());
+let preScale = 0; // resolução da pré-renderização (0 = a de reprodução; diminui sozinha se o projeto for pesado)
+const preKey = (fi) => `${fi}|${(preScale || preQ()).toFixed(3)}|pre`;
+const preBuf = document.createElement('canvas');
+const preCtx = preBuf.getContext('2d', { alpha: false });
+let preGen = 0, preRunning = false, preIdleT = 0, preAhead = 0, slowN = 0;
+const PRE_MAX_S = 30; // até 30 s à frente (o cache de RAM limita antes em aparelhos com pouca memória)
+function preStop() { preGen++; clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 700); }
+function preIdle() { return !store.playing && !store.exporting && !window.__mfAnalyzing && document.visibilityState === 'visible' && performance.now() - lastEdit > 600 && !gesture; }
+async function preStart() {
+  if (preRunning || !preIdle() || !store.project?.layers?.length) return;
+  preRunning = true;
+  const gen = preGen;
+  try {
+    const P = viewProject(), fps = P.fps || 30, q = preScale || preQ();
+    const W = Math.max(2, Math.round(P.width * q)), H = Math.max(2, Math.round(P.height * q));
+    if (W * H * 4 * 3 > FRAME_CACHE_BUDGET) return;
+    const room = Math.floor((FRAME_CACHE_BUDGET * 0.8) / (W * H * 4));
+    if (preBuf.width !== W || preBuf.height !== H) { preBuf.width = W; preBuf.height = H; }
+    const f0 = Math.round(store.time * fps + 1e-6), fEnd = Math.min(Math.ceil(P.duration * fps) - 1, f0 + Math.min(room, PRE_MAX_S * fps));
+    // no Worker (fora da tela principal) quando o projeto permite: nada trava, nem o play logo depois
+    let wk = await preWorker(P, W, H, q);
+    if (gen !== preGen || !preIdle()) return;
+    for (let fi = f0; fi <= fEnd; fi++) {
+      if (gen !== preGen || !preIdle()) return;
+      preAhead = (fi - f0) / fps;
+      if (frameCache.has(preKey(fi))) continue;
+      const t = fi / fps;
+      let ok = false;
+      if (wk) {
+        const r0 = performance.now();
+        let bm = null;
+        try { bm = await wk.req(fi, t); } catch (e) { console.warn('pré-renderização no Worker falhou; seguindo na tela principal', e); preWorkerDrop(); wk = null; }
+        if (bm) {
+          if (gen === preGen && bm.ready) frameCachePut(preKey(fi), bm, true); // quadro sem a imagem de algum vídeo: não guarda (era o quadro preto)
+          else bm.close();
+          const ms = performance.now() - r0;
+          slowN = ms > 700 ? slowN + 1 : 0; // no Worker a tela não trava: só baixa a resolução se estiver bem lento
+          if (slowN >= 3 && q > 0.2) { slowN = 0; preScale = Math.max(0.2, q * Math.sqrt(500 / ms)); clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 50); return; }
+          if (fi % 5 === 0) prePill(fi - f0 + 1, fEnd - f0 + 1, fps);
+          continue;
+        }
+      }
+      for (let tries = 0; tries < 2 && !ok; tries++) {
+        await prepare(P, t, { exact: true });
+        const ep = prepareEpoch();
+        if (gen !== preGen || !preIdle()) return;
+        const r0 = performance.now();
+        try {
+          renderFrame(preCtx, P, t, q, { exact: true });
+          gpuSync(); // espera a GPU terminar (pelo WebGL): o tempo medido é o custo real do quadro
+          ok = ep === prepareEpoch() && !glLost() && exactFramesReady(P, t); // sem a imagem de algum vídeo: não guarda (quadro preto)
+        } catch { ok = false; }
+        // projeto pesado (remover fundo, Twixtor, Shatter…): cada quadro travaria a tela por muito tempo — renderiza a
+        // prévia numa resolução menor (como o ½/¼ do AE) e recomeça; a tela nunca fica presa mais que alguns décimos
+        const ms = performance.now() - r0;
+        slowN = ok && ms > 350 ? slowN + 1 : 0; // 2 quadros lentos seguidos (o 1º pode ser só o modelo/shader carregando)
+        if (slowN >= 2 && q > 0.2) { slowN = 0; preScale = Math.max(0.2, q * Math.sqrt(250 / ms)); clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 50); return; }
+      }
+      if (ok && gen === preGen) frameCachePut(preKey(fi), preBuf);
+      if (fi % 5 === 0) prePill(fi - f0 + 1, fEnd - f0 + 1, fps);
+      await new Promise((r) => setTimeout(r, 0)); // deixa a interface respirar entre um quadro e outro
+    }
+    prePill(1, 1, fps, true);
+  } finally { preRunning = false; if (gen !== preGen) { clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 700); } }
+}
+// sessão do Worker da prévia: uma por versão do projeto/tamanho (qualquer edição recria)
+let preW = null, preWKey = '', projVer = 0;
+function preWorkerDrop() { try { preW?.kill(); } catch { /* ok */ } preW = null; preWKey = ''; }
+async function preWorker(P, W, H, q) {
+  const key = `${projVer}|${W}x${H}|${q.toFixed(3)}`;
+  if (preW && preWKey === key) return preW;
+  preWorkerDrop();
+  if (IOS_M || store.exporting || !workerEligible(P)) return null; // iPhone: memória curta para dois motores ao mesmo tempo
+  const w = await startRenderWorker(JSON.parse(JSON.stringify(P)), W, H, q, { mode: 'preview' });
+  if (w) { preW = w; preWKey = key; }
+  return w;
+}
+let prePillEl = null, prePillT = 0;
+function prePill(n, total, fps, doneAll = false) {
+  if (!prePillEl) { prePillEl = document.createElement('div'); prePillEl.className = 'cache-pill pre-pill'; stage.appendChild(prePillEl); }
+  clearTimeout(prePillT);
+  prePillEl.textContent = doneAll ? `Prévia pronta para tocar liso` : `Renderizando prévia… ${(n / fps).toFixed(1)} de ${(total / fps).toFixed(1)} s`;
+  prePillEl.classList.add('show');
+  prePillT = setTimeout(() => prePillEl.classList.remove('show'), doneAll ? 1500 : 4000);
+}
+for (const ev of ['pointerdown', 'keydown', 'wheel']) window.addEventListener(ev, () => { if (preRunning) preStop(); else { clearTimeout(preIdleT); preIdleT = setTimeout(preStart, 700); } }, { capture: true, passive: true });
+const DRAFT_MS = IOS_M || /Android|Mobi/i.test(navigator.userAgent) ? 45 : 110;
+let glLosses = 0, lastEdit = 0, hqMs = 0, hqTimer = 0, holdSince = 0;
+setGLLostListener(() => { glLosses++; dirty = true; frameCacheClear(); if (!setGLLostListener.warned) { setGLLostListener.warned = true; toast('A GPU do aparelho reiniciou; o app recuperou a prévia.', 'warn', 3500); } });
+// primeira vez no app: mostra o passo a passo
+setTimeout(() => { try { if (!localStorage.getItem('motionframe.helpSeen')) { localStorage.setItem('motionframe.helpSeen', '1'); showHelp(); } } catch { /* sem armazenamento */ } }, 900);
+
+function layoutCanvas() {
+  const { width, height } = store.project;
+  // só redimensiona se mudou (mudar width/height apaga o canvas → piscava preto)
+  const vw = Math.round(width * quality), vh = Math.round(height * quality);
+  if (view.width !== vw || view.height !== vh) {
+    const keep = view.width > 1 && view.height > 1 ? (() => { const c = document.createElement('canvas'); c.width = view.width; c.height = view.height; c.getContext('2d').drawImage(view, 0, 0); return c; })() : null;
+    view.width = vw; view.height = vh;
+    if (keep) ctx.drawImage(keep, 0, 0, vw, vh); // mantém o quadro anterior (ampliado) até o novo ficar pronto
+  }
+  const r = stage.getBoundingClientRect();
+  const s = Math.min((r.width - 16) / width, (r.height - 16) / height);
+  // pixels na tela, com densidade até 2× (telas 3× do iPhone não mostram diferença numa prévia pequena)
+  if (r.width > 40) dispQ = Math.max(0.25, Math.min(1, s * Math.min(2, window.devicePixelRatio || 1)));
+  const cssW = Math.max(40, width * s), cssH = Math.max(40, height * s);
+  wrap.style.width = `${cssW}px`;
+  wrap.style.height = `${cssH}px`;
+  const dpr = window.devicePixelRatio || 1;
+  overlay.width = Math.round(cssW * dpr);
+  overlay.height = Math.round(cssH * dpr);
+  dirty = true;
+}
+new ResizeObserver(layoutCanvas).observe(stage);
+// preview ampliado: ocupa a tela toda (no PC também entra em tela cheia do navegador); Esc ou ⛶ volta
+const maxBtn = document.getElementById('maxBtn'), maxPlay = document.getElementById('maxPlay');
+function setMaxPreview(on) {
+  document.body.classList.toggle('preview-max', on);
+  maxBtn.innerHTML = ico(on ? 'close' : 'max');
+  if (on && document.documentElement.requestFullscreen && !/iPhone|iPad/.test(navigator.userAgent)) document.documentElement.requestFullscreen().catch(() => {});
+  if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  setTimeout(layoutCanvas, 50);
+}
+maxBtn.addEventListener('click', () => setMaxPreview(!document.body.classList.contains('preview-max')));
+maxPlay.addEventListener('click', () => setPlaying(!store.playing));
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && document.body.classList.contains('preview-max')) setMaxPreview(false); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('preview-max')) setMaxPreview(false); });
+qualitySel.addEventListener('change', () => { quality = curQuality(); layoutCanvas(); });
+
+function drawOverlay() {
+  const k = overlay.width / store.project.width;
+  octx.setTransform(1, 0, 0, 1, 0, 0);
+  octx.clearRect(0, 0, overlay.width, overlay.height);
+  trackerPanel.drawOverlay(octx, k, window.devicePixelRatio || 1);
+  drawRotoOverlay(octx, k);
+  const layer = store.layer();
+  // prévia limpa: a caixa só aparece enquanto você arrasta/redimensiona a camada
+  if (!gesture?.moved) return;
+  if (!layer || store.playing || !layer.visible || layer.type === 'audio' || layer.type === 'adjustment' || store.time < layer.inPoint || store.time >= layer.outPoint) return;
+  const pts = layerCorners(layer, store.time, store.project);
+  const dpr = window.devicePixelRatio || 1;
+  octx.strokeStyle = '#2d8ceb';
+  octx.lineWidth = 1 * dpr;
+  octx.beginPath();
+  pts.forEach(([x, y], i) => (i ? octx.lineTo(x * k, y * k) : octx.moveTo(x * k, y * k)));
+  octx.closePath();
+  octx.stroke();
+  octx.setLineDash([]);
+}
+
+let lastFrame = performance.now();
+let shownKey = ''; // quadro que está na tela agora (tempo|qualidade|modo)
+const playClock = { t0: 0, wall0: 0, last: 0 };
+function loop(now) {
+  lastFrame = now;
+  if (store.playing && !store.exporting) {
+    // relógio de verdade (como CapCut): o som nunca espera a imagem; se um quadro pesado atrasa, a prévia pula
+    // quadros em vez de ficar lenta e dessincronizar do som
+    if (Math.abs(store.time - playClock.last) > 0.02) { playClock.t0 = store.time; playClock.wall0 = now; playAudio(store.project, store.time); } // alguém mudou o tempo (scrub)
+    let t = playClock.t0 + (now - playClock.wall0) / 1000;
+    const wa = store.project.workArea, wA = wa && wa.b > wa.a ? wa.a : 0, wB = wa && wa.b > wa.a ? Math.min(wa.b, store.project.duration) : store.project.duration;
+    if (t >= wB || (wa && t < wA - 0.05 && playClock.t0 >= wA)) { t = wA; playClock.t0 = wA; playClock.wall0 = now; playAudio(store.project, wA); } // repete a área de trabalho
+    store.time = t; playClock.last = t;
+    store.emit('time');
+  }
+  if ((dirty || store.playing) && !store.exporting && !window.__mfAnalyzing) {
+    // janela do cache de quadros (Time Slice/Echo em clipe longo) acompanha o cursor
+    if (now - lastEnsure > 1000) { lastEnsure = now; ensureCaches(store.project, store.time); }
+    prepare(store.project, store.time, { playing: store.playing });
+    if (curQuality() !== quality) { quality = curQuality(); layoutCanvas(); }
+    const fps = store.project.fps || 30, fi = Math.round(store.time * fps + 1e-6);
+    // Resolução adaptativa (como no AE): parado, enquanto você arrasta/mexe num projeto pesado, o quadro sai em
+    // rascunho; quando para de mexer, sai o quadro nítido (e vai para o cache).
+    // celular/tablet: entra em rascunho mais cedo (o scrub não trava); PC só em projetos pesados
+    const interacting = performance.now() - lastEdit < 380;
+    // análise do tracker rodando: prévia em rascunho (a análise ganha o processador; antes travava o app)
+    const draftK = window.__mfAnalyzing ? 0.35 : !store.playing && qualitySel.value === 'auto' && interacting && hqMs > DRAFT_MS ? Math.max(0.3, Math.min(0.8, Math.sqrt((DRAFT_MS * 0.65) / hqMs))) : 1;
+    const key = `${fi}|${quality}|${store.playing ? 'p' : 'hq'}`;
+    const live = store.playing && liveVideoAt(viewProject(), fi / fps);
+    // tocando: quadros já pré-renderizados (RAM preview) tocam do cache, mesmo com vídeo — liso como no AE
+    const pre = store.playing ? frameCacheGet(preKey(fi)) : null;
+    const cached = pre || (live ? null : (store.playing && frameCacheGet(`${fi}|${quality}|hq`)) || frameCacheGet(key));
+    const tq = store.playing ? fi / fps : store.time;
+    // tocando: a tela atualiza a 60–120 Hz, mas o projeto tem 24–60 quadros/s — o mesmo quadro era renderizado de
+    // novo a cada atualização da tela (2 a 4 vezes). Agora só renderiza quando o quadro muda (ou algo foi editado).
+    const same = store.playing && !dirty && key === shownKey;
+    const hold = !same && !cached && !framesDrawable(viewProject(), tq) && performance.now() - (holdSince ||= performance.now()) < 900;
+    if (same) {
+      // nada a fazer: o quadro na tela já é este
+    } else if (cached) {
+      holdSince = 0;
+      ctx.drawImage(cached, 0, 0, view.width, view.height);
+      shownKey = key;
+    } else if (hold) {
+      // vídeo ainda buscando/decodificando: segura o último quadro bom (como o AE) — nunca pisca preto
+      requestAnimationFrame(() => { dirty = true; });
+    } else {
+      holdSince = 0;
+      const r0 = performance.now(), lost0 = glLosses;
+      const bw = Math.max(1, Math.round(view.width * draftK)), bh = Math.max(1, Math.round(view.height * draftK));
+      if (backBuf.width !== bw || backBuf.height !== bh) { backBuf.width = bw; backBuf.height = bh; }
+      let ok = true;
+      const tt = store.playing ? fi / fps : store.time;
+      try {
+        renderFrame(backCtx, viewProject(), tt, quality * draftK, { hq: !store.playing && draftK === 1 });
+        // espera a GPU terminar este quadro antes de pedir o próximo (como o AE/CapCut). Sem isso, com efeitos pesados
+        // os quadros se acumulavam na fila da placa e a tela congelava 10–25 s de uma vez (parecia que o app caiu);
+        // e o tempo medido passa a ser o real, então a resolução adaptativa reage na hora.
+        gpuSync();
+      } catch (e) { ok = false; console.warn('quadro falhou', e); }
+      const ms = performance.now() - r0;
+      if (ok && glLosses === lost0 && !glLost()) {
+        ctx.drawImage(backBuf, 0, 0, view.width, view.height);
+        shownKey = draftK < 1 ? '' : key;
+        if (draftK < 1) { clearTimeout(hqTimer); hqTimer = setTimeout(() => { dirty = true; }, 400); }
+        else {
+          if (!store.playing) hqMs = hqMs ? hqMs * 0.5 + ms * 0.5 : ms;
+          // tocando ao vivo não guarda (quase nunca é reaproveitado e ocupava a memória da placa); parado guarda o quadro nítido
+          if (!store.playing && mediaReady(viewProject(), tt, false)) frameCachePut(key, backBuf);
+        }
+        adaptQuality(ms);
+      } else setTimeout(() => { dirty = true; }, 60); // GPU caiu: mantém o último quadro bom e refaz este
+    }
+    drawOverlay();
+    timecode.textContent = layoutTimecode(store.time, store.project.duration, store.project.fps) || (document.body.classList.contains('ui-simple') ? `${formatSimple(store.time)} / ${formatSimple(store.project.duration)}` : formatTime(store.time, store.project.fps).slice(1));
+    dirty = false;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// cache de quadros para Velocidade/Twixtor (prévia suave e reverse)
+const cachePill = document.createElement('div');
+cachePill.className = 'cache-pill';
+stage.appendChild(cachePill);
+let lastCacheSt = null, lastCacheVer = 0, lastEnsure = 0;
+setCacheListener(() => {
+  const st = cacheStatus();
+  // cache novo pronto: quadros da prévia ao vivo mudam — os pré-renderizados (quadros exatos) continuam valendo
+  if (cacheVersion() !== lastCacheVer) { lastCacheVer = cacheVersion(); frameCacheClear(true); }
+  lastCacheSt = st;
+  cachePill.textContent = st == null ? '' : `Preparando quadros… ${st}%`;
+  cachePill.classList.toggle('show', st != null);
+  // só redesenha quando um cache ficou pronto (antes redesenhava o quadro pesado a cada 6 quadros preparados)
+  if (st == null) dirty = true;
+});
+let cacheTimer = 0;
+function scheduleCaches() {
+  clearTimeout(cacheTimer);
+  cacheTimer = setTimeout(() => { if (!store.exporting) ensureCaches(store.project, store.time); }, 600);
+}
+
+// fontes do Google usadas nos textos: carrega ao abrir o projeto; quando chegam, redesenha
+onFontsChange(() => { frameCacheClear(); dirty = true; });
+// ícones de linha no lugar dos símbolos/emoji em toda a interface (inclusive painéis e janelas criados depois)
+iconize(document.body);
+translateDOM(document.body, EFFECTS);
+document.documentElement.lang = getLang() === 'en' ? 'en' : 'pt-BR';
+new MutationObserver((muts) => {
+  for (const m of muts) {
+    if (m.type === 'characterData') { if (m.target.parentElement) translateDOM(m.target.parentElement, EFFECTS); continue; }
+    for (const n of m.addedNodes) if (n.nodeType === 1) { iconize(n.matches?.('button') ? n.parentElement : n); translateDOM(n.parentElement || n, EFFECTS); }
+      else if (n.nodeType === 3 && n.parentElement) translateDOM(n.parentElement, EFFECTS);
+  }
+}).observe(document.body, { childList: true, subtree: true, characterData: true });
+const stageEmpty = document.getElementById('stageEmpty');
+stageEmpty.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+store.on((kind) => {
+  if (kind === 'structure') stageEmpty.hidden = !!store.project.layers.length || !!store.scope?.length;
+  if (kind === 'structure') for (const l of flatLayers(store.project.layers)) if (l.type === 'text') ensureFont(l.props.fontFamily);
+  // tocando, o próprio loop avança o tempo a cada atualização da tela: quem decide se precisa de quadro novo é o
+  // número do quadro (shownKey), senão o mesmo quadro era renderizado 2–4× (tela de 60–120 Hz, projeto de 30 fps)
+  if (!(kind === 'time' && store.playing)) dirty = true;
+  if (!store.playing) preStop(); // mexeu (tempo, edição): para e recomeça do cursor quando ficar parado
+  if (kind === 'structure' || kind === 'change') { preScale = 0; projVer++; } // projeto mudou: volta à resolução cheia e recria o Worker
+  if (kind !== 'time' && kind !== 'selection' && kind !== 'keys') frameCacheClear();
+  if (kind !== 'selection' && !store.playing) lastEdit = performance.now();
+  if (kind === 'structure' || kind === 'change') scheduleCaches();
+  if (kind === 'structure' || kind === 'change') autosave();
+  if (kind === 'selection' || kind === 'structure') { renderToolbar(); onSelectionChanged(); updateTitle(); }
+  else if (kind === 'change') renderToolbar();
+});
+
+const playBtn = document.querySelector('[data-cmd="play"]');
+function setPlaying(p) {
+  const mp = document.getElementById('maxPlay'); if (mp) mp.innerHTML = ico(p ? 'pause' : 'play');
+  if (p === store.playing) return;
+  store.playing = p;
+  playBtn.innerHTML = ico(p ? 'pause' : 'play');
+  lastFrame = performance.now();
+  if (p) { playClock.t0 = playClock.last = store.time; playClock.wall0 = performance.now(); playAudio(store.project, store.time); }
+  else { stopAudio(); pauseAll(); store.setTime(store.time); }
+  dirty = true;
+}
+
+// ---- gestos na prévia: 1 dedo move, 2 dedos escala + rotação
+const pointers = new Map();
+let gesture = null;
+let trackPick = null; // callback quando o tracker espera o toque no ponto
+let trackDrag = null; // arrastando a caixa do tracker na prévia
+overlay.addEventListener('pointerdown', (e) => {
+  overlay.setPointerCapture(e.pointerId);
+  const r = overlay.getBoundingClientRect();
+  const toComp = (ev) => [((ev.clientX - r.left) / r.width) * store.project.width, ((ev.clientY - r.top) / r.height) * store.project.height];
+  if (trackPick) { const cb = trackPick; trackPick = null; cb(toComp(e)); return; }
+  if (drawMode) { drawPointer('down', toComp(e), e.pointerId, toComp); return; }
+  if (rotoMode) { rotoPointer('down', toComp(e), e, toComp); return; }
+  // tracker aberto: arrastar a caixa do Track Point / cantos das regiões (como no AE)
+  const th = trackerPanel.hit(...toComp(e), overlay.width / store.project.width);
+  if (th) { trackDrag = { ...th, toComp, id: e.pointerId }; return; }
+  pointers.set(e.pointerId, toComp(e));
+  if (pointers.size === 1) {
+    const [x, y] = toComp(e);
+    let layer = store.layer();
+    const hit = hitTest(viewProject(), store.time, x, y);
+    if (hit?.type === 'text' && isDoubleTap(hit.id)) { pointers.delete(e.pointerId); gesture = null; editTextInline(hit); return; }
+    if (hit && (!layer || hit.id !== layer.id)) { store.select(hit.id); layer = hit; }
+    if (!layer || layer.type === 'audio' || layer.type === 'adjustment') { gesture = null; return; }
+    gesture = { layer, toComp, start: [x, y], pos: valueAt(layer.transform.position, store.time), moved: false };
+  } else if (pointers.size === 2 && gesture) {
+    const [a, b] = [...pointers.values()];
+    gesture.pinch = { d0: Math.hypot(b[0] - a[0], b[1] - a[1]), a0: Math.atan2(b[1] - a[1], b[0] - a[0]), s0: valueAt(gesture.layer.transform.scale, store.time), r0: valueAt(gesture.layer.transform.rotation, store.time) };
+  }
+});
+overlay.addEventListener('pointermove', (e) => {
+  if (trackDrag && e.pointerId === trackDrag.id) { trackerPanel.drag(trackDrag, ...trackDrag.toComp(e)); drawOverlay(); return; }
+  if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('move', drawMode.stroke.toComp(e)); return; }
+  if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('move', rotoMode.stroke.toComp(e), e); return; }
+  if (!gesture || !pointers.has(e.pointerId)) return;
+  pointers.set(e.pointerId, gesture.toComp(e));
+  const { layer } = gesture;
+  if (pointers.size >= 2 && gesture.pinch) {
+    const [a, b] = [...pointers.values()];
+    const { d0, a0, s0, r0 } = gesture.pinch;
+    const f = Math.hypot(b[0] - a[0], b[1] - a[1]) / (d0 || 1);
+    setValue(layer.transform.scale, store.time, [Math.round(s0[0] * f * 10) / 10, Math.round(s0[1] * f * 10) / 10]);
+    setValue(layer.transform.rotation, store.time, Math.round((r0 + ((Math.atan2(b[1] - a[1], b[0] - a[0]) - a0) * 180) / Math.PI) * 10) / 10);
+    gesture.moved = true;
+  } else if (pointers.size === 1) {
+    const [x, y] = pointers.get(e.pointerId);
+    if (Math.hypot(x - gesture.start[0], y - gesture.start[1]) > 4) gesture.moved = true;
+    if (!gesture.moved) return;
+    setValue(layer.transform.position, store.time, [Math.round(gesture.pos[0] + x - gesture.start[0]), Math.round(gesture.pos[1] + y - gesture.start[1])]);
+  }
+  store.emit('preview');
+});
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (pointers.size === 0 && gesture) {
+    const moved = gesture.moved;
+    gesture = null;
+    if (moved) store.commit();
+    dirty = true;
+  }
+};
+overlay.addEventListener('pointerup', (e) => { if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
+overlay.addEventListener('pointercancel', endPointer);
+
+// ---- editar texto com toque duplo (na prévia ou no clipe da timeline), como em todos os editores
+let lastTap = { id: null, t: 0 };
+function isDoubleTap(id) {
+  const now = performance.now(), dbl = lastTap.id === id && now - lastTap.t < 400;
+  lastTap = dbl ? { id: null, t: 0 } : { id, t: now };
+  return dbl;
+}
+function editTextInline(layer) {
+  if (!layer || layer.type !== 'text') return;
+  setPlaying(false);
+  if (store.selectedLayerId !== layer.id) store.select(layer.id);
+  document.querySelector('.txt-edit')?.remove();
+  const before = layer.props.text ?? '';
+  const box = document.createElement('div');
+  box.className = 'txt-edit';
+  box.innerHTML = `<div class="txt-edit-in"><textarea rows="2" spellcheck="false" aria-label="Texto"></textarea><button class="tx-x" aria-label="Cancelar">${ico('close')}</button><button class="tx-ok" aria-label="Concluir">${ico('check')}</button></div>`;
+  document.body.appendChild(box);
+  const ta = box.querySelector('textarea');
+  ta.value = before;
+  const done = (ok) => { if (!ok) layer.props.text = before; box.remove(); if (ok && layer.props.text !== before) store.commit(); else store.emit('preview'); };
+  ta.addEventListener('input', () => { layer.props.text = ta.value; store.emit('preview'); });
+  ta.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') done(false); if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) done(true); });
+  box.querySelector('.tx-ok').addEventListener('click', () => done(true));
+  box.querySelector('.tx-x').addEventListener('click', () => done(false));
+  box.addEventListener('pointerdown', (e) => { if (e.target === box) done(true); });
+  setTimeout(() => { ta.focus(); ta.select(); }, 30);
+}
+
+// ---- Roto Brush (como o do After): pincel verde = primeiro plano, vermelho (ou Alt) = fundo
+let rotoMode = null; // { layer, fx, fg, stroke }
+setRotoListener(() => { dirty = true; frameCacheClear?.(); });
+function rotoFx(layer) { return layer.effects.find((f) => f.type === 'rotoBrush'); }
+async function startRoto() {
+  const l = store.layer();
+  if (!l || !['video', 'image', 'group'].includes(l.type)) return toast('Selecione o clipe (vídeo ou foto) que você quer recortar.', 'warn', 3500);
+  setPlaying(false); closeSheet();
+  let fx = rotoFx(l);
+  if (!fx) { fx = createEffectInstance('rotoBrush', {}); l.effects.unshift(fx); store.commit(); }
+  rotoMode = { layer: l, fx, fg: true, stroke: null };
+  if (rotoStatus() !== 'ready') { toast('Baixando o modelo do Roto Brush (só na 1ª vez, ~6 MB)…', 'info', 3000); ensureRotoModel(); }
+  document.querySelector('.draw-bar')?.remove();
+  document.getElementById('stage').insertAdjacentHTML('beforeend', `<div class="draw-bar roto-bar"><button data-r="fg" class="on fg">＋ Manter</button><button data-r="bg" class="bg">− Tirar</button><button data-r="undo">${ico('undo')}</button><button data-r="clear">Limpar</button><button data-r="done" class="ok">${ico('check')} Concluir</button></div>`);
+  const bar = document.querySelector('.roto-bar');
+  bar.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-r]'); if (!b || !rotoMode) return;
+    const k = b.dataset.r, list = rotoStrokes();
+    if (k === 'fg' || k === 'bg') { rotoMode.fg = k === 'fg'; bar.querySelector('.fg').classList.toggle('on', rotoMode.fg); bar.querySelector('.bg').classList.toggle('on', !rotoMode.fg); }
+    if (k === 'undo') { list.pop(); setRotoStrokes(list); }
+    if (k === 'clear') { setRotoStrokes([]); }
+    if (k === 'done') endRoto();
+  });
+  toast('Roto Brush: pinte de verde o que fica (Alt ou “− Tirar” para pintar o fundo). A máscara acompanha o objeto nos outros quadros.', 'info', 5000);
+  drawOverlay();
+}
+const rotoStrokes = () => { const v = rotoMode?.fx.params.strokes; return Array.isArray(v?.value) ? v.value.slice() : Array.isArray(v) ? v.slice() : []; };
+function setRotoStrokes(list) {
+  const fx = rotoMode.fx;
+  if (fx.params.strokes && typeof fx.params.strokes === 'object' && 'value' in fx.params.strokes) fx.params.strokes.value = list; else fx.params.strokes = list;
+  store.commit(); drawOverlay();
+}
+function rotoPointer(kind, pt, e, toComp) {
+  const R = rotoMode; if (!R) return;
+  const l = R.layer, w = l.props.width || store.project.width, h = l.props.height || store.project.height;
+  const norm = (q) => { const { lx, ly } = compToLocal(l, store.time, q[0], q[1]); return [+(lx / w + 0.5).toFixed(4), +(ly / h + 0.5).toFixed(4)]; };
+  if (kind === 'down') { R.stroke = { id: e.pointerId, toComp, fg: e.altKey ? false : R.fg, pts: [norm(pt)], comp: [pt] }; }
+  else if (kind === 'move' && R.stroke) { const last = R.stroke.comp[R.stroke.comp.length - 1]; if (Math.hypot(pt[0] - last[0], pt[1] - last[1]) < 4) return; R.stroke.pts.push(norm(pt)); R.stroke.comp.push(pt); drawOverlay(); }
+  else if (kind === 'up' && R.stroke) {
+    const st = R.stroke; R.stroke = null;
+    const list = rotoStrokes(); list.push({ t: +store.time.toFixed(4), fg: st.fg, pts: st.pts });
+    setRotoStrokes(list);
+  }
+}
+function drawRotoOverlay(ctx, k) {
+  if (!rotoMode) return;
+  const l = rotoMode.layer, w = l.props.width || store.project.width, h = l.props.height || store.project.height;
+  const fps = store.project.fps || 30, f = Math.round(store.time * fps);
+  const toC = (u, v) => { const [x, y] = localToCompPt(l, store.time, (u - 0.5) * w, (v - 0.5) * h); return [x * k, y * k]; };
+  const all = rotoStrokes().filter((s) => Math.round(s.t * fps) === f);
+  if (rotoMode.stroke) all.push({ fg: rotoMode.stroke.fg, pts: rotoMode.stroke.pts });
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 10;
+  for (const s of all) { ctx.strokeStyle = s.fg ? 'rgba(60,220,90,.85)' : 'rgba(240,60,60,.85)'; ctx.beginPath(); s.pts.forEach(([u, v], i) => { const [x, y] = toC(u, v); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.stroke(); }
+  ctx.restore();
+}
+function endRoto() {
+  rotoMode = null; document.querySelector('.roto-bar')?.remove(); drawOverlay();
+  openSheet('effects');
+  toast('Recorte pronto ✓ Ajuste a borda em Efeitos › Roto Brush (Suavizar, Encolher). Pinte em outro quadro se o objeto mudar muito.', 'ok', 4500);
+}
+
+// ---- desenho livre / vetorial (como no Alight Motion): cada traço vira um caminho numa camada de formas
+let drawMode = null; // { layer, vector, stroke, pts }
+function strokeItem(pts, closed, vector) {
+  const P = [];
+  for (let i = 0; i < pts.length; i++) { const v = pts[i], n = pts[(i + 1) % pts.length]; P.push(v, v, n); }
+  const col = vector ? [0.36, 0.55, 1] : [0.1, 0.1, 1];
+  return { t: 'group', items: [{ t: 'path', path: { shapes: [{ closed, pts: P }], times: [] } }, ...(closed ? [{ t: 'fill', color: anim(col), opacity: anim(100), rule: 1 }] : []), { t: 'stroke', color: anim(vector ? [1, 1, 1] : col), opacity: anim(100), width: anim(vector ? 4 : Math.max(6, Math.round(store.project.width / 120))), cap: 2, join: 2 }], tr: {} };
+}
+function startDraw(vector) {
+  setPlaying(false); closeSheet();
+  const l = LAYER_FACTORIES.shape(store.project, []);
+  l.name = vector ? 'Desenho vetorial' : 'Desenho';
+  l.inPoint = 0; l.outPoint = store.project.duration;
+  store.addLayer(l);
+  drawMode = { layer: l, vector, stroke: null, pts: [] };
+  document.querySelector('.draw-bar')?.remove();
+  document.getElementById('stage').insertAdjacentHTML('beforeend', `<div class="draw-bar"><span>${vector ? 'Toque para pôr os pontos' : 'Desenhe com o dedo na prévia'}</span><button data-d="undo">${ico('undo')}</button><button data-d="done" class="ok">${ico('check')} Concluir</button></div>`);
+  const bar = document.querySelector('.draw-bar');
+  bar.addEventListener('click', (e) => { const b = e.target.closest('[data-d]'); if (!b) return; if (b.dataset.d === 'done') endDraw(); else { const sh = drawMode?.layer.props.shapes; if (drawMode?.pts.length) drawMode.pts.pop(); else sh?.pop(); if (drawMode?.vector) syncVector(); store.commit(); } });
+  toast(vector ? 'Desenho vetorial: toque para criar os pontos e depois em Concluir.' : 'Desenho livre: desenhe na prévia. Toque em Concluir quando terminar.', 'info', 3500);
+}
+function syncVector() {
+  const d = drawMode; if (!d) return;
+  const sh = d.layer.props.shapes;
+  if (d.vIdx == null) d.vIdx = sh.length;
+  sh.length = d.vIdx;
+  if (d.pts.length >= 2) sh.push(strokeItem(d.pts, d.pts.length > 2, true));
+}
+function drawPointer(kind, pt, id, toComp) {
+  const d = drawMode; if (!d) return;
+  const [cx, cy] = valueAt(d.layer.transform.position, store.time);
+  const q = [Math.round(pt?.[0] - cx), Math.round(pt?.[1] - cy)];
+  if (d.vector) { if (kind === 'down') { d.pts.push(q); syncVector(); store.commit(); } return; }
+  if (kind === 'down') { d.stroke = { id, toComp, pts: [q] }; d.layer.props.shapes.push(strokeItem([q, q], false, false)); }
+  else if (kind === 'move' && d.stroke) {
+    const last = d.stroke.pts[d.stroke.pts.length - 1];
+    if (Math.hypot(q[0] - last[0], q[1] - last[1]) < 3) return;
+    d.stroke.pts.push(q);
+    d.layer.props.shapes[d.layer.props.shapes.length - 1] = strokeItem(d.stroke.pts, false, false);
+    store.emit('preview');
+  } else if (kind === 'up') { d.stroke = null; store.commit(); }
+}
+function endDraw() {
+  const d = drawMode; drawMode = null;
+  document.querySelector('.draw-bar')?.remove();
+  if (!d) return;
+  if (!d.layer.props.shapes.length) { store.select(d.layer.id); deleteSelection(); return; }
+  store.select(d.layer.id); store.commit('structure');
+  toast('Desenho pronto ✓ Anime em Keyframes ou aplique efeitos.', 'ok', 2500);
+}
+
+// ------------------------------------------------------------------ sheet (painel inferior / lateral)
+const sheet = document.getElementById('sheet');
+const sheetTitle = document.getElementById('sheetTitle');
+const TITLES = { trans: 'Transições', composer: 'Composer · animações prontas', effects: 'Efeitos da camada', browser: 'Adicionar efeito', props: 'Propriedades', presets: 'Presets', keys: 'Keyframes e gráfico', topaz: 'Topaz', add: 'Adicionar camada', tracker: 'Tracker' };
+const desktop = window.matchMedia('(min-width: 1100px)');
+const appEl = document.querySelector('.app');
+let sheetPane = null;
+let sheetBackTo = null;
+
+// ---- PC: painéis encaixados no canto (como os do After Effects). Vários abertos ao mesmo tempo, empilhados;
+// cada um pode ser minimizado (só o título) ou fechado, e reaberto pela barra de painéis no topo da coluna.
+const DOCK_KEY = 'motionframe.dock';
+const DOCK_PANES = ['props', 'effects', 'presets', 'trans', 'composer', 'keys', 'topaz', 'tracker', 'browser', 'add'];
+const DOCK_BAR = [['props', '☰', 'Propriedades'], ['effects', '✦', 'Efeitos'], ['presets', '★', 'Presets'], ['trans', 'transition', 'Transições'], ['composer', '❖', 'Composer'], ['keys', '📈', 'Keyframes'], ['topaz', '✨', 'Topaz'], ['tracker', '⌖', 'Tracker']];
+const dock = (() => { const d = storage.get(DOCK_KEY, null); return d && Array.isArray(d.open) ? { open: d.open.filter((x) => DOCK_PANES.includes(x)), min: d.min || [] } : { open: ['effects', 'props', 'presets'], min: ['presets'] }; })();
+const saveDock = () => storage.set(DOCK_KEY, { open: dock.open.filter((x) => x !== 'browser' && x !== 'add' && x !== 'tracker'), min: dock.min });
+function renderDock() {
+  const on = desktop.matches;
+  appEl.classList.toggle('dock-mode', on);
+  document.querySelectorAll('.sheet .pane').forEach((p) => {
+    const n = p.dataset.pane;
+    if (!p.querySelector(':scope > .dock-head')) {
+      const h = document.createElement('div');
+      h.className = 'dock-head';
+      h.innerHTML = `<button class="dock-min" title="Minimizar / abrir">${ico('minimize')}</button><span class="dock-title"></span><button class="dock-x" title="Fechar o painel">${ico('close')}</button>`;
+      h.querySelector('.dock-min').addEventListener('click', () => toggleDockMin(n));
+      h.querySelector('.dock-title').addEventListener('click', () => toggleDockMin(n));
+      h.querySelector('.dock-x').addEventListener('click', () => closeDockPane(n));
+      p.prepend(h);
+    }
+    p.querySelector('.dock-title').textContent = paneTitle(n) || TITLES[n] || n;
+    p.classList.toggle('dock-open', on && dock.open.includes(n));
+    p.classList.toggle('dock-min', on && dock.min.includes(n));
+    p.classList.toggle('dock-focus', on && sheetPane === n);
+    if (on) p.style.order = String(dock.open.indexOf(n));
+  });
+  const bar = document.getElementById('dockBar');
+  const pc = pcActive(), leftP = pcLeftPanes();
+  if (pc && on && (!sheetPane || leftP.includes(sheetPane))) { sheetPane = 'props'; if (!dock.open.includes(sheetPane)) dock.open.unshift(sheetPane); document.querySelectorAll('.sheet .pane').forEach((p) => { p.classList.toggle('dock-focus', p.dataset.pane === sheetPane); p.classList.toggle('dock-open', dock.open.includes(p.dataset.pane)); }); }
+  bar.classList.toggle('pc-tabs', !!pc);
+  bar.innerHTML = DOCK_BAR.filter(([n]) => paneAllowed(n) && !leftP.includes(n)).map(([n, i, l]) => `<button data-dock="${n}" class="${(pc ? sheetPane === n : dock.open.includes(n)) ? 'on' : ''}" title="${dock.open.includes(n) ? 'Fechar' : 'Abrir'} ${paneTitle(n) || l}">${ico(i)} ${paneTitle(n) || l}</button>`).join('');
+  bar.querySelectorAll('[data-dock]').forEach((x) => x.addEventListener('click', () => {
+    const n = x.dataset.dock;
+    if (pcActive()) { openSheet(n); return; } // PC dos layouts: abas (uma por vez), como o painel de detalhes do CapCut Desktop
+    if (dock.open.includes(n)) closeDockPane(n); else openSheet(n);
+  }));
+}
+function toggleDockMin(n) {
+  dock.min = dock.min.includes(n) ? dock.min.filter((x) => x !== n) : [...dock.min, n];
+  saveDock(); renderDock();
+}
+function closeDockPane(n) {
+  dock.open = dock.open.filter((x) => x !== n);
+  if (n === 'tracker' && !trackerPanel.el.hidden) trackerPanel.close();
+  if (sheetPane === n) sheetPane = dock.open[0] || null;
+  saveDock(); renderDock();
+}
+desktop.addEventListener?.('change', () => { renderDock(); if (desktop.matches) sheet.classList.add('open'); });
+renderDock();
+if (desktop.matches) sheet.classList.add('open');
+// arrastar a borda esquerda da coluna muda a largura dos painéis (fica salvo)
+(() => {
+  const h = document.createElement('div'); h.className = 'dock-resize'; sheet.appendChild(h);
+  const set = (w) => appEl.style.setProperty('--dock-w', `${Math.round(Math.max(300, Math.min(760, w)))}px`);
+  const saved = storage.get('motionframe.dockW', 0); if (saved) set(saved);
+  h.addEventListener('pointerdown', (e) => {
+    h.setPointerCapture(e.pointerId);
+    const mv = (ev) => { set(window.innerWidth - ev.clientX); layoutCanvas(); };
+    const up = () => { h.removeEventListener('pointermove', mv); h.removeEventListener('pointerup', up); storage.set('motionframe.dockW', parseInt(getComputedStyle(appEl).getPropertyValue('--dock-w'), 10) || 400); };
+    h.addEventListener('pointermove', mv); h.addEventListener('pointerup', up);
+  });
+})();
+
+let propsInspector = null;
+let propsFocusNext = null; // painel fragmentado (só uma parte das propriedades), como nos cartões do Alight/CapCut/Blurrr
+function openProps(focus) {
+  if (focus && !store.layer()) { toast('Selecione uma camada.', 'warn'); return; }
+  propsFocusNext = focus || null; openSheet('props');
+}
+function openSheet(name, backTo = null) {
+  requestAnimationFrame(() => { for (const x of [propsInspector, effectsInspector, keyTools, topazPanel]) if (x?.dirty && x.root?.offsetParent) x.render(); });
+  if (name === 'props' && propsInspector) { const f = propsFocusNext; propsFocusNext = null; if (propsInspector.focus !== f) { propsInspector.focus = f; propsInspector.render(); } }
+  if (name === 'composer') setTimeout(() => composer.startPreview(), 0); // o Composer só monta (e anima) quando aberto
+  if (desktop.matches && pcOpenLeft(name)) { if (name === 'trans') transPanel?.render?.(); return; } // PC (CapCut/Blurrr/Nova): biblioteca na coluna da esquerda
+  if (desktop.matches) {
+    // PC: abre (ou traz de volta) o painel no canto, sem fechar os outros
+    if (!dock.open.includes(name)) dock.open.unshift(name);
+    dock.min = dock.min.filter((x) => x !== name);
+    sheetPane = name;
+    sheet.classList.add('open');
+    saveDock(); renderDock();
+    requestAnimationFrame(() => document.querySelector(`.sheet .pane[data-pane="${name}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    return;
+  }
+  if (sheetPane !== name) sheet.querySelector('.sheet-body').scrollTop = 0;
+  sheetPane = name;
+  sheetBackTo = backTo;
+  document.querySelectorAll('.sheet .pane').forEach((p) => p.classList.toggle('active', p.dataset.pane === name));
+  sheetTitle.textContent = (name === 'props' && propsInspector?.focus && FRAG_TITLE[propsInspector.focus]) || paneTitle(name) || TITLES[name] || '';
+  sheet.classList.add('open');
+  appEl.classList.toggle('docked', !desktop.matches);
+  sheet.classList.toggle('has-back', !!backTo);
+  sheet.setAttribute('aria-hidden', 'false');
+}
+function closeSheet() {
+  if (desktop.matches) { if (sheetPane === 'browser' || sheetPane === 'add') closeDockPane(sheetPane); return; }
+  sheetPane = null;
+  sheet.classList.remove('open');
+  appEl.classList.remove('docked');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+document.getElementById('sheetBack').addEventListener('click', () => sheetBackTo && openSheet(sheetBackTo));
+(() => {
+  // arrastar a alça para baixo fecha o painel (mobile)
+  let y0 = null;
+  for (const el of [document.getElementById('sheetGrip'), sheet.querySelector('.sheet-head')]) {
+    el.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; }, { passive: true });
+    el.addEventListener('touchmove', (e) => { if (y0 != null && e.touches[0].clientY - y0 > 0) sheet.style.transform = `translateY(${e.touches[0].clientY - y0}px)`; }, { passive: true });
+    el.addEventListener('touchend', (e) => {
+      const dy = (e.changedTouches[0]?.clientY ?? y0) - y0;
+      sheet.style.transform = '';
+      if (dy > 80) closeSheet();
+      y0 = null;
+    });
+  }
+})();
+
+function onSelectionChanged() {
+  if (desktop.matches) return; // PC: os painéis ficam onde você deixou (como no After Effects)
+  if (!store.layer() && ['effects', 'props'].includes(sheetPane)) {
+    if (desktop.matches) openSheet('presets'); else closeSheet();
+  } else if (desktop.matches && store.layer() && (sheetPane === 'presets' || sheetPane === 'add' || !sheetPane)) openSheet('effects');
+}
+
+// ------------------------------------------------------------------ painéis
+let keyTools = null;
+const timeline = new Timeline(document.getElementById('timeline'), store, {
+  onUserScrub: () => setPlaying(false),
+  onPreview: () => { dirty = true; },
+  videoThumb: (src) => videoThumb(src),
+  multiSelect: () => keyTools?.multi,
+  onKeyTap: () => { if (sheetPane !== 'keys') openSheet('keys'); },
+  onAdd: () => commands.add?.(),
+  cmd: (c) => commands[c]?.(),
+  textTap: (layer) => { if (!isDoubleTap(layer.id)) return false; editTextInline(layer); return true; },
+});
+const effectsInspector = new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
+  browse: () => openSheet('browser', 'effects'),
+  duplicateEffect: (layer, fx) => {
+    const copy = deepClone(fx);
+    copy.id = uid('fx');
+    layer.effects.splice(layer.effects.indexOf(fx) + 1, 0, copy);
+  },
+  savePreset: () => library.saveLayer(),
+  sceneSetup: (layer, fx) => openSceneSetup(store, layer, fx, viewProject()),
+});
+propsInspector = new Inspector(document.getElementById('propsPanel'), store, 'props', {
+  addFx: (layer, type) => { layer.effects.push(createEffectInstance(type, {})); store.commit(); },
+  speed: (layer) => { ensureSpeedEffect(layer); openSheet('effects'); },
+  beats: (layer) => addBeatMarkers(layer),
+  track: (layer) => openTracker(layer, 'point'),
+  faceTrack: (layer) => openTracker(layer, 'face'),
+  replace: (layer) => replaceLayerMedia(layer),
+  matteName: (layer) => { const L = store.layers, i = L.indexOf(layer); return L[i - 1]?.name || ''; },
+  trackMatte: (layer, mode) => setTrackMatte(layer, mode),
+});
+/** Track Matte (como no AE): a camada logo acima na lista vira a máscara (alfa ou luma) e fica oculta. */
+function setTrackMatte(layer, mode) {
+  const L = store.layers, i = L.indexOf(layer);
+  if (mode && i < 1) { toast('Para usar Track Matte, coloque a camada da máscara (texto, forma…) logo acima desta na lista, como no After Effects.', 'warn', 5000); return; }
+  const m = L[i - 1];
+  if (!mode) { if (layer.trackMatte && m?.isMatteFor === layer.id) { m.visible = true; delete m.isMatteFor; } delete layer.trackMatte; }
+  else { layer.trackMatte = mode; m.visible = false; m.isMatteFor = layer.id; m.trackLuma = mode >= 3; }
+  store.commit('structure');
+  if (mode) toast(`Track Matte: “${m.name}” virou a máscara de “${layer.name}”.`, 'ok', 4000);
+}
+const library = new Library(document.getElementById('library'), store, {
+  onApplied: () => { if (!desktop.matches) closeSheet(); },
+  openAEP: (f) => { closeSheet(); return openAEPFlow(f); }, // .aep escolhido em Presets abre como projeto
+  importAex: (files) => { openSheet('browser'); return fxBrowser.importAex(files); }, // .aex vira efeito em Efeitos › Meus plugins
+});
+// Plugins .aex instalados: a importação de .ffx usa esses plugins, e quem já estava como "Controles importados"
+// (no projeto aberto e nos presets da biblioteca) é convertido de novo quando um plugin novo é instalado.
+setPluginLookup(findInstalled);
+window.addEventListener('aex-plugins-changed', () => {
+  let n = 0;
+  const walk = (layers) => { for (const l of layers || []) { if (l.effects) n += upgradeLayerEffects(l); walk(l.props?.layers); } };
+  walk(store.project?.layers);
+  const np = library.upgradePlugins();
+  if (n) store.commit('structure');
+  if (n || np) toast(`Plugins instalados: ${n ? `${n} efeito(s) do projeto` : ''}${n && np ? ' e ' : ''}${np ? `${np} preset(s) da biblioteca` : ''} agora usam o efeito equivalente.`, 'ok', 6000);
+});
+const fxBrowser = new FxBrowser(document.getElementById('fxBrowser'), (type, extra = null) => {
+  let layer = store.layer();
+  if (!layer) {
+    layer = LAYER_FACTORIES.adjustment(store.project);
+    layer.name = `Ajuste · ${extra?.label || getEffectDef(type).label}`;
+    store.layers.unshift(layer);
+    store.selectedLayerId = layer.id;
+  }
+  if ((getEffectDef(type).sourceSpeed || getEffectDef(type).sourceRemap) && !TIMED.has(layer.type)) toast('Velocidade / Time Remap mudam vídeos e pré-comps/grupos (o conteúdo de dentro). Pré-componha esta camada para mudar a velocidade dela.', 'warn', 5000);
+  if (layer.type === 'group') ensureGroupTime(layer);
+  const inst = createEffectInstance(type, extra?.params || {});
+  if (extra?.label) inst.label = extra.label; // plugin .aex instalado: aparece com o nome do plugin
+  getEffectDef(type).init?.(inst, layer);
+  if (getEffectDef(type).custom) inst.recipe = getEffectDef(type).recipe; // o projeto leva a receita (abre em outro aparelho)
+  layer.effects.push(inst);
+  store.commit('structure');
+  openSheet('effects');
+  toast(`${extra?.label || getEffectDef(type).label} adicionado em ${layer.name}`, 'ok', 2000);
+});
+keyTools = new KeyTools(document.getElementById('keyTools'), store);
+const topazPanel = new TopazPanel(document.getElementById('topazPanel'), store);
+const composer = new ComposerPanel(document.getElementById('composerPanel'), store, { onApplied: () => { if (!desktop.matches) closeSheet(); } });
+window.addEventListener('open-composer', () => openSheet('composer'));
+const transPanel = new TransitionsPanel(document.getElementById('transPanel'), store, {
+  userPresets: () => (library?.user || []).filter((p) => !p.lazy && (p.effects?.length || Object.keys(p.transform || {}).length)),
+  onApplied: () => { if (!desktop.matches) closeSheet(); },
+  exportFFX: async (items, dur) => {
+    toast('Gerando os .ffx…', 'info', 2000);
+    const [{ effectsToFFX }, { makeZip }, { buildFFXPack }] = await Promise.all([import('./ffx-export.js'), import('./zip-write.js'), import('./edit-transitions.js')]);
+    const files = await buildFFXPack(items, { effectsToFFX, LAYER_FACTORIES, createProject, applyPreset }, { dur, shakes: items.length > 1 });
+    const name = items.length > 1 ? 'MotionFrame-transicoes-edits.zip' : `${items[0].name.replace(/[^\w-]+/g, '_')}-ffx.zip`;
+    await saveFile(name, new Blob([makeZip(files)], { type: 'application/zip' }));
+  },
+});
+void transPanel;
+// ---- alça entre prévia e timeline (o tamanho fica salvo)
+{
+  const grip = document.querySelector('.tl-grip'), app = document.querySelector('.app'), KEY = 'motionframe.tlH';
+  const apply = (px) => { if (px) app.style.setProperty('--tl-h', `${px}px`); };
+  try { apply(+localStorage.getItem(KEY) || 0); } catch { /* */ }
+  grip?.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); grip.setPointerCapture(e.pointerId); grip.classList.add('on');
+    const wrap = grip.parentElement, y0 = e.clientY, h0 = wrap.getBoundingClientRect().height;
+    let h = h0;
+    grip.onpointermove = (ev) => { h = Math.max(110, Math.min(window.innerHeight * 0.72, h0 - (ev.clientY - y0))); apply(Math.round(h)); };
+    grip.onpointerup = () => { grip.onpointermove = grip.onpointerup = null; grip.classList.remove('on'); try { localStorage.setItem(KEY, String(Math.round(h))); } catch { /* */ } };
+  });
+  grip?.addEventListener('dblclick', () => { app.style.removeProperty('--tl-h'); try { localStorage.removeItem(KEY); } catch { /* */ } });
+}
+// ---- Criar efeito (efeitos próprios do usuário)
+function cfxPreview(g, c, def) {
+  const P = store.project, src = store.layer();
+  const ar = P.width / P.height;
+  c.width = ar >= 1 ? 320 : Math.round(200 * ar); c.height = ar >= 1 ? Math.round(320 / ar) : 200;
+  const proj = JSON.parse(JSON.stringify({ ...P, layers: [] }));
+  const t = store.time;
+  let l;
+  if (src && src.type !== 'audio' && src.type !== 'adjustment' && t >= src.inPoint && t < src.outPoint) l = JSON.parse(JSON.stringify(src));
+  else {
+    l = LAYER_FACTORIES.text(proj); l.props.text = 'MOTION'; l.props.fontSize = Math.round(P.width / 6); l.props.color = '#ffffff';
+    l.inPoint = 0; l.outPoint = Math.max(1, P.duration);
+    const bg = LAYER_FACTORIES.rect(proj); bg.props.width = P.width * 0.5; bg.props.height = P.width * 0.5; bg.props.fill = '#2d8cf0'; bg.inPoint = 0; bg.outPoint = l.outPoint;
+    bg.transform.position.value = [P.width / 2, P.height / 2 + P.width * 0.3]; bg.transform.rotation.value = 20;
+    proj.layers.push(bg);
+  }
+  l.id = 'cfxpv';
+  l.effects = def ? [createEffectInstance('__cfx_preview')] : []; // só o efeito sendo criado
+  proj.layers.unshift(l);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = P.background || '#000'; g.fillRect(0, 0, c.width, c.height);
+  try { renderFrame(g, proj, t, c.width / P.width, { hq: true }); } finally { forgetLayer?.('cfxpv'); }
+}
+window.addEventListener('custom-fx', async (e) => {
+  const { action, type } = e.detail || {};
+  const { createEffectDialog } = await import('./custom-fx-ui.js');
+  if (action === 'import') {
+    const files = await pickFiles('.mfx,application/json');
+    for (const f of files) { try { const r = await importRecipe(f); toast(`Efeito “${r.name}” importado em Efeitos › Meus efeitos ✓`, 'ok'); } catch (err) { toast(`${f.name}: ${err.message}`, 'error', 5000); } }
+    return;
+  }
+  const recipe = action === 'edit' ? customRecipes().find((r) => r.type === type) : null;
+  const res = await createEffectDialog({ recipe, layer: store.layer(), renderPreview: cfxPreview });
+  if (res?.export) { await saveFile(`${res.name.replace(/[^\w-]+/g, '_')}.mfx`, res.export); return; }
+  if (res?.type) {
+    // efeito editado: atualiza a receita nas camadas que já usam
+    for (const l of flatLayers(store.project.layers)) for (const fx of l.effects || []) if (fx.type === res.type) {
+      fx.recipe = res;
+      for (const pd of getEffectDef(res.type).params) if (!fx.params[pd.key]) fx.params[pd.key] = { value: JSON.parse(JSON.stringify(pd.default)), keys: [] };
+    }
+    store.commit('structure');
+    fxBrowser.cat = 'Meus efeitos'; fxBrowser.render();
+  }
+});
+// versão nova publicada: avisa (agora e a cada 30 min)
+setTimeout(() => checkForUpdate({ onNew: autoUpdate }), 4000);
+setInterval(() => checkForUpdate({ onNew: autoUpdate }), 10 * 60 * 1000);
+let lastUpd = 0; // ao voltar para o app (aba/PWA em segundo plano) confere de novo, no máximo 1× por minuto
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - lastUpd > 60000) { lastUpd = Date.now(); checkForUpdate({ onNew: autoUpdate }); } });
+window.addEventListener('app-updated', () => toast('Versão nova do MotionFrame instalada. Volte para a tela inicial (⌂) para usar.', 'ok', 8000));
+if (dock.open.includes('composer')) setTimeout(() => composer.startPreview(), 300);
+
+// ---- tracker (painel estilo After Effects)
+const trackerPanel = new TrackerPanel(store, {
+  pick: () => { if (!desktop.matches) closeSheet(); return new Promise((res) => { trackPick = res; });
+{ const tc = trackerPanel.close.bind(trackerPanel); trackerPanel.close = () => { tc(); if (dock.open.includes('tracker')) closeDockPane('tracker'); }; } },
+  redraw: () => { dirty = true; },
+  // análise do tracker: desenha o quadro analisado direto na prévia, no lugar da camada (rápido, como o Layer panel do AE)
+  frame: (c, layer, t) => {
+    const k = view.width / store.project.width;
+    const pts = layerCorners(layer, t, store.project);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, view.width, view.height);
+    const [p0, p1, , p3] = pts;
+    ctx.setTransform(((p1[0] - p0[0]) * k) / c.width, ((p1[1] - p0[1]) * k) / c.width, ((p3[0] - p0[0]) * k) / c.height, ((p3[1] - p0[1]) * k) / c.height, p0[0] * k, p0[1] * k);
+    ctx.drawImage(c, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    store.time = t;
+    drawOverlay();
+  },
+  pause: () => setPlaying(false),
+  setTime: (t) => store.setTime(t),
+  stabilize: (layer) => { store.selectedLayerId = layer.id; store.emit('selection'); openSheet('topaz'); toast('Stabilize Motion: ajuste em “Estabilização” no painel Topaz.', 'info', 4000); },
+});
+function openTracker(layer, kind) {
+  if (layer.type !== 'video') { toast('O tracker funciona em camadas de vídeo.', 'warn'); return; }
+  if (!desktop.matches) closeSheet();
+  else { document.getElementById('trackerDock').appendChild(trackerPanel.el); openSheet('tracker'); }
+  trackerPanel.open(layer, kind);
+}
+
+/**
+ * Substitui a mídia de uma camada (vídeo, foto ou áudio) mantendo tudo o resto: posição, escala, rotação, keyframes,
+ * efeitos, máscaras, tempo e modo de mesclagem. A nova mídia preenche a mesma caixa sem distorcer.
+ */
+async function replaceLayerMedia(layer) {
+  const [f] = await pickFiles(layer.type === 'audio' ? 'audio/*,.mp3,.wav,.m4a' : 'video/*,image/*', false);
+  if (!f) return;
+  const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
+  const isAudio = f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name);
+  const mediaId = uid('m');
+  putMedia(mediaId, f);
+  layer.missing = false; // religa camada offline
+  const src = URL.createObjectURL(f);
+  const old = layer.props || {};
+  const box = { width: old.width || old.aeMedia?.width || store.project.width, height: old.height || old.aeMedia?.height || store.project.height };
+  if (isAudio) layer.props = { ...old, src, mediaId, sourceStart: 0, aeMedia: undefined };
+  else {
+    const keep = { ...old };
+    delete keep.aeMedia; delete keep.replacedFrom;
+    layer.props = { ...keep, src, mediaId, width: box.width, height: box.height, fit: 'cover', sourceStart: 0, ...(isVideo ? { speed: old.speed || 1, volume: old.volume ?? 100 } : {}) };
+    if (!isVideo) { delete layer.props.sourceFps; delete layer.props.hasAudio; }
+  }
+  layer.type = isAudio ? 'audio' : isVideo ? 'video' : 'image';
+  layer.name = f.name.replace(/\.[^.]+$/, '');
+  if (isVideo) {
+    detectFps(src).then((fps) => { if (fps) { layer.props.sourceFps = fps; store.commit(); } });
+    loadAudio(src).then(() => { layer.props.hasAudio = true; store.emit('change'); }).catch(() => { layer.props.hasAudio = false; });
+  }
+  if (isAudio) await loadAudio(src).catch(() => {});
+  store.commit('structure');
+  ensureCaches?.(store.project);
+  toast(`Mídia substituída — efeitos, keyframes e ajustes mantidos ✓`, 'ok', 3000);
+}
+
+// camadas com tempo próprio: vídeo e pré-comp/grupo (velocidade/Time Remap mudam o conteúdo de dentro, como no AE)
+const TIMED = new Set(['video', 'group']);
+function ensureSpeedEffect(layer) {
+  if (!layer || !TIMED.has(layer.type)) { toast('Selecione um vídeo ou uma pré-comp/grupo.', 'warn'); return; }
+  if (layer.type === 'group') ensureGroupTime(layer);
+  if (!layer.effects.some((fx) => fx.type === 'twixtor')) {
+    layer.effects.unshift(createEffectInstance('twixtor', { speed: 100 }));
+    store.commit();
+  }
+}
+
+async function addBeatMarkers(layer) {
+  try {
+    await loadAudio(layer.props.src);
+    const beats = detectBeats(layer.props.src, 0.5);
+    const start = layer.props.sourceStart || 0;
+    const fps = store.project.fps;
+    const times = beats.map((b) => layer.inPoint + (b - start)).filter((t) => t >= layer.inPoint && t <= layer.outPoint && t <= store.project.duration);
+    store.project.markers = [...new Set([...(store.project.markers || []), ...times.map((t) => Math.round(t * fps) / fps)])].sort((a, b) => a - b);
+    store.commit();
+    toast(`${times.length} batidas marcadas na timeline.`, 'ok');
+  } catch (e) {
+    toast(`Não foi possível analisar o áudio: ${e.message}`, 'error');
+  }
+}
+
+const ADD_ITEMS = [
+  ['media', '🎞', 'Vídeo / Imagem'], ['audio', '♪', 'Áudio / Música'], ['text', 'T', 'Texto'], ['adjustment', '◐', 'Camada de ajuste'],
+  ['rect', '▭', 'Retângulo'], ['ellipse', '◯', 'Elipse'], ['solid', '■', 'Sólido / cor'],
+  ['camera', '🎥', 'Câmera 3D'], ['null', '✛', 'Null (pai/controle)'],
+];
+const addMenu = document.getElementById('addMenu');
+addMenu.innerHTML = `<div class="add-grid">${ADD_ITEMS.map(([k, i, l]) => `<button data-add="${k}"><span class="ai">${ico(i)}</span>${l}</button>`).join('')}</div>
+  <p class="muted small">Dica: camadas de ajuste aplicam efeitos (shake, glow, CC…) em tudo que está abaixo — como no After Effects.</p>`;
+addMenu.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => {
+  const k = b.dataset.add;
+  if (k === 'media') commands['add-media']();
+  else if (k === 'audio') commands['add-audio']();
+  else { addLayer(k); if (!desktop.matches) closeSheet(); }
+}));
+
+// ------------------------------------------------------------------ toolbar contextual
+const toolbar = document.getElementById('toolbar');
+const TYPE_LABEL = { video: 'Vídeo', image: 'Foto', audio: 'Áudio', text: 'Texto', adjustment: 'Camada de ajuste', group: 'Grupo', rect: 'Forma', ellipse: 'Forma', solid: 'Sólido' };
+const hintBar = document.createElement('div');
+hintBar.className = 'hint-bar';
+toolbar.before(hintBar);
+// explicação de cada botão (aparece ao parar o mouse em cima, no PC)
+const TIPS = {
+  quick: 'Legendas automáticas, narração, cortes e efeitos na batida da música', howto: 'Passo a passo das tarefas mais comuns',
+  'add-media': 'Importar vídeo ou foto do aparelho (Ctrl+I)', 'add-audio': 'Adicionar música', 'add-text': 'Nova camada de texto (Ctrl+Alt+Shift+T)', add: 'Sólido, formas, ajuste, Null, câmera…',
+  presets: 'Presets prontos: CC, shakes, transições… e os .ffx que você importar', 'add-adjustment': 'Camada de ajuste: efeitos nela valem para tudo que está embaixo (Ctrl+Alt+Y)',
+  group: 'Pré-compor: junta as camadas selecionadas numa composição (Ctrl+Shift+C)', 'import-ffx': 'Importar preset do After Effects (.ffx), Frameify, Looks…', comp: 'Tamanho, fps e duração da composição (Ctrl+K)',
+  effects: 'Efeitos aplicados na camada selecionada', props: 'Posição, escala, rotação, opacidade, cor, texto…', keys: 'Keyframes e editor de gráfico (easing)',
+  split: 'Cortar a camada no playhead (Ctrl+Shift+D)', dup: 'Duplicar a camada (Ctrl+D)', 'copy-layer': 'Copiar a camada com efeitos e keyframes (Ctrl+C)', 'paste-layer': 'Colar a camada copiada, também em outro projeto (Ctrl+V)', up: 'Subir a camada (Ctrl+])', down: 'Descer a camada (Ctrl+[)', del: 'Excluir (Delete)',
+  'toggle-visible': 'Esconder/mostrar a camada', speed: 'Câmera lenta, rampas de velocidade (Twixtor)', topaz: 'Melhorar qualidade, câmera lenta por IA, estabilizar (Topaz)',
+  freeze: 'Congelar o quadro atual', 'time-reverse': 'Tocar a camada ao contrário', 'bg-remove': 'Tirar o fundo (recorte automático)', calibrate: 'Copiar a cor de uma imagem de referência',
+  sound: 'Volume e som da camada', ungroup: 'Desfazer a pré-composição', 'open-group': 'Entrar na pré-composição para editar', 'close-group': 'Voltar para a composição principal',
+  deselect: 'Tirar a seleção (F2)', sequence: 'Colocar as camadas uma depois da outra',
+};
+/** Modo da interface: 'simple' (estilo app de celular, padrão) ou 'ae' (After Effects). */
+function applyUIMode() {
+  const st = getSettings();
+  document.body.classList.toggle('ui-simple', st.uiMode !== 'ae');
+  document.body.dataset.theme = st.theme || 'ae'; // aparência (como os "looks" do Frameify)
+  document.body.dataset.rows = st.rows || 'normal';
+  applyCustom(st);
+  let pname = '', sel = null; try { pname = store.project?.name || ''; sel = store.layer(); } catch { /* store ainda não existe (início) */ }
+  applyEditorLayout(st.custom?.layout === 'motion' ? 'alight' : st.custom?.layout || 'studio', pname, sel);
+  const hadPc = pcActive();
+  applyPcLayout(editorLayout());
+  if (hadPc !== pcActive() && typeof renderDock === 'function') try { renderDock(); } catch { /* início */ }
+  refreshLayoutChip();
+}
+let toolbarMore = false; // modo simples: "Mais" mostra as ferramentas avançadas
+
+/** Barra do modo simples: poucas ferramentas com nomes do dia a dia; o resto fica em "Mais". */
+function simpleItems(layer, t, many) {
+  if (many > 1) return [['deselect', '✕', 'Fechar'], ['sep'], ['presets', '★', 'Preset em todas', true], ['effects', '✦', 'Efeitos'], ['props', '☰', 'Ajustar juntas'], ['group', '⊞', 'Juntar em grupo'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar'], ['del', '🗑', 'Excluir']];
+  if (layer) {
+    const main = [
+      ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
+      ['deselect', '✕', 'Fechar'], ['sep'],
+      ...(t === 'group' ? [['open-group', '📂', 'Abrir grupo', true]] : []),
+      ['presets', '★', 'Presets', true], ['transitions', 'transition', 'Transições', true], ['effects', '✦', 'Efeitos', true], ['quick', '✨', 'Rápidas'],
+      ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true]] : []),
+      ['props', '☰', 'Editar'], ['keys', '📈', 'Animar'],
+      ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Volume']] : []),
+      ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar']] : []), ['del', '🗑', 'Excluir'],
+      ['more', '⋯', 'Mais'],
+    ];
+    if (!toolbarMore) return main;
+    return [
+      ['composer', '❖', 'Animações prontas'],
+      ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
+      ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
+      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'],
+      t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
+      ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
+      ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar']];
+  }
+  const main = [
+    ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
+    ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['transitions', 'transition', 'Transições'], ['presets', '★', 'Presets'], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
+    ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
+    ['more', '⋯', 'Mais'],
+  ];
+  if (!toolbarMore) return main;
+  return [ ['composer', '❖', 'Animações prontas'], ['logo-anim', '✦', 'Animar logo'], ['headbop', 'beat', 'Headbop automático'], ['manga-anim', 'freehand', 'Animar personagem (mangá)'], ['manga-edit', 'library', 'Edit de mangá (páginas)'], ['ai-assets', 'shapes', 'Elementos .ai'], ['font-id', '🔤', 'Identificar fonte'], ['add-adjustment', '◐', 'Camada de cor'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['marker', '▾', 'Marcar batida'], ['comp', '⚙', 'Tamanho e FPS']];
+}
+
+function renderToolbar() {
+  const layer = store.layer();
+  const t = layer?.type;
+  const many = store.selectedLayers().length;
+  applyUIMode();
+  const simple = document.body.classList.contains('ui-simple');
+  let lay = simple ? layoutToolItems(layer, many) : null;
+  // PC: há espaço — em vez do "Mais", a barra mostra todas as ferramentas do MotionFrame (sem repetir as do app)
+  if (lay && desktop.matches && pcActive()) {
+    const have = new Set(lay.map((x) => x[0]));
+    const extra = advancedItems(layer, t, many).filter((x) => x[0] !== 'sep' && x[0] !== 'deselect' && !have.has(x[0]) && (have.add(x[0]), true)).map(([c, i, l]) => [c, i, l, false, '']);
+    if (!layer && many < 2) for (const x of [['captions', 'captions', 'Legendas'], ['beat-sync', 'beat', 'Batidas'], ['voice', 'mic', 'Voz'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera'], ['add-brush', 'freehand', 'Desenho'], ['add-vector', 'vector', 'Vetor'], ['tour', 'help', 'Tutorial']]) if (!have.has(x[0])) { have.add(x[0]); extra.push([...x, false, '']); }
+    lay = [...lay.filter((x) => x[0] !== 'all-tools'), ...extra];
+  }
+  const items = lay || (simple ? simpleItems(layer, t, many) : advancedItems(layer, t, many));
+  const ltop = lay ? layoutToolTop(layer) : null;
+  toolbar.classList.toggle('has-ltop', !!ltop);
+  toolbar.classList.toggle('sel', !!lay && !!(layer || many > 1));
+  const tbHtml = (ltop ? `<div class="ltop">${ltop.map(([c, i, l]) => `<button class="lt" data-cmd="${c}" title="${escapeHtml(l)}">${ico(i)}</button>`).join('')}</div>` : '') + items.map(([cmd, icon, label, hot, cls]) => (cmd === 'sep' ? '<span class="tool sep"></span>' : `<button class="tool ${hot ? 'hot' : ''} ${cls || ''}" data-cmd="${cmd}" title="${escapeHtml(TIPS[cmd] || label)}"><span class="ti">${ico(icon)}</span><span class="tl">${label}</span>${cls === 'new' ? '<em class="tnew">NOVO</em>' : ''}</button>`)).join('');
+  if (toolbar._html !== tbHtml) { // só remonta a barra quando ela muda de verdade
+    toolbar._html = tbHtml; toolbar.innerHTML = tbHtml;
+    toolbar.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+  }
+  // faixa de ajuda: diz o que está selecionado e o próximo passo
+  hintBar.hidden = !getSettings().showTips;
+  if (!store.project.layers.length) hintBar.innerHTML = 'Comece tocando em <b>Vídeo / Foto</b> para importar seu clipe.';
+  else if (!layer) hintBar.innerHTML = simple ? 'Toque num clipe para editar · arraste a agulha branca para andar no vídeo.' : 'Toque numa camada (na timeline ou na prévia) para editar. Arraste a régua azul para mudar o tempo.';
+  else if (many > 1) hintBar.innerHTML = `<b>${many} camadas selecionadas</b> — mudanças em Propriedades valem para todas · Pré-compor junta em um grupo · Shift/Ctrl+clique (ou toque longo) adiciona/remove`;
+  else hintBar.innerHTML = `<b>${escapeHtml(layer.name)}</b> · ${TYPE_LABEL[t] || t}${layer.effects.length ? ` · ${layer.effects.length} efeito(s)` : ''} — ${t === 'video' ? 'use <b>Presets</b> para CC/shake/reverse ou <b>Velocidade</b> para câmera lenta' : t === 'group' ? 'efeitos e presets valem para o grupo inteiro' : 'use <b>Efeitos</b> ou <b>Presets</b>'}`;
+}
+
+/** Todas as ferramentas do MotionFrame (barra avançada), usadas também no "Mais" de cada layout. */
+function advancedItems(layer, t, many) {
+  return many > 1
+    ? [
+      ['deselect', '✕', 'Limpar seleção'], ['sep'],
+      ['group', '⊞', `Pré-compor (${many})`, true], ['props', '☰', `Ajustar ${many} juntas`, true], ['presets', '★', 'Preset em todas'], ['effects', '✦', 'Efeitos'],
+      ['sequence', '⇶', 'Sequenciar'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar'], ['del', '🗑', `Excluir ${many}`],
+    ]
+    : layer
+    ? [
+      ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
+      ['deselect', '✕', 'Fechar'], ['sep'],
+      ...(t === 'group' ? [['open-group', '📂', 'Abrir grupo', true]] : []),
+      ['effects', '✦', 'Efeitos', true], ['presets', '★', 'Presets'], ['transitions', 'transition', 'Transições'], ['composer', '❖', 'Composer'],
+      ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
+      ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
+      ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
+      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
+      ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
+      t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
+      ['up', '▲', 'Subir'], ['down', '▼', 'Descer'],
+      ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar'], ['del', '🗑', 'Excluir'],
+    ]
+    : [
+      ...(store.scope?.length ? [['close-group', '◀', 'Sair do grupo', true]] : []),
+      ['add-media', '🎞', 'Vídeo / Foto', true], ['add-audio', '♪', 'Música'], ['add-text', 'T', 'Texto'], ['quick', '✨', 'Ferramentas rápidas', true], ['add', '＋', 'Mais camadas'], ['howto', '❓', 'Como fazer'],
+      ['presets', '★', 'Presets'], ['composer', '❖', 'Composer'], ['add-adjustment', '◐', 'Ajuste (CC)'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []), ['logo-anim', '✦', 'Animar logo'], ['headbop', 'beat', 'Headbop automático'], ['manga-anim', 'freehand', 'Animar personagem (mangá)'], ['manga-edit', 'library', 'Edit de mangá (páginas)'], ['ai-assets', 'shapes', 'Elementos .ai'], ['font-id', '🔤', 'Identificar fonte'], ['group', '⊞', 'Agrupar'], ['import-ffx', '⤒', 'Importar .ffx'], ['comp', '⚙', 'Composição'],
+    ];
+}
+
+// ------------------------------------------------------------------ mídia
+function addLayer(type) {
+  const l = LAYER_FACTORIES[type](store.project);
+  l.inPoint = 0;
+  l.outPoint = store.project.duration;
+  if (type === 'camera') {
+    // a câmera só enxerga camadas 3D (como no AE): oferece transformar as camadas visuais em 3D
+    const visual = store.layers.filter((x) => !['audio', 'adjustment', 'camera', 'null'].includes(x.type));
+    const flat = visual.filter((x) => !x.threeD);
+    store.addLayer(l);
+    if (flat.length) {
+      modal('Câmera 3D', `<p>A câmera só afeta <b>camadas 3D</b>. Transformar as ${flat.length} camada(s) desta composição em 3D agora?</p><p class="muted small">Dá para ligar/desligar depois em cada camada (“Camada 3D”). Use Posição Z para dar profundidade (parallax).</p>`,
+        [{ label: 'Agora não', value: false }, { label: 'Tornar 3D', primary: true, value: true }]).then((ok) => {
+        if (!ok) return;
+        for (const x of flat) setThreeD(x, true, anim);
+        store.commit('structure');
+      });
+    }
+    return;
+  }
+  store.addLayer(l);
+}
+
+/**
+ * Vídeo pesado (4K / centenas de MB): oferece a cópia otimizada 1080p feita no aparelho — no iPhone o Safari
+ * trava com o original (memória). Retorna o arquivo a usar (o proxy ou o original).
+ */
+async function maybeProxy(f) {
+  let info = null;
+  try { info = await probeMp4(f); } catch { info = null; }
+  const w = info ? (info.video.rotation % 180 ? info.video.height : info.video.width) : 0, h = info ? (info.video.rotation % 180 ? info.video.width : info.video.height) : 0;
+  if (!info || !needsProxy(f, w, h)) return f;
+  const mb = Math.round(f.size / 1048576), dur = info.video.table.n ? (info.video.table.dts[info.video.table.n - 1] / info.video.timescale) : 0;
+  if (!(await proxySupported(info))) {
+    toast(`“${f.name}” é pesado (${mb} MB, ${w}×${h}) e este aparelho não consegue otimizar o formato. Se travar, exporte o vídeo em 1080p na galeria antes de importar.`, 'warn', 10000);
+    return f;
+  }
+  const go = await modal('Vídeo pesado', `<p><b>${escapeHtml(f.name)}</b> tem <b>${mb} MB</b> (${w}×${h}, ${Math.round(dur / 60 * 10) / 10} min). Vídeos assim deixam o Safari do iPhone sem memória e o app fecha.</p>
+    <p>Criar uma <b>cópia otimizada em 1080p</b> para editar? Fica leve (~${Math.max(1, Math.round(dur * 1.05))} MB), com o mesmo som, e exporta normalmente em 1080p. Leva alguns minutos com o app aberto.</p>`,
+  [{ label: 'Usar o original', value: false }, { label: 'Otimizar (recomendado)', primary: true, value: true }]);
+  if (!go) return f;
+  const ctl = new AbortController();
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap';
+  wrap.innerHTML = `<div class="modal"><header><h2>Otimizando vídeo…</h2></header><div class="modal-body"><div class="progress"><div class="bar"></div></div><p class="muted small prog-text">Preparando…</p><p class="muted small">Deixe o app aberto na tela.</p></div><footer><button class="danger">Cancelar</button></footer></div>`;
+  document.body.appendChild(wrap);
+  wrap.querySelector('button').onclick = () => ctl.abort();
+  keepScreenOn(true);
+  const t0 = performance.now();
+  try {
+    const px = await makeProxy(f, { signal: ctl.signal, onProgress: (x) => {
+      wrap.querySelector('.bar').style.width = `${Math.round(x * 100)}%`;
+      const el = (performance.now() - t0) / 1000, left = x > 0.02 ? el / x - el : 0;
+      wrap.querySelector('.prog-text').textContent = `${Math.round(x * 100)}%${left ? ` · faltam ~${left > 90 ? `${Math.round(left / 60)} min` : `${Math.round(left)} s`}` : ''}`;
+    } });
+    toast(`Cópia otimizada pronta: ${Math.round(px.size / 1048576)} MB (antes ${mb} MB).`, 'ok', 6000);
+    return px;
+  } catch (e) {
+    if (String(e?.message || e) !== 'cancelado') toast(`Não deu para otimizar (${e?.message || e}). Usando o original.`, 'warn', 8000);
+    return f;
+  } finally { wrap.remove(); keepScreenOn(false); }
+}
+
+/** .ai (Illustrator) → uma imagem por camada, de baixo para cima; outros arquivos passam direto. */
+async function expandAi(files) {
+  const out = [];
+  for (const f of files) {
+    if (!(await isAiFile(f))) { out.push(f); continue; }
+    try { const ls = await aiToLayerFiles(f); out.push(...ls); toast(`“${f.name}”: ${ls.length} camada(s) do Illustrator importada(s).`, 'info', 3500); }
+    catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); }
+  }
+  return out;
+}
+
+async function importMedia(files) {
+  ensurePersistentStorage();
+  files = await expandAi(files);
+  let seqT = null; // vários clipes de uma vez: um depois do outro (como no CapCut)
+  for (let f of files) {
+    const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
+    if (isVideo && /\.(mp4|mov|m4v)$/i.test(f.name)) f = await maybeProxy(f);
+    if (!isVideo && await isAiFile(f)) { // .ai do Illustrator é PDF: vira PNG com transparência (pdf.js)
+      try { f = await aiToPngFile(f); toast(`“${f.name}” importado como imagem (página 1 do .ai).`, 'info', 3000); }
+      catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); continue; }
+    }
+    const isAudio = f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name);
+    const isImage = f.type.startsWith('image/');
+    if (!isVideo && !isAudio && !isImage) continue;
+    const mediaId = uid('m');
+    // vídeo grande: confere o espaço antes e avisa se não der para guardar (senão o projeto reabre com "mídia não encontrada")
+    try {
+      const est = await navigator.storage?.estimate?.();
+      if (est?.quota && f.size > (est.quota - (est.usage || 0)) * 0.95) toast(`Pouco espaço para guardar “${f.name}” (${Math.round(f.size / 1048576)} MB) no aparelho. Ele funciona agora, mas pode não reabrir depois — libere espaço ou use um arquivo menor.`, 'warn', 9000);
+    } catch { /* sem estimativa */ }
+    putMedia(mediaId, f).then((ok) => { if (!ok) toast(`Não deu para guardar “${f.name}” no aparelho (falta de espaço?). O vídeo funciona agora, mas some ao fechar o app.`, 'warn', 9000); });
+    const src = URL.createObjectURL(f);
+    const name = f.name.replace(/\.[^.]+$/, '');
+    const { width, height } = store.project;
+    if (isAudio) {
+      const l = LAYER_FACTORIES.audio(store.project, src, name);
+      l.props.mediaId = mediaId; l.props.fileName = f.name;
+      try {
+        const buf = await loadAudio(src);
+        if (!store.project.layers.some((x) => x.type === 'audio' || x.type === 'video')) store.project.duration = Math.min(600, Math.max(1, Math.ceil(buf.duration * 10) / 10));
+        l.inPoint = 0;
+        l.outPoint = Math.min(store.project.duration, buf.duration);
+      } catch { toast(`Não foi possível decodificar ${f.name}`, 'error'); continue; }
+      store.addLayer(l);
+      continue;
+    }
+    const dims = await new Promise((res) => {
+      if (isVideo) {
+        const v = document.createElement('video');
+        v.preload = 'metadata';
+        v.muted = true;
+        v.playsInline = true;
+        v.onloadedmetadata = () => res({ w: v.videoWidth || 1080, h: v.videoHeight || 1920, d: v.duration });
+        v.onerror = () => res(null);
+        v.src = src;
+      } else {
+        const img = new Image();
+        img.onload = () => res({ w: img.naturalWidth, h: img.naturalHeight });
+        img.onerror = () => res(null);
+        img.src = src;
+      }
+    });
+    if (!dims) { toast(`Formato não suportado: ${f.name}`, 'error'); continue; }
+    const fit = Math.max(width / dims.w, height / dims.h); // preenche a tela
+    const l = LAYER_FACTORIES[isVideo ? 'video' : 'image'](store.project, src, Math.round(dims.w * fit), Math.round(dims.h * fit), name);
+    l.props.mediaId = mediaId; l.props.fileName = f.name;
+    if (isVideo) {
+      detectFps(src).then((f) => { if (f) { l.props.sourceFps = f; store.commit(); } });
+      // o vídeo já vem com o som dele (some sozinho quando tiver Velocidade/Twixtor)
+      l.props.volume = 100;
+      loadAudio(src).then(() => { l.props.hasAudio = true; store.emit('change'); }).catch(() => { l.props.hasAudio = false; });
+    }
+    const hasContent = store.project.layers.some((x) => x.type === 'video' || x.type === 'audio' || x.type === 'image');
+    const start = seqT ?? (hasContent ? store.time : 0);
+    l.inPoint = start;
+    const len = isVideo && Number.isFinite(dims.d) ? dims.d : 3;
+    if (isVideo && Number.isFinite(dims.d)) l.props.mediaDuration = dims.d; // duração do arquivo (Sincronizar com a batida sabe até onde pode esticar)
+    if (!hasContent && seqT == null && isVideo) store.project.duration = Math.min(600, Math.max(1, Math.ceil(dims.d * 10) / 10));
+    if (seqT != null || hasContent) store.project.duration = Math.min(600, Math.max(store.project.duration, Math.ceil((start + len) * 10) / 10));
+    l.outPoint = Math.min(store.project.duration, start + len);
+    seqT = l.outPoint;
+    store.addLayer(l);
+  }
+  if (!desktop.matches) closeSheet();
+}
+
+/** Camadas offline (mídia que sumiu do aparelho): escolha os arquivos originais e o app religa pelo nome. */
+async function relinkOfflineMedia() {
+  const off = flatLayers(store.project.layers).filter((l) => l.missing);
+  if (!off.length) { toast('Nenhuma mídia offline neste projeto.', 'ok'); return; }
+  const files = await pickFiles('video/*,image/*,audio/*', true);
+  if (!files.length) return;
+  const base = (s) => String(s || '').replace(/^⚠\s*/, '').replace(/\.[^.]+$/, '').toLowerCase().trim();
+  const left = [...files];
+  let n = 0;
+  for (const l of off) {
+    let i = left.findIndex((f) => base(f.name) === base(l.props.fileName || l.name));
+    if (i < 0 && off.length === 1 && left.length === 1) i = 0; // 1 camada e 1 arquivo: liga direto
+    if (i < 0) continue;
+    const [f] = left.splice(i, 1);
+    const id = uid('m'); putMedia(id, f);
+    l.props.mediaId = id; l.props.src = URL.createObjectURL(f); l.props.fileName = f.name; l.missing = false; n++;
+  }
+  store.commit('structure');
+  const rest = flatLayers(store.project.layers).filter((l) => l.missing).length;
+  toast(`${n} mídia(s) religada(s).${rest ? ` Faltam ${rest}: escolha os arquivos com o mesmo nome da camada, ou use Substituir mídia em cada camada.` : ''}`, n ? 'ok' : 'warn', 7000);
+}
+
+async function relinkMedia(project) {
+  const keep = new Set();
+  for (const l of flatLayers(project.layers)) {
+    if (!l.props.mediaId) continue;
+    keep.add(l.props.mediaId);
+    const blob = await getMedia(l.props.mediaId);
+    if (blob) {
+      l.props.src = URL.createObjectURL(blob);
+      if (l.type === 'audio') await loadAudio(l.props.src).catch(() => {});
+      // vídeos importados antes do som existir no app: detecta e liga o áudio agora
+      if (l.type === 'video' && l.props.hasAudio !== false) loadAudio(l.props.src).then(() => { if (!l.props.hasAudio) { l.props.hasAudio = true; if (l.props.volume == null) l.props.volume = 100; } }).catch(() => { l.props.hasAudio = false; });
+      l.missing = false;
+    } else l.missing = true; // fica no projeto como "mídia offline" (como no AE): dá para trocar por Substituir mídia
+  }
+}
+
+/** Apaga só mídias que nenhum projeto usa (chamado ao excluir projeto). Na dúvida, não apaga nada. */
+async function cleanUnusedMedia() {
+  const ids = await allMediaIds();
+  if (ids) pruneMedia(ids);
+}
+
+// ------------------------------------------------------------------ projeto
+// Projeto para levar a outro aparelho: o .json pode ir com as mídias dentro (vídeos, fotos, áudios, modelos 3D e
+// fontes importadas). Até PACK_JSON_MAX vai tudo no próprio .json (base64); acima disso vira .zip (sem o custo do base64).
+const PACK_JSON_MAX = 150 * 1024 * 1024;
+const projectJSON = (p) => JSON.stringify({ ...p, layers: stripBlobs(p.layers) });
+function stripBlobs(layers) {
+  return layers.map((l) => ({ ...l, props: { ...l.props, src: l.props.src?.startsWith('blob:') ? null : l.props.src, ...(l.props.layers ? { layers: stripBlobs(l.props.layers) } : {}) } }));
+}
+async function projectMediaIds(p) {
+  const ids = new Set();
+  for (const l of flatLayers(p.layers)) for (const [k, v] of Object.entries(l.props || {})) if (/Id$/.test(k) && typeof v === 'string' && v) ids.add(v);
+  for (const l of flatLayers(p.layers)) if (l.type === 'text') { const fam = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1]; if (fam && userFonts().some((f) => f.family === fam)) ids.add(`__font:${fam}`); }
+  const out = [];
+  for (const id of ids) { const b = await getMedia(id); if (b && typeof b !== 'string') out.push({ id, blob: b instanceof Blob ? b : new Blob([b]) }); }
+  return out;
+}
+const blobB64 = (b) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).replace(/^data:[^,]*,/, '')); r.onerror = () => rej(r.error); r.readAsDataURL(b); });
+
+async function saveProject() {
+  const p = store.project;
+  const media = await projectMediaIds(p);
+  const total = media.reduce((n, m) => n + m.blob.size, 0);
+  const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1);
+  let mode = 'json';
+  if (media.length) {
+    mode = await modal('Salvar projeto', `<p>O projeto usa <b>${media.length}</b> mídia(s) guardada(s) neste aparelho (${mb(total)} MB).</p>
+      <p class="muted small">Com as mídias, o arquivo abre completo em outro celular/PC/navegador (vídeos, fotos, áudios e fontes juntos). Só a edição é leve, mas no outro aparelho as mídias ficam offline até você reimportar.</p>`,
+      [{ label: 'Cancelar', value: null }, { label: 'Só a edição (.json)', value: 'json' }, { label: total > PACK_JSON_MAX ? `📦 Com mídias (.zip, ${mb(total)} MB)` : `📦 Com mídias (.json, ${mb(total)} MB)`, primary: true, value: 'pack' }]);
+    if (!mode) return;
+  }
+  const base = (p.name || 'projeto').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60) || 'projeto';
+  if (mode === 'json') {
+    await saveFile(`${base}.motionframe.json`, new Blob([projectJSON(p)], { type: 'application/json' }));
+    if (media.length) toast('Vídeos e áudios ficam salvos neste aparelho; o .json guarda a edição.', 'warn', 5000);
+    return;
+  }
+  toast('Empacotando o projeto com as mídias…', 'info', 2500);
+  const { blob, ext } = await buildProjectPack(p, media);
+  await saveFile(`${base}.motionframe.${ext}`, blob);
+  toast(`Projeto salvo com ${media.length} mídia(s) ✓ — no outro aparelho, toque em 📂 Abrir projeto e escolha este arquivo.`, 'ok', 5000);
+}
+async function buildProjectPack(p, media) {
+  const total = media.reduce((n, m) => n + m.blob.size, 0);
+  const types = Object.fromEntries(media.map((m) => [m.id, { type: m.blob.type || '', name: m.blob.name || '' }]));
+  if (total <= PACK_JSON_MAX) {
+    // monta o .json em pedaços (sem juntar uma string gigante na memória)
+    const parts = ['{"format":"motionframe-project-media","version":1,"project":', projectJSON(p), ',"media":{'];
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i];
+      parts.push(`${i ? ',' : ''}${JSON.stringify(m.id)}:{"type":${JSON.stringify(types[m.id].type)},"name":${JSON.stringify(types[m.id].name)},"b64":"`, await blobB64(m.blob), '"}');
+    }
+    parts.push('}}');
+    return { blob: new Blob(parts, { type: 'application/json' }), ext: 'json' };
+  }
+  const { makeZip } = await import('./zip-write.js');
+  const files = [{ name: 'project.json', data: JSON.stringify({ format: 'motionframe-project-media', version: 1, project: JSON.parse(projectJSON(p)), media: types }) }];
+  for (const m of media) files.push({ name: `media/${encodeURIComponent(m.id)}`, data: new Uint8Array(await m.blob.arrayBuffer()) });
+  return { blob: new Blob([makeZip(files)], { type: 'application/zip' }), ext: 'zip' };
+}
+
+/** Lê um projeto salvo "com mídias" (.json com base64 ou .zip): guarda as mídias neste aparelho e devolve o projeto. */
+async function unpackProject(file) {
+  if (/\.zip$/i.test(file.name)) {
+    const { readZip } = await import('./zip.js');
+    const z = await readZip(file);
+    if (!z.names.includes('project.json')) return null;
+    const meta = JSON.parse(await (await z.get('project.json')).text());
+    if (meta.format !== 'motionframe-project-media') return null;
+    for (const n of z.names) {
+      if (!n.startsWith('media/')) continue;
+      const id = decodeURIComponent(n.slice(6)), info = meta.media?.[id] || {};
+      const blob = await z.get(n, info.type || '');
+      await putMedia(id, info.name ? new File([blob], info.name, { type: info.type || blob.type }) : blob);
+    }
+    await flushMedia();
+    if (meta.project) await restoreFonts(meta.project);
+    return meta.project;
+  }
+  const data = JSON.parse(await file.text());
+  if (data.format !== 'motionframe-project-media') return data;
+  for (const [id, m] of Object.entries(data.media || {})) {
+    const blob = await (await fetch(`data:${m.type || 'application/octet-stream'};base64,${m.b64}`)).blob();
+    await putMedia(id, m.name ? new File([blob], m.name, { type: m.type || blob.type }) : blob);
+  }
+  await flushMedia();
+  await restoreFonts(data.project);
+  return data.project;
+}
+/** Fontes que vieram no pacote (__font:Família): registra para os textos aparecerem certos. */
+async function restoreFonts(project) {
+  const fams = new Set();
+  for (const l of flatLayers(project.layers || [])) if (l.type === 'text') { const fam = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1]; if (fam) fams.add(fam); }
+  const files = [];
+  for (const fam of fams) { const b = await getMedia(`__font:${fam}`); if (b && !userFonts().some((f) => f.family === fam)) files.push(new File([b], `${fam}.ttf`)); }
+  if (files.length) await importFonts(files).catch(() => {});
+}
+
+async function openProject() {
+  const picked = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,.aep,.aepx,.ffx,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*,application/json', true);
+  if (!picked?.length) return;
+  // vários arquivos (projeto + mídias + fontes + presets) ou .aep: abre tudo junto
+  if (picked.length > 1 || /\.aepx?$/i.test(picked[0].name)) return routeFiles(picked);
+  const f = picked[0];
+  if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, false); }
+  if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
+  try {
+    const data = await unpackProject(f);
+    if (data.format?.startsWith('motionframe-preset') || data.preset || data.presets) { library.importFiles([f]); openSheet('presets'); return; }
+    if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto');
+    await relinkMedia(data);
+    store.load(data);
+    updateTitle();
+    layoutCanvas();
+    toast('Projeto aberto.', 'ok');
+  } catch (e) {
+    toast(`Erro ao abrir: ${e.message}`, 'error');
+  }
+}
+
+async function compSettings() {
+  const p = store.project;
+  // layouts de app: a mesma folha de "Novo projeto" do app (proporção, resolução, fps, duração, fundo), em modo edição
+  const appLay = !['studio', 'ae'].includes(editorLayout());
+  const res = appLay
+    ? await newProjectSheet({ name: p.name, width: p.width, height: p.height, fps: p.fps, duration: p.duration, background: p.background, title: { capcut: 'Proporção e projeto', blurrr: 'Configurações do projeto', alight: 'Configurações do projeto', nova: 'Projeto' }[editorLayout()] || 'Projeto', ok: 'Salvar' })
+      .then((r) => r && { ...r, anchor: [0.5, 0.5], scaleLayers: false, resolution: qualitySel.value, startTC: p.startTC })
+    : await compDialog({ mode: 'edit', project: p, resolution: qualitySel.value });
+  if (!res) return;
+  applyResolution(res.resolution);
+  const sx = res.width / p.width, sy = res.height / p.height;
+  if (sx !== 1 || sy !== 1) {
+    // como no AE: a âncora define para onde o conteúdo "cresce"; opcionalmente escala as camadas
+    const [ax, ay] = res.anchor;
+    const dx = (res.width - p.width) * ax, dy = (res.height - p.height) * ay;
+    const k = Math.min(sx, sy);
+    for (const l of p.layers) {
+      const pos = l.transform.position;
+      const mv = (v) => (res.scaleLayers ? [v[0] * sx, v[1] * sy] : [v[0] + dx, v[1] + dy]);
+      pos.value = mv(pos.value);
+      pos.keys.forEach((kk) => { kk.v = mv(kk.v); });
+      if (res.scaleLayers && l.type !== 'solid' && l.type !== 'adjustment') {
+        const sc = l.transform.scale;
+        sc.value = sc.value.map((v) => v * k);
+        sc.keys.forEach((kk) => { kk.v = kk.v.map((v) => v * k); });
+      }
+      if (l.type === 'solid') { l.props.width = res.width; l.props.height = res.height; }
+    }
+  }
+  const oldDur = p.duration;
+  Object.assign(p, { name: res.name, width: res.width, height: res.height, fps: res.fps, duration: res.duration, background: res.background, startTC: res.startTC });
+  for (const l of p.layers) {
+    if (l.outPoint >= oldDur - 1e-3 && l.type !== 'video' && l.type !== 'audio') l.outPoint = p.duration;
+    l.outPoint = Math.min(l.outPoint, p.duration);
+  }
+  store.setTime(Math.min(store.time, p.duration));
+  store.commit('structure');
+  updateTitle();
+  layoutCanvas();
+}
+
+function applyResolution(r) {
+  if (r && [...qualitySel.options].some((o) => o.value === r)) { qualitySel.value = r; quality = curQuality(); layoutCanvas(); }
+}
+
+async function newComposition() {
+  const res = await compDialog({ mode: 'new', project: store.project, hasContent: store.project.layers.length > 0, resolution: qualitySel.value });
+  if (!res) return;
+  const p = createProject(res.width, res.height);
+  Object.assign(p, { name: res.name, fps: res.fps, duration: res.duration, background: res.background, startTC: res.startTC });
+  store.load(p);
+  applyResolution(res.resolution);
+  updateTitle();
+  layoutCanvas();
+  toast(`Composição “${res.name}” criada: ${res.width}×${res.height}, ${res.fps} fps, ${res.duration.toFixed(2)}s.`, 'ok');
+}
+
+/** Com uma pré-comp/grupo aberto, a prévia mostra só o conteúdo dele (como no AE). */
+function viewProject() { return store.scope?.length ? { ...store.project, layers: store.layers } : store.project; }
+
+function updateTitle() {
+  const g = store.scopeGroups || [];
+  document.getElementById('projTitle').textContent = g.length ? `${store.project.name || 'Meu edit'} › ${g.map((x) => x.name).join(' › ')}` : store.project.name || 'Meu edit';
+}
+
+async function showAccount() {
+  const { formatCode, logout } = await import('./access.js');
+  const a = window.__mfAccess || {};
+  const r = await modal('Conta e acesso', `
+    <p>${a.name ? `Acesso de <b>${escapeHtml(a.name)}</b>` : 'Acesso liberado'} neste aparelho${a.exp ? ` · válido até ${new Date(a.exp * 1000).toLocaleDateString('pt-BR')}` : ' · sem data de validade'}.</p>
+    <p class="muted small">Código do aparelho: <code>${a.code ? formatCode(a.code) : '—'}</code></p>
+    <p class="muted small">Cada token funciona só neste aparelho. Ao sair, será preciso colar o token de novo.</p>`,
+  [{ label: 'Fechar', value: null }, { label: 'Sair deste aparelho', danger: true, value: 'out' }]);
+  if (r === 'out') { logout(); location.reload(); }
+}
+
+function showApps() {
+  const base = new URL('downloads/', location.href).href;
+  modal('Baixar o MotionFrame', `
+    <p><b>💻 Windows (.exe)</b> — o editor completo num programa. Abre numa janela própria (usa o Edge/Chrome do PC, com aceleração da placa de vídeo) e funciona sem internet.</p>
+    <p><a class="btn primary" href="${base}MotionFrame-leve.exe" download>Baixar MotionFrame leve (.exe, recomendado)</a> <a class="btn" href="${base}MotionFrame.exe" download>MotionFrame.exe (versão antiga, Electron)</a></p>
+    <p class="muted small">O <b>leve</b> é menor, mais rápido e lê pastas do Google Drive em 🔗 Importar de link.</p>
+    <p class="muted small">O Windows pode avisar “aplicativo não reconhecido” (o programa não tem assinatura paga): clique em <i>Mais informações → Executar assim mesmo</i>. Deixe a janela preta aberta enquanto usa; feche-a para sair. O PC tem um código de aparelho próprio: peça um token para ele em 🔑 Conta e acesso.</p>
+    <p><b>🤖 Android (.apk)</b></p>
+    <p><a class="btn primary" href="${base}MotionFrame.apk" download>Baixar MotionFrame.apk</a></p>
+    <p class="muted small">Ao abrir o .apk, o Android pede para permitir “instalar apps desta fonte”. O app instalado também tem código de aparelho próprio.</p>
+    <p><b>🍎 iPhone</b> — use pelo Safari: toque em Compartilhar → <i>Adicionar à Tela de Início</i> (vira um app em tela cheia). Um .ipa instalável exige conta de desenvolvedor da Apple (veja “IPA” na ajuda).</p>`,
+  [{ label: 'Fechar', value: null }]);
+}
+
+const APP_MENU = [
+  ['Projeto', [['new', 'plus', 'Novo projeto'], ['comp', 'settings', 'Configurações do projeto'], ['open', 'folder', 'Abrir projeto (.json)'], ['save', 'save', 'Salvar projeto (.json)'], ['home', 'home', 'Meus projetos']]],
+  ['Importar', [['ffx', 'import', 'Preset .ffx do After Effects'], ['aep', 'ae', 'Projeto .aep do After Effects'], ['xml', 'xml', 'XML (Alight / Premiere / Final Cut / DaVinci)'], ['font', 'font', 'Fontes (.ttf / .otf / .woff)']]],
+  ['Ajuda', [['tour', 'help', 'Tutorial deste layout'], ['help', 'info', 'Como usar (passo a passo)'], ['keys', 'keyboard', 'Atalhos de teclado'], ['about', 'effects', 'Sobre os efeitos e plugins']]],
+  ['App', [['apps', 'download', 'Baixar o app (PC / Android)'], ['lang', 'globe', 'Idioma / Language'], ['ui', 'ae', 'Interface avançada (After Effects)']]],
+];
+async function showMenu() {
+  const L = editorLayout();
+  const extra = [...(flatLayers(store.project.layers).some((l) => l.missing) ? [['relinkOffline', 'link', 'Religar mídias offline']] : []), ...(flatLayers(store.project.layers).some((l) => l.props?.aeMedia) ? [['relink', 'link', 'Conectar mídias do projeto do AE'], ['relinksub', 'reverse', 'Usar outros vídeos no lugar']] : [])];
+  const appMenu = !['studio', 'ae'].includes(L) ? `<div class="lmenu lmenu-${L}">${(extra.length ? [['Mídias', extra], ...APP_MENU] : APP_MENU).map(([g, items]) => `<div class="lmenu-g"><div class="lmenu-h">${g}</div>${items.map(([k, i, l]) => `<button data-m="${k}">${ico(i)}<span>${l}</span><i>›</i></button>`).join('')}</div>`).join('')}</div>` : null;
+  const res = await modal('Menu', appMenu || `<div class="menu-list">
+    <button data-m="ui">🎚 Interface: ${getSettings().uiMode === 'ae' ? 'Avançada (After Effects) → trocar para Simples' : 'Simples → trocar para Avançada (After Effects)'}</button>
+    <button data-m="home">⌂ Meus projetos</button>
+    <button data-m="apps">⬇ Baixar o app (PC Windows / Android)</button>
+    <button data-m="help">❓ Como usar (passo a passo)</button>
+    <button data-m="tour">👆 Tutorial deste layout (mostra onde fica cada coisa)</button>
+    <button data-m="new">✚ Nova composição (projeto)</button>
+    <button data-m="open">📂 Abrir projeto (.json)</button>
+    <button data-m="save">💾 Salvar projeto (.json)</button>
+    <button data-m="comp">⚙ Configurações da composição</button>
+    <button data-m="ffx">⤒ Importar preset .ffx do After Effects</button>
+    <button data-m="aep">Ae Abrir projeto .aep do After Effects</button>
+    <button data-m="xml">⇄ Importar XML (Alight Motion / Premiere / Final Cut / DaVinci)</button>
+    <button data-m="lang">🌐 Idioma / Language: ${getLang() === 'en' ? 'English' : 'Português'}</button>
+    <button data-m="font">🔤 Importar fontes (.ttf / .otf / .woff)</button>
+    <button data-m="keys">⌨ Atalhos de teclado (After Effects)</button>
+    ${flatLayers(store.project.layers).some((l) => l.missing) ? '<button data-m="relinkOffline">⚠ Religar mídias offline (escolher os arquivos originais)</button>' : ''}
+    ${flatLayers(store.project.layers).some((l) => l.props?.aeMedia) ? '<button data-m="relink">🔗 Conectar vídeos/fotos do projeto do AE</button><button data-m="relinksub">🔁 Usar outros vídeos/fotos no lugar dos que faltam</button>' : ''}
+    <button data-m="about">ⓘ Sobre os efeitos e plugins</button>
+  </div>`, [{ label: 'Fechar', value: null }], {
+    onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))),
+  });
+  if (res === 'help') showHelp();
+  if (res === 'tour') startTour(editorLayout(), true);
+  if (res === 'ui') commands['ui-mode']();
+  if (res === 'home') goHome();
+  if (res === 'new') commands.new();
+  if (res === 'open') openProject();
+  if (res === 'save') saveProject();
+  if (res === 'comp') compSettings();
+  if (res === 'ffx') commands['import-ffx']();
+  if (res === 'aep') openAEPFlow();
+  if (res === 'xml') openXMLFlow();
+  if (res === 'lang') setLang(getLang() === 'en' ? 'pt' : 'en');
+  if (res === 'font') importFontsFlow();
+  if (res === 'keys') showShortcuts();
+  if (res === 'account') showAccount();
+  if (res === 'apps') showApps();
+  if (res === 'relinkOffline') relinkOfflineMedia();
+  if (res === 'relink') relinkAEMedia();
+  if (res === 'relinksub') relinkAEMedia({ substitute: true });
+  if (res === 'about') {
+    modal('Sobre', `<p>O MotionFrame recria efeitos famosos do After Effects e de plugins populares em edits (Twixtor, Deep Glow, Twitch, Sapphire, BCC, RSMB, Optical Flares…). São <b>recriações próprias</b> com a mesma função e parâmetros parecidos — não são os plugins originais.</p>
+      <p>Ao importar um <b>.ffx</b>, o app identifica efeitos nativos do AE e plugins de terceiros e converte para o efeito equivalente, mantendo valores e keyframes sempre que possível.</p>
+      <p class="muted small">WebGL: ${getGL() ? 'ativo' : 'indisponível — efeitos desativados'}.</p>`);
+  }
+}
+
+function showHelp() {
+  const steps = [
+    ['🎞', 'Importe', 'Toque em <b>＋ Novo projeto</b> e escolha seus vídeos — eles entram em sequência na timeline, com som.'],
+    ['👆', 'Toque no clipe', 'Escolha <b>Presets</b> (CC, shake, reverse), <b>Transições</b> ou <b>Efeitos</b>. Tudo aparece na hora na prévia.'],
+    ['⤓', 'Exporte', 'Toque em <b>Exportar</b> → salvar nas Fotos ou mandar pro TikTok/Instagram.'],
+  ];
+  modal('Como usar', `<div class="help-cards">${steps.map(([i, t, d], n) => `<div class="help-card"><span class="hc-i">${i}</span><div><b>${n + 1}. ${t}</b><p>${d}</p></div></div>`).join('')}
+    <p class="muted small">Mais coisas (keyframes, Composer, Topaz, tracker…) ficam em <b>⋯ Mais</b>. Para o modo completo estilo After Effects: ⚙ Configurações → Interface.</p></div>`, [{ label: 'Bora editar', value: null, primary: true }]);
+}
+
+function addTransformKey() {
+  const layer = store.layer();
+  if (!layer) { toast('Selecione uma camada.', 'warn'); return; }
+  for (const k of ['position', 'scale', 'rotation', 'opacity']) {
+    const p = layer.transform[k];
+    setKey(p, store.time, valueAt(p, store.time), 'easeInOut');
+  }
+  store.commit();
+  toast('Keyframe em posição, escala, rotação e opacidade.', 'ok', 1800);
+}
+
+// ---- grupos (como a pré-composição do AE): várias camadas viram uma só, com transformação e efeitos próprios
+async function groupLayers() {
+  const p = { layers: store.layers };
+  const sel = store.selectedLayerId;
+  const chosen = store.selectedLayers();
+  // camada(s) já selecionada(s) na timeline: pré-compõe direto (1 camada também, como no AE)
+  if (chosen.length >= 1 && (chosen.length >= 2 || chosen[0].type !== 'audio')) {
+    const one = chosen.length === 1, fxN = one ? chosen[0].effects.length : 0;
+    const res = await modal('Pré-compor', `<p class="muted small">${one ? `A camada “${escapeHtml(chosen[0].name)}” vira` : `${chosen.length} camadas selecionadas viram`} uma pré-composição: dá para mover, animar e pôr efeitos/presets nela inteira. Toque duas vezes para abrir.</p>
+      <label class="row"><span>Nome</span><input type="text" data-f="name" value="${one ? escapeHtml(chosen[0].name) + ' Comp 1' : 'Pré-comp ' + (p.layers.filter((l) => l.type === 'group').length + 1)}"></label>
+      ${fxN ? `<label class="row"><span>Efeitos (${fxN})</span><select data-f="fx"><option value="move">Mover para dentro da pré-comp</option><option value="leave">Deixar na pré-comp (por fora)</option></select></label>` : ''}`,
+    [{ label: 'Cancelar', value: null }, { label: 'Pré-compor', primary: true, value: (w) => ({ name: w.querySelector('[data-f="name"]').value.trim() || 'Pré-comp', fx: w.querySelector('[data-f="fx"]')?.value || 'move' }) }]);
+    if (res == null) return;
+    makeGroup(chosen.map((l) => l.id), res.name, res.fx === 'leave');
+    return;
+  }
+  const candidates = p.layers.filter((l) => l.type !== 'audio');
+  if (!candidates.length) { toast('Adicione uma camada primeiro.', 'warn'); return; }
+  const ids = await modal('Agrupar camadas', `
+    <p class="muted small">Escolha as camadas. Elas viram um <b>grupo</b> (como a pré-composição do After Effects): você move, anima e aplica efeitos/presets no grupo inteiro. Para editar cada camada de novo, use <b>Desagrupar</b>.</p>
+    <div class="group-list">${candidates.map((l) => `<label class="group-item"><input type="checkbox" value="${l.id}" ${l.id === sel ? 'checked' : ''}> <span>${escapeHtml(l.name)}</span> <em class="muted small">${l.type}</em></label>`).join('')}</div>
+    <label class="row"><span>Nome do grupo</span><input type="text" data-f="name" value="Grupo ${p.layers.filter((l) => l.type === 'group').length + 1}"></label>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Agrupar', primary: true, value: (w) => ({ ids: [...w.querySelectorAll('.group-item input:checked')].map((i) => i.value), name: w.querySelector('[data-f="name"]').value.trim() }) }]);
+  if (!ids) return;
+  if (!ids.ids.length) { toast('Marque pelo menos 1 camada.', 'warn'); return; }
+  makeGroup(ids.ids, ids.name);
+}
+
+function makeGroup(idList, name, leaveFx = false) {
+  const p = { layers: store.layers };
+  const ids = { ids: idList, name };
+  const kids = p.layers.filter((l) => ids.ids.includes(l.id));
+  const at = p.layers.indexOf(kids[0]);
+  const g = LAYER_FACTORIES.group(store.project, kids);
+  g.name = ids.name || 'Grupo';
+  g.inPoint = Math.min(...kids.map((l) => l.inPoint));
+  g.outPoint = Math.max(...kids.map((l) => l.outPoint));
+  if (leaveFx && kids.length === 1) { g.effects = kids[0].effects; kids[0].effects = []; }
+  const rest = p.layers.filter((l) => !ids.ids.includes(l.id));
+  rest.splice(Math.min(at, rest.length), 0, g);
+  store.layers = rest;
+  store.multi?.clear();
+  store.selectedLayerId = g.id;
+  store.commit('structure');
+  toast(kids.length === 1 ? `Pré-composição “${g.name}” criada.` : `${kids.length} camadas agrupadas em “${g.name}”.`, 'ok');
+}
+
+function ungroupLayer() {
+  const p = store.project;
+  const g = store.layer();
+  if (!g || g.type !== 'group') return;
+  const i = p.layers.indexOf(g);
+  const kids = g.props.layers || [];
+  p.layers.splice(i, 1, ...kids);
+  store.selectedLayerId = kids[0]?.id || null;
+  store.commit('structure');
+  if (g.effects.length || g.transform.position.keys.length || g.transform.scale.keys.length) toast('Grupo desfeito. Os efeitos/animações que estavam no grupo foram descartados.', 'warn', 5000);
+  else toast('Grupo desfeito.', 'ok');
+}
+
+function deleteSelection() {
+  if (store.selectedKeys.length) {
+    deleteKeys(store.project, store.selectedKeys);
+    store.selectedKeys = [];
+    store.commit();
+    return;
+  }
+  const list = store.selectedLayers();
+  for (const layer of list) { forgetLayer(layer.id); store.removeLayer(layer.id); }
+  store.multi?.clear();
+}
+
+const frame = () => 1 / store.project.fps;
+// ------------------------------------------------------------------ assistentes do AE
+/** Move a camada no tempo (entrada, saída e keyframes juntos), como arrastar o clipe na timeline. */
+function shiftLayer(l, delta) {
+  l.inPoint = +(l.inPoint + delta).toFixed(5); l.outPoint = +(l.outPoint + delta).toFixed(5);
+  for (const { prop } of animProps(l)) for (const k of prop.keys || []) k.t = +(k.t + delta).toFixed(5);
+}
+/** Keyframe Assistant › Sequence Layers: coloca as camadas selecionadas uma depois da outra (sobreposição opcional). */
+async function sequenceLayers() {
+  const sel = store.selectedLayers();
+  if (sel.length < 2) { toast('Selecione 2 ou mais camadas (Shift/Ctrl+clique ou toque longo).', 'warn'); return; }
+  const v = await modal('Sequenciar camadas', `<p class="muted small">Como o “Sequence Layers” do AE: na ordem da timeline (de cima para baixo), cada camada começa quando a anterior termina.</p>
+    <label class="row"><span>Sobreposição (s)</span><input type="number" data-f="ov" value="0" step="0.05" min="0"></label>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Sequenciar', primary: true, value: (w) => Math.max(0, +w.querySelector('[data-f="ov"]').value || 0) }]);
+  if (v == null) return;
+  const order = store.layers.filter((l) => sel.includes(l));
+  let t = Math.min(...order.map((l) => l.inPoint));
+  for (const l of order) { shiftLayer(l, t - l.inPoint); t = l.outPoint - v; }
+  store.commit('structure');
+  toast(`${order.length} camadas em sequência.`, 'ok');
+}
+/** Layer › Time › Freeze Frame: congela o quadro do playhead (Time Remap com valor fixo). */
+function freezeFrame(l) {
+  if (!l || !TIMED.has(l.type)) return;
+  if (l.type === 'group') ensureGroupTime(l);
+  l.effects = l.effects.filter((fx) => fx.type !== 'timeRemap' && fx.type !== 'twixtor');
+  const fx = createEffectInstance('timeRemap');
+  fx.params.time = { value: +sourceTime(l, Math.max(l.inPoint, Math.min(store.time, l.outPoint))).toFixed(4), keys: [] };
+  l.effects.unshift(fx);
+  store.commit('structure');
+  toast('Quadro congelado (Time Remap). Para voltar, remova o efeito Time Remap.', 'ok', 3500);
+}
+/** Layer › Time › Time-Reverse Layer: toca a camada de trás para frente (Time Remap do fim ao começo). */
+function timeReverse(l) {
+  if (!l || !TIMED.has(l.type)) return;
+  if (l.type === 'group') ensureGroupTime(l);
+  l.effects = l.effects.filter((fx) => fx.type !== 'timeRemap');
+  const fx = createEffectInstance('timeRemap');
+  const a = +sourceTime(l, l.inPoint).toFixed(4), b = +sourceTime(l, l.outPoint).toFixed(4);
+  fx.params.time = { value: b, keys: [{ t: l.inPoint, v: b, ease: 'linear' }, { t: l.outPoint, v: a, ease: 'linear' }] };
+  l.effects.unshift(fx);
+  store.commit('structure');
+  toast('Camada invertida (reverse).', 'ok');
+}
+
+const commands = {
+  layout: async () => { await layoutPopover(null, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); library.render(); effectsInspector.render(); propsInspector.render(); renderDock(); setTimeout(() => maybeStartTour(editorLayout()), 500); }); },
+  'open-any': async () => { const files = await pickFiles('.ffx,.aep,.xml,.fcpxml,.amproj,.json,.rgx,.cube,.aex,.ttf,.otf,.woff,.woff2,.ai,video/*,image/*,audio/*'); if (files.length) routeFiles(files); },
+  menu: showMenu,
+  more: async () => {
+    // modo simples: as ferramentas avançadas aparecem numa grade (como o "Mais" dos apps de celular)
+    const layer = store.layer();
+    toolbarMore = true; const items = simpleItems(layer, layer?.type, store.selectedLayers().length); toolbarMore = false;
+    const cmd = await modal('Mais ferramentas', `<div class="more-grid">${items.filter((i) => i[0] !== 'sep').map(([c, icon, label]) => `<button data-mc="${c}"><span class="ti">${ico(icon)}</span><span>${escapeHtml(label)}</span></button>`).join('')}</div>
+      <button class="wide" data-mc="ui-mode" style="margin-top:10px">🎚 Usar a interface avançada (After Effects)</button>`, [{ label: 'Fechar', value: null }], {
+      onMount: (w, close) => w.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => close(b.dataset.mc))),
+    });
+    if (cmd) commands[cmd]?.();
+  },
+  quick: () => quickToolsHub(),
+  howto: () => howToGuide(),
+  captions: () => captionsFlow(),
+  voice: () => voiceFlow(),
+  'beat-sync': () => beatSyncFlow(),
+  headbop: () => headbopFlow(),
+  'cam-to-beats': async () => {
+    try {
+      const { snapCameraToBeats } = await import('./mograph-course.js');
+      const n = snapCameraToBeats(flatLayers(store.project.layers), await projectBeats(store));
+      store.commit('structure');
+      toast(n ? `${n} troca(s) de cena encaixada(s) nas batidas ✓` : 'Não achei nulls “CAM ·” com movimentos para encaixar.', n ? 'ok' : 'warn', 5000);
+    } catch (e) { toast(e.message, 'warn', 5000); }
+  },
+  'manga-anim': () => animeCharFlow(),
+  'manga-edit': () => mangaAnimFlow(),
+  'ai-assets': async () => { const { openAiAssets } = await import('./ai-assets.js'); openAiAssets({ addFiles: (fs) => addAiElements(fs) }); },
+  'beat-fx': () => beatFxFlow(),
+  'ui-mode': () => { const s0 = getSettings(); setSettings({ ...s0, uiMode: s0.uiMode === 'ae' ? 'simple' : 'ae' }); toolbarMore = false; renderToolbar(); timeline.render(); toast(getSettings().uiMode === 'ae' ? 'Interface avançada (After Effects) ligada.' : 'Interface simples ligada.', 'ok'); },
+  new: () => createProjectFlow(),
+  undo: () => store.undo(),
+  redo: () => store.redo(),
+  add: () => openSheet('add'),
+  'add-text': () => addLayer('text'),
+  'add-adjustment': () => { addLayer('adjustment'); openSheet('browser', 'effects'); },
+  'add-media': async () => importMedia(await pickFiles('video/*,image/*,.ai')),
+  'add-audio': async () => importMedia(await pickFiles('audio/*,.mp3,.wav,.m4a,.aac,.ogg')),
+  'import-ffx': async () => {
+    const files = await pickFiles('.ffx,.rgx,.cube,.json,application/octet-stream');
+    if (files.length) { openSheet('presets'); library.importFiles(files); }
+  },
+  'browse-fx': () => openSheet('browser'),
+  comp: compSettings,
+  export: async () => {
+    setPlaying(false);
+    const fmt = await exportDialog(store);
+    if (fmt === 'project') saveProject();
+  },
+  play: () => setPlaying(!store.playing),
+  start: () => { setPlaying(false); store.setTime(0); },
+  end: () => { setPlaying(false); store.setTime(store.project.duration); },
+  'add-key': addTransformKey,
+  'select-all-keys': () => {
+    const n = keyTools.selectAllLayer();
+    openSheet('keys');
+    toast(n ? `${n} keyframes selecionados.` : 'Nenhum keyframe encontrado.', n ? 'ok' : 'warn', 1800);
+  },
+  'stretch-keys': () => {
+    if (store.selectedKeys.length < 2) keyTools.selectAllLayer();
+    openSheet('keys');
+    if (store.selectedKeys.length < 2) toast('Selecione pelo menos 2 keyframes para esticar.', 'warn');
+  },
+  marker: () => store.toggleMarker(store.time),
+  deselect: () => { store.select(null); closeSheet(); },
+  effects: () => openSheet('effects'),
+  presets: () => { library.render(); openSheet('presets'); },
+  composer: () => openSheet('composer'),
+  transitions: () => { transPanel.render(); openSheet('trans'); },
+  'logo-anim': () => animateLogoFlow(),
+  'font-id': async () => { const { fontIdDialog } = await import('./fontid-ui.js'); await fontIdDialog(store, { toast }); renderToolbar(); },
+  props: () => openProps(null),
+  'props-move': () => openProps('move'),
+  'props-fill': () => openProps('fill'),
+  'props-border': () => openProps('border'),
+  'props-mask': () => openProps('mask'),
+  'props-sound': () => openProps('sound'),
+  keys: () => openSheet('keys'),
+  speed: () => { ensureSpeedEffect(store.layer()); openSheet('effects'); },
+  split: () => { if (!store.layer() || !store.splitLayer(store.selectedLayerId, store.time)) toast('Posicione o playhead dentro da camada para dividir.', 'warn'); },
+  'copy-layer': () => copyLayers(false),
+  'paste-layer': () => pasteLayers(),
+  dup: () => { const list = store.selectedLayers(); store.multi?.clear(); for (const l of list) store.duplicateLayer(l.id); },
+  up: () => store.selectedLayerId && store.moveLayer(store.selectedLayerId, -1),
+  down: () => store.selectedLayerId && store.moveLayer(store.selectedLayerId, 1),
+  'toggle-visible': () => { const l = store.layer(); if (l) { l.visible = !l.visible; store.commit(); } },
+  del: deleteSelection,
+  group: groupLayers,
+  sequence: () => sequenceLayers(),
+  freeze: () => freezeFrame(store.layer()),
+  'time-reverse': () => timeReverse(store.layer()),
+  'track-matte': async () => {
+    const l = store.layer(); if (!l) return toast('Selecione a camada que vai aparecer DENTRO da máscara.', 'warn');
+    const L = store.layers, m = L[L.indexOf(l) - 1];
+    const v = await modal('Track Matte', `<p>${m ? `A camada acima, <b>${escapeHtml(m.name)}</b>, vira a máscara de <b>${escapeHtml(l.name)}</b> (como no After Effects).` : 'Coloque a camada da máscara (texto, forma…) logo acima desta na lista.'}</p>
+      <div class="menu-list">${[[1, 'Alfa — aparece dentro da forma/texto'], [2, 'Alfa invertido — aparece fora'], [3, 'Luma — usa o brilho'], [4, 'Luma invertida'], [0, 'Nenhum (tirar)']].map(([k, lb]) => `<button data-m="${k}">${lb}</button>`).join('')}</div>`, [{ label: 'Cancelar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(+b.dataset.m))) });
+    if (v != null) setTrackMatte(l, v);
+  },
+  'time-remap': () => { addTimeRemap(); openSheet('effects'); },
+  ungroup: ungroupLayer,
+  home: () => goHome(),
+  'open-group': () => { const l = store.layer(); if (l?.type === 'group' && store.openGroup(l.id)) { updateTitle(); toast(`Dentro de “${l.name}”. Toque em ◀ Sair do grupo para voltar.`, 'info', 3000); } },
+  'close-group': () => { store.closeGroup(); updateTitle(); },
+  topaz: () => openSheet('topaz'),
+  'bg-remove': async () => {
+    const l = store.layer();
+    if (!l || (l.type !== 'video' && l.type !== 'image')) { toast('Selecione um vídeo ou uma foto.', 'warn'); return; }
+    if (!l.effects.some((fx) => fx.type === 'bgRemove')) { l.effects.unshift(createEffectInstance('bgRemove', {})); store.commit(); }
+    openSheet('effects');
+    if (bgStatus(1) !== 'ready') {
+      toast('Baixando o modelo de IA (só na 1ª vez)…', 'info', 2500);
+      await ensureBgModel(1);
+      toast(bgStatus(1) === 'ready' ? 'Fundo removido ✓ Ajuste em Efeitos › Remover fundo.' : 'Não foi possível carregar o removedor de fundo neste aparelho.', bgStatus(1) === 'ready' ? 'ok' : 'error', 4000);
+    }
+  },
+  calibrate: async () => {
+    const l = store.layer();
+    if (!l) { toast('Selecione a camada que tem o CC (ex.: a camada de ajuste).', 'warn'); return; }
+    const ok = await modal('Calibrar CC com print do After Effects', `<p>Escolha um <b>print do mesmo quadro</b> com o CC aplicado no After Effects (ou de um edit com esse CC).</p>
+      <p class="muted small">O app compara com o quadro atual da prévia e cria um ajuste “${escapeHtml(CALIB_LABEL)}” no fim da lista de efeitos, acertando pretos, meios-tons, brancos, cor e saturação. Funciona com qualquer CC importado. Quanto mais parecido o quadro, mais exato.</p>`,
+      [{ label: 'Cancelar', value: false }, { label: 'Escolher print', primary: true, value: true }]);
+    if (!ok) return;
+    const [file] = await pickFiles('image/*', false);
+    if (!file) return;
+    try {
+      const was = store.exporting; store.exporting = true;
+      await prepare(store.project, store.time, { exact: true });
+      const r = await calibrateFromImage(store, l, file, async (c) => renderFrame(c.getContext('2d'), store.project, store.time, c.width / store.project.width, { final: true }));
+      store.exporting = was;
+      toast(`CC calibrado ✓ (saturação ${Math.round(r.params.saturation)}%). Ajuste fino em Efeitos › ${CALIB_LABEL}.`, 'ok', 4500);
+    } catch (e) { console.error(e); toast('Não foi possível ler o print.', 'error'); }
+  },
+  'all-tools': async () => {
+    // "Mais" de cada layout: todas as ferramentas do MotionFrame, no estilo do layout atual
+    const layer = store.layer();
+    const items = advancedItems(layer, layer?.type, store.selectedLayers().length).filter((i) => i[0] !== 'sep' && i[0] !== 'deselect');
+    const extra = layer ? [] : [['captions', 'captions', 'Legendas automáticas'], ['beat-sync', 'beat', 'Sincronizar na batida'], ['voice', 'mic', 'Voz / narração'], ['browse-fx', 'effects', 'Todos os efeitos'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera 3D'], ['add-brush', 'freehand', 'Desenho livre'], ['tour', 'help', 'Tutorial do layout'], ['ui-mode', 'ae', 'Interface avançada (AE)']];
+    const cmd = await modal('Todas as ferramentas', `<div class="more-grid lmore">${[...items, ...extra].map(([c, icon, label]) => `<button data-mc="${c}"><span class="ti">${ico(icon)}</span><span>${escapeHtml(label)}</span></button>`).join('')}</div>`, [{ label: 'Fechar', value: null }], {
+      onMount: (w, close) => w.querySelectorAll('[data-mc]').forEach((b) => b.addEventListener('click', () => close(b.dataset.mc))),
+    });
+    if (cmd) commands[cmd]?.();
+  },
+  tour: () => startTour(editorLayout(), true),
+  'frame-prev': () => { setPlaying(false); store.setTime(Math.max(0, store.time - 1 / (store.project.fps || 30))); },
+  'frame-next': () => { setPlaying(false); store.setTime(Math.min(store.project.duration, store.time + 1 / (store.project.fps || 30))); },
+  'trim-start': () => { if (!store.layer()) return toast('Selecione um clipe.', 'warn'); trimLayer('in'); },
+  'trim-end': () => { if (!store.layer()) return toast('Selecione um clipe.', 'warn'); trimLayer('out'); },
+  'add-null': () => addLayer('null'),
+  'add-camera': () => addLayer('camera'),
+  'add-shape': () => { addLayer('rect'); },
+  'add-3d': () => { addLayer('rect'); const l = store.layer(); if (l) { setThreeD(l, true, anim); l.name = 'Forma 3D'; store.commit('structure'); toast('Camada 3D criada: gire em X/Y e use Posição Z (Propriedades). Adicione uma Câmera para perspectiva.', 'info', 4000); } },
+  'add-particle': () => { addLayer('adjustment'); const l = store.layer(); if (l) { l.name = 'Partículas'; l.effects.push(createEffectInstance('sparkles', {})); store.commit('structure'); openSheet('effects'); } },
+  'add-brush': () => startDraw(false),
+  roto: () => startRoto(),
+  'add-vector': () => startDraw(true),
+  opacity: () => openProps('blend'),
+  'motion-blur': () => {
+    const l = store.layer(); if (!l) return toast('Selecione uma camada.', 'warn');
+    const i = l.effects.findIndex((fx) => fx.type === 'motionBlur');
+    if (i >= 0) { openSheet('effects'); return; }
+    l.effects.push(createEffectInstance('motionBlur', {})); store.commit(); openSheet('effects');
+    toast('Desfoque de movimento adicionado ✓', 'ok', 1800);
+  },
+  replace: () => { const l = store.layer(); if (!l || !['video', 'image', 'audio'].includes(l.type)) return toast('Selecione um vídeo, foto ou áudio para substituir.', 'warn'); replaceLayerMedia(l); },
+  'mute-clips': () => {
+    const vids = flatLayers(store.project.layers).filter((l) => l.type === 'video');
+    if (!vids.length) return toast('Não há clipes de vídeo.', 'warn');
+    const mute = !vids.every((l) => l.props.muted);
+    for (const l of vids) l.props.muted = mute;
+    store.commit('structure');
+    toast(mute ? 'Áudio dos clipes silenciado.' : 'Áudio dos clipes ligado.', 'ok', 1600);
+  },
+  cover: () => {
+    try {
+      const c = document.createElement('canvas'), k = 360 / Math.max(view.width, view.height);
+      c.width = Math.max(1, Math.round(view.width * k)); c.height = Math.max(1, Math.round(view.height * k));
+      c.getContext('2d').drawImage(view, 0, 0, c.width, c.height);
+      store.project.cover = c.toDataURL('image/jpeg', 0.75); store.commit();
+      toast('Capa definida com o quadro atual ✓ (aparece na lista de projetos)', 'ok', 2500);
+    } catch { toast('Não foi possível capturar a capa.', 'error'); }
+  },
+  sound: () => { if (editorLayout() !== 'studio' && editorLayout() !== 'ae') return openProps('sound'); openSheet('props'); setTimeout(() => document.querySelector('#propsPanel [data-section="sound"]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120); },
+};
+document.querySelectorAll('[data-cmd]').forEach((b) => b.addEventListener('click', () => commands[b.dataset.cmd]?.()));
+initEditorLayouts(commands);
+initPcLayouts(commands);
+initDragScroll();
+
+// ------------------------------------------------------------------ atalhos de teclado (os do After Effects)
+export const SHORTCUTS = [
+  ['Geral', [['Espaço / 0 (numérico)', 'Tocar / pausar'], ['Ctrl+Z / Ctrl+Shift+Z', 'Desfazer / refazer'], ['Ctrl+S', 'Salvar projeto'], ['Ctrl+N', 'Nova composição'], ['Ctrl+K', 'Configurações da composição'], ['Ctrl+I', 'Importar vídeo/foto'], ['Ctrl+M', 'Exportar (fila de render)'], ['~ (til)', 'Ampliar o preview'], ['?', 'Esta lista de atalhos']]],
+  ['Camadas', [['Ctrl+Y', 'Novo sólido'], ['Ctrl+Alt+Y', 'Nova camada de ajuste'], ['Ctrl+Alt+Shift+Y', 'Novo Null'], ['Ctrl+Alt+Shift+T', 'Novo texto'], ['Ctrl+Alt+Shift+C', 'Nova câmera 3D'], ['Ctrl+D', 'Duplicar'], ['Ctrl+Shift+D', 'Dividir camada no playhead'], ['Ctrl+Shift+C', 'Pré-compor (1 ou mais camadas)'], ['Ctrl+C / Ctrl+X / Ctrl+V', 'Copiar / recortar / colar camadas'], ['Delete', 'Excluir'], ['Ctrl+A', 'Selecionar todas as camadas'], ['Ctrl+Shift+A / F2', 'Tirar a seleção'], ['Ctrl+↑ / Ctrl+↓', 'Selecionar camada de cima / de baixo'], ['Ctrl+] / Ctrl+[', 'Subir / descer a camada'], ['Ctrl+Shift+] / Ctrl+Shift+[', 'Trazer para o topo / mandar para o fundo'], ['Ctrl+L', 'Travar / destravar'], ['Ctrl+Alt+F', 'Ajustar à composição'], ['Ctrl+Alt+R', 'Inverter no tempo (reverse)'], ['Ctrl+Alt+T', 'Ativar Time Remap'], ['Ctrl+Shift+E', 'Remover todos os efeitos']]],
+  ['Tempo', [['← / →  ou  Page Up / Page Down', 'Voltar / avançar 1 quadro'], ['Shift + ← / →', '10 quadros'], ['Home / End', 'Início / fim da composição'], ['I / O', 'Ir para a entrada / saída da camada'], ['[ / ]', 'Mover a camada para começar / terminar no playhead'], ['Alt+[ / Alt+]', 'Cortar entrada / saída no playhead'], ['J / K', 'Keyframe anterior / próximo'], ['M ou *', 'Marcador'], ['= / -', 'Zoom da timeline']]],
+  ['CapCut / Blurrr / Nova', [['Ctrl+B', 'Dividir o clipe na agulha'], ['Q', 'Apagar a parte do clipe à esquerda da agulha'], ['W', 'Apagar a parte do clipe à direita da agulha'], ['Toque duplo no texto', 'Editar o texto (prévia ou timeline)']]],
+  ['Extras (After Effects)', [['Alt+W', 'Roto Brush (pintar o que fica / Alt = fundo)'], ['Alt+Shift+J', 'Ir para o tempo'], ['Ctrl+Shift+← / →', 'Avançar/voltar 10 quadros'], ['Alt+setas (+Shift)', 'Empurrar camada 1 px (10 px)'], [', / . / ;', 'Zoom da timeline'], ['Enter', 'Renomear camada'], ['L', 'Volume / som da camada'], ['B / N', 'Início / fim da área de trabalho (a reprodução repete nela)'], ['Ctrl+Alt+B', 'Remover a área de trabalho'], ['Y', 'Ancoragem (pan behind)'], ['Shift+P/S/R/T/A', 'Mostrar propriedade']]],
+  ['Propriedades e keyframes', [['P / S / R / T / A', 'Mostrar Posição / Escala / Rotação / Opacidade / Ancoragem'], ['U', 'Keyframes da camada'], ['E', 'Efeitos da camada'], ['Alt+Shift+P / S / R / T / A', 'Keyframe em Posição / Escala / Rotação / Opacidade / Ancoragem'], ['Shift+K', 'Keyframe em todas as transformações'], ['F9', 'Easy Ease nos keyframes selecionados'], ['Shift+F9 / Ctrl+Shift+F9', 'Easy Ease In / Out'], ['Ctrl+Alt+A', 'Selecionar todos os keyframes'], ['Esc', 'Tirar seleção de keyframes']]],
+];
+export function showShortcuts() {
+  modal('Atalhos de teclado (After Effects)', SHORTCUTS.map(([g, list]) => `<h3 style="margin:12px 0 6px;font-size:14px">${g}</h3><table class="sc-table">${list.map(([k, d]) => `<tr><td><kbd>${escapeHtml(k)}</kbd></td><td>${escapeHtml(d)}</td></tr>`).join('')}</table>`).join(''), [{ label: 'Fechar', value: null }], { wide: true });
+}
+
+// área de transferência de camadas: fica guardada no aparelho (dá para colar em outro projeto)
+let layerClipboard = (() => { try { return JSON.parse(localStorage.getItem('motionframe.layerClipboard') || '[]'); } catch { return []; } })();
+const saveLayerClipboard = () => { try { localStorage.setItem('motionframe.layerClipboard', JSON.stringify(layerClipboard)); } catch { /* sem espaço: fica só na memória */ } };
+const PROP_KEYS = { p: 'position', s: 'scale', r: 'rotation', t: 'opacity', a: 'anchor' };
+function revealProp(k) {
+  if (!store.layer()) return;
+  openSheet('props');
+  setTimeout(() => {
+    const row = document.querySelector(`#propsPanel .prop-row[data-path="transform.${k}"]`);
+    if (row) { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); row.classList.add('flash'); setTimeout(() => row.classList.remove('flash'), 900); }
+  }, 120);
+}
+function keyOne(k) {
+  const l = store.layer();
+  if (!l || !l.transform[k]) return;
+  setKey(l.transform[k], store.time, valueAt(l.transform[k], store.time), 'easeInOut');
+  store.commit();
+  toast(`Keyframe: ${({ position: 'Posição', scale: 'Escala', rotation: 'Rotação', opacity: 'Opacidade', anchor: 'Ancoragem' })[k]}`, 'ok', 1200);
+}
+function jumpKey(dir) {
+  const l = store.layer();
+  const times = [...new Set((l ? [l] : store.layers).flatMap((x) => animProps(x).flatMap(({ prop }) => (prop.keys || []).map((k) => k.t))))].sort((a, b) => a - b);
+  const t = store.time, eps = 1e-4;
+  const nt = dir > 0 ? times.find((x) => x > t + eps) : [...times].reverse().find((x) => x < t - eps);
+  if (nt != null) { setPlaying(false); store.setTime(nt); }
+}
+function selectNeighbor(dir) {
+  const ls = store.layers;
+  if (!ls.length) return;
+  const i = ls.findIndex((l) => l.id === store.selectedLayerId);
+  const j = i < 0 ? 0 : Math.max(0, Math.min(ls.length - 1, i + dir));
+  store.select(ls[j].id);
+}
+function moveToEdge(top) {
+  const l = store.layer();
+  if (!l) return;
+  const i = store.layers.indexOf(l);
+  store.layers.splice(i, 1);
+  if (top) store.layers.unshift(l); else store.layers.push(l);
+  store.commit('structure');
+}
+function trimLayer(side) {
+  const l = store.layer(), t = store.time, fps = store.project.fps || 30;
+  if (!l || t <= l.inPoint - 1e-6 && side === 'out' || t >= l.outPoint && side === 'in') return;
+  if (side === 'in') {
+    const ni = Math.max(0, Math.min(l.outPoint - 1 / fps, t));
+    if (l.type === 'group') ensureGroupTime(l);
+    if (l.type === 'video' || l.type === 'audio' || l.type === 'group') { const rate = l.type === 'audio' ? 1 : (l.props.speed ?? 1); l.props.sourceStart = Math.max(0, (l.props.sourceStart || 0) + (ni - l.inPoint) * rate); }
+    l.inPoint = ni;
+  } else l.outPoint = Math.max(l.inPoint + 1 / fps, Math.min(store.project.duration, t));
+  store.commit('structure');
+}
+function alignLayer(edge) {
+  const l = store.layer();
+  if (!l) return;
+  shiftLayer(l, edge === 'in' ? store.time - l.inPoint : store.time - l.outPoint);
+  store.commit('structure');
+}
+function addTimeRemap() {
+  const l = store.layer();
+  if (!l || !TIMED.has(l.type)) { toast('Time Remap funciona em vídeos e pré-comps/grupos.', 'warn'); return; }
+  if (l.type === 'group') ensureGroupTime(l);
+  if (l.effects.some((f) => f.type === 'timeRemap')) { openSheet('effects'); return; }
+  const fx = createEffectInstance('timeRemap');
+  getEffectDef('timeRemap').init?.(fx, l);
+  l.effects.unshift(fx);
+  store.commit('structure');
+  toast('Time Remap ativado (anime “Tempo do vídeo”).', 'ok');
+}
+function fitToComp() {
+  const l = store.layer();
+  if (!l) return;
+  const { width: W, height: H } = store.project;
+  const w = l.props?.width || W, h = l.props?.height || H, k = Math.max(W / w, H / h) * 100;
+  setValue(l.transform.position, store.time, [W / 2, H / 2]); setValue(l.transform.scale, store.time, [k, k]); setValue(l.transform.rotation, store.time, 0);
+  store.commit();
+}
+function copyLayers(cut) {
+  const list = store.selectedLayers();
+  if (!list.length) return;
+  layerClipboard = list.map((l) => deepClone(l));
+  saveLayerClipboard();
+  if (cut) deleteSelection();
+  renderToolbar();
+  toast(`${list.length} camada(s) ${cut ? 'recortada(s)' : 'copiada(s)'}.`, 'ok', 1200);
+}
+function pasteLayers() {
+  if (!layerClipboard.length) return;
+  const fresh = (l) => { const c = deepClone(l); c.id = uid('ly'); if (c.props?.layers) c.props.layers = c.props.layers.map(fresh); for (const fx of c.effects || []) fx.id = uid('fx'); return c; };
+  const copies = layerClipboard.map(fresh);
+  const i = Math.max(0, store.layers.findIndex((l) => l.id === store.selectedLayerId));
+  store.layers.splice(i, 0, ...copies);
+  store.multi?.clear();
+  store.selectedLayerId = copies[0].id;
+  store.commit('structure');
+  toast(`${copies.length} camada(s) colada(s).`, 'ok', 1200);
+}
+
+// atalhos do CapCut Desktop (nos layouts CapCut/Blurrr/Nova): Ctrl+B divide, Q apaga à esquerda da agulha, W à direita
+window.addEventListener('keydown', (e) => {
+  if (!['capcut', 'blurrr', 'nova'].includes(editorLayout())) return;
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
+  const mod = e.ctrlKey || e.metaKey;
+  const act = mod && !e.altKey && !e.shiftKey && e.code === 'KeyB' ? 'split' : !mod && !e.altKey && !e.shiftKey && e.code === 'KeyQ' ? 'trim-start' : !mod && !e.altKey && !e.shiftKey && e.code === 'KeyW' ? 'trim-end' : null;
+  if (!act) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  commands[act]();
+}, true);
+
+document.addEventListener('keydown', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
+  const mod = e.ctrlKey || e.metaKey, alt = e.altKey, sh = e.shiftKey;
+  const key = e.key.toLowerCase(), code = e.code;
+  const go = (fn) => { e.preventDefault(); fn(); };
+  if (mod) {
+    // camadas novas (Ctrl+Alt+Shift…) primeiro
+    if (alt && sh && code === 'KeyY') return go(() => addLayer('null'));
+    if (alt && sh && code === 'KeyT') return go(() => commands['add-text']());
+    if (alt && sh && code === 'KeyC') return go(() => addLayer('camera'));
+    if (alt && code === 'KeyY') return go(() => commands['add-adjustment']());
+    if (alt && code === 'KeyA') return go(() => commands['select-all-keys']());
+    if (alt && code === 'KeyR') return go(() => timeReverse(store.layer()));
+    if (alt && code === 'KeyT') return go(addTimeRemap);
+    if (alt && code === 'KeyF') return go(fitToComp);
+    if (code === 'KeyZ') return go(() => (sh ? commands.redo : commands.undo)());
+    if (code === 'KeyY') return go(() => addLayer('solid'));
+    if (code === 'KeyS') return go(() => saveProject());
+    if (code === 'KeyN') return go(() => commands.new());
+    if (code === 'KeyK') return go(() => commands.comp());
+    if (code === 'KeyI') return go(() => commands['add-media']());
+    if (code === 'KeyM') return go(() => commands.export());
+    if (code === 'KeyD') return go(() => (sh ? commands.split() : commands.dup()));
+    if (code === 'KeyK' && sh) return go(() => commands.split());
+    if (code === 'KeyC') return go(() => (sh ? groupLayers() : copyLayers(false)));
+    if (code === 'KeyX') return go(() => copyLayers(true));
+    if (code === 'KeyV') return go(pasteLayers);
+    if (code === 'KeyA') return go(() => (sh ? store.select(null) : (store.layers.forEach((l, i) => store.select(l.id, i > 0)))));
+    if (code === 'KeyE' && sh) return go(() => { const l = store.layer(); if (l) { l.effects = []; store.commit('structure'); } });
+    if (code === 'KeyL') return go(() => { const l = store.layer(); if (l) { l.locked = !l.locked; store.commit('structure'); toast(l.locked ? 'Camada travada.' : 'Camada destravada.', 'ok', 1000); } });
+    if (code === 'BracketRight') return go(() => (sh ? moveToEdge(true) : commands.up()));
+    if (code === 'BracketLeft') return go(() => (sh ? moveToEdge(false) : commands.down()));
+    if (code === 'ArrowUp') return go(() => selectNeighbor(-1));
+    if (code === 'ArrowDown') return go(() => selectNeighbor(1));
+    if (code === 'ArrowLeft') return go(() => { setPlaying(false); store.setTime(store.time - frame()); });
+    if (code === 'ArrowRight') return go(() => { setPlaying(false); store.setTime(store.time + frame()); });
+    if (code === 'F9' && sh) return go(() => { setEase(store.selectedKeys, 'easeOut'); store.commit(); });
+    return;
+  }
+  if (alt && sh && PROP_KEYS[key]) return go(() => keyOne(PROP_KEYS[key]));
+  if (alt && code === 'BracketLeft') return go(() => trimLayer('in'));
+  if (alt && code === 'BracketRight') return go(() => trimLayer('out'));
+  if (alt) return;
+  switch (code) {
+    case 'Space': case 'Numpad0': return go(() => commands.play());
+    case 'ArrowLeft': case 'PageUp': return go(() => { setPlaying(false); store.setTime(store.time - frame() * (sh ? 10 : 1)); });
+    case 'ArrowRight': case 'PageDown': return go(() => { setPlaying(false); store.setTime(store.time + frame() * (sh ? 10 : 1)); });
+    case 'Home': return go(() => commands.start());
+    case 'End': return go(() => commands.end());
+    case 'Delete': case 'Backspace': return go(deleteSelection);
+    case 'BracketLeft': return go(() => alignLayer('in'));
+    case 'BracketRight': return go(() => alignLayer('out'));
+    case 'Equal': case 'NumpadAdd': return go(() => timeline.setZoom(timeline.pps * 1.5));
+    case 'Minus': case 'NumpadSubtract': return go(() => timeline.setZoom(timeline.pps / 1.5));
+    case 'NumpadMultiply': return go(() => commands.marker());
+    case 'F2': return go(() => store.select(null));
+    case 'F9': return go(() => { setEase(store.selectedKeys, 'easeInOut'); store.commit(); });
+    case 'Backquote': return go(() => setMaxPreview(!document.body.classList.contains('preview-max')));
+    case 'Escape': store.setKeySelection([]); return;
+    default:
+  }
+  if (e.key === '?') return go(showShortcuts);
+  if (e.key === '*') return go(() => commands.marker());
+  switch (key) {
+    case 'i': { const l = store.layer(); if (l) go(() => store.setTime(l.inPoint)); return; }
+    case 'o': { const l = store.layer(); if (l) go(() => store.setTime(Math.max(l.inPoint, l.outPoint - frame()))); return; }
+    case 'j': return go(() => jumpKey(-1));
+    case 'k': return go(() => (sh ? addTransformKey() : jumpKey(1)));
+    case 'm': return go(() => commands.marker());
+    case 'u': return go(() => commands.keys());
+    case 'e': return go(() => openSheet('effects'));
+    case 'p': case 's': case 'r': case 't': case 'a': return go(() => revealProp(PROP_KEYS[key]));
+    default:
+  }
+});
+
+// atalhos extras do After Effects (segundo ouvinte: só teclas que o principal não trata)
+document.addEventListener('keydown', async (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable || document.querySelector('.modal-wrap')) return;
+  const mod = e.ctrlKey || e.metaKey, alt = e.altKey, sh = e.shiftKey, code = e.code;
+  const go = (fn) => { e.preventDefault(); fn(); };
+  if (alt && !mod && code === 'KeyW') return go(() => commands.roto()); // Roto Brush (Alt+W no After)
+  if (mod && alt && code === 'KeyB') return go(() => { delete store.project.workArea; store.commit(); timeline.drawRuler(); toast('Área de trabalho removida.', 'ok', 1200); });
+  if (alt && sh && code === 'KeyJ') return go(async () => { // ir para o tempo
+    const v = await modal('Ir para o tempo', '<input type="text" data-f="t" placeholder="segundos ou 0:05.12" style="width:100%" autofocus>', [{ label: 'Cancelar', value: null }, { label: 'Ir', primary: true, value: (w) => w.querySelector('[data-f="t"]').value }]);
+    if (v == null) return;
+    const m = /^(?:(\d+):)?(\d+(?:[.,]\d+)?)$/.exec(String(v).trim());
+    if (m) { setPlaying(false); store.setTime(Math.max(0, (m[1] ? +m[1] * 60 : 0) + parseFloat(m[2].replace(',', '.')))); }
+  });
+  if (mod && sh && (code === 'ArrowLeft' || code === 'ArrowRight')) return go(() => { setPlaying(false); store.setTime(store.time + (code === 'ArrowRight' ? 1 : -1) * frame() * 10); });
+  if (alt && !mod && (code === 'ArrowLeft' || code === 'ArrowRight' || code === 'ArrowUp' || code === 'ArrowDown')) { // empurrar a camada (1 px; Shift = 10 px)
+    const l = store.layer(); if (!l?.transform?.position) return;
+    const d = (sh ? 10 : 1), p = valueAt(l.transform.position, store.time);
+    return go(() => { setValue(l.transform.position, store.time, [p[0] + (code === 'ArrowRight' ? d : code === 'ArrowLeft' ? -d : 0), p[1] + (code === 'ArrowDown' ? d : code === 'ArrowUp' ? -d : 0), ...(p.length > 2 ? [p[2]] : [])]); store.commit(); });
+  }
+  if (alt || mod) return;
+  if (code === 'Comma') return go(() => timeline.setZoom(timeline.pps / 1.5));
+  if (code === 'Period') return go(() => timeline.setZoom(timeline.pps * 1.5));
+  if (code === 'Semicolon') return go(() => timeline.setZoom(sh ? timeline.pps / 1.5 : timeline.pps * 1.5));
+  if (code === 'Enter' || code === 'NumpadEnter') { // renomear a camada
+    const l = store.layer(); if (!l) return;
+    return go(async () => {
+      const v = await modal('Renomear camada', `<input type="text" data-f="n" value="${escapeHtml(l.name || '')}" style="width:100%">`, [{ label: 'Cancelar', value: null }, { label: 'OK', primary: true, value: (w) => w.querySelector('[data-f="n"]').value }]);
+      if (v) { l.name = v; store.commit('structure'); }
+    });
+  }
+  if (code === 'KeyB' || code === 'KeyN') return go(() => { // início/fim da área de trabalho (como no AE)
+    const p = store.project; const wa = p.workArea || { a: 0, b: p.duration };
+    if (code === 'KeyB') wa.a = Math.min(store.time, wa.b - frame()); else wa.b = Math.max(store.time, wa.a + frame());
+    p.workArea = wa; store.commit(); timeline.drawRuler(); toast(`Área de trabalho: ${wa.a.toFixed(2)}s → ${wa.b.toFixed(2)}s`, 'ok', 1200);
+  });
+  if (code === 'KeyL' && !sh) return go(() => commands.sound());
+  if (sh && PROP_KEYS[e.key.toLowerCase()]) return go(() => revealProp(PROP_KEYS[e.key.toLowerCase()])); // Shift+P/S/R/T/A: soma à lista
+  if (code === 'KeyY' && !sh) return go(() => { const l = store.layer(); if (l?.transform?.anchor) revealProp('anchor'); });
+});
+
+const dropOverlay = document.getElementById('dropOverlay');
+let dragDepth = 0;
+window.addEventListener('dragenter', (e) => { if (e.dataTransfer?.types.includes('Files')) { dragDepth++; dropOverlay.classList.add('show'); } });
+window.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dropOverlay.classList.remove('show'); });
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  dropOverlay.classList.remove('show');
+  routeFiles([...(e.dataTransfer?.files || [])]);
+});
+const MEDIA_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mkv: 'video/x-matroska', '3gp': 'video/3gpp', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac' };
+/** Abre os .zip "de pacote" (projeto do AE/XML + Footage + Fonts + presets): devolve os arquivos de dentro. */
+async function expandZips(files) {
+  const out = [];
+  for (const f of files) {
+    if (!/\.zip$/i.test(f.name)) { out.push(f); continue; }
+    const pk = await unpackProject(f).catch(() => null);
+    if (pk) { out.push({ mfPack: pk, file: f }); continue; } // projeto do MotionFrame salvo com mídias
+    try {
+      const { readZip } = await import('./zip.js');
+      const z = await readZip(f);
+      for (const n of z.names) {
+        const short = n.split('/').pop();
+        if (!short || /^(\.|__MACOSX)/.test(short) || n.includes('__MACOSX/') || /^screenshot_|nodevideo/i.test(short)) continue;
+        const ext = short.split('.').pop().toLowerCase();
+        out.push(new File([await z.get(n, MEDIA_TYPES[ext] || '')], short, { type: MEDIA_TYPES[ext] || '' }));
+      }
+    } catch (e) { toast(`${f.name}: ${e.message}`, 'error', 5000); }
+  }
+  return out;
+}
+// ---- Importar de um link (Google Drive, Dropbox, OneDrive ou link direto): baixa o projeto e o que vier junto
+// (pasta inteira do Drive: .aep/.xml/.zip + mídias + fontes + presets) e abre tudo no MotionFrame — sem ter nada no PC.
+const DRIVE_ID = (u) => /\/d\/([\w-]{20,})/.exec(u)?.[1] || /[?&]id=([\w-]{20,})/.exec(u)?.[1] || null;
+/** Busca texto/bytes sem bloqueio de CORS: app de desktop (servidor local), APK (HTTP nativo) ou direto no navegador. */
+async function fetchAny(url, asText) {
+  const local = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
+  if (local) {
+    const r = await fetch(`/__fetch?u=${encodeURIComponent(url)}`).catch(() => null);
+    if (r?.ok) return asText ? r.text() : { blob: await r.blob(), headers: r.headers };
+  }
+  const CH = window.Capacitor?.Plugins?.CapacitorHttp;
+  if (CH && window.Capacitor?.isNativePlatform?.()) {
+    const r = await CH.request({ url, method: 'GET', responseType: asText ? 'text' : 'blob' });
+    if (asText) return String(r.data);
+    const bin = atob(r.data); const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return { blob: new Blob([u8]), headers: new Headers(r.headers || {}) };
+  }
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return asText ? r.text() : { blob: await r.blob(), headers: r.headers };
+}
+const nameFromHeaders = (h, fallback) => {
+  const cd = h?.get?.('content-disposition') || '';
+  const m = /filename\*=UTF-8''([^;]+)/i.exec(cd) || /filename="?([^";]+)"?/i.exec(cd);
+  return m ? decodeURIComponent(m[1]) : fallback;
+};
+/** Lista os arquivos de uma pasta pública do Drive (e das subpastas). */
+async function listDriveFolder(id, depth = 0, out = []) {
+  const html = await fetchAny(`https://drive.google.com/embeddedfolderview?id=${id}`, true);
+  const re = /<div class="flip-entry" id="entry-([\w-]+)"[\s\S]*?<a href="([^"]+)"[\s\S]*?<div class="flip-entry-title">([^<]+)<\/div>/g;
+  let m;
+  const dec = (t) => t.replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  while ((m = re.exec(html))) {
+    const [, fid, href, title] = m;
+    if (/\/folders\//.test(href)) { if (depth < 2) await listDriveFolder(fid, depth + 1, out); }
+    else out.push({ id: fid, name: dec(title).trim() });
+  }
+  return out;
+}
+async function downloadLink(url, onProg) {
+  url = url.trim();
+  const files = [];
+  const get = async (u, name) => { const { blob, headers } = await fetchAny(u, false); const n = nameFromHeaders(headers, name); files.push(new File([blob], n, { type: blob.type || '' })); onProg?.(files.length, n); };
+  if (/drive\.google\.com\/(drive\/)?(u\/\d+\/)?folders\//.test(url) || /embeddedfolderview/.test(url)) {
+    const fid = /folders\/([\w-]+)/.exec(url)?.[1] || DRIVE_ID(url);
+    let list;
+    try { list = await listDriveFolder(fid); } catch (e) {
+      const desk = /^http:\/\/(127\.0\.0\.1|localhost):47830$/.test(location.origin);
+      if (desk) {
+        // programa de PC antigo (Electron / leve anterior): sem a ponte /__fetch — oferece o .exe novo
+        const base = 'https://gabriel050413.github.io/Teste-AF-HUB/downloads/';
+        modal('Atualize o programa do PC', `<p>Este MotionFrame do PC é uma versão anterior que ainda não lê pastas do Google Drive (a leitura fica dentro do programa, a atualização automática só troca o editor).</p>
+          <p><a class="btn primary" href="${base}MotionFrame-leve.exe" target="_blank" rel="noopener">Baixar MotionFrame leve (.exe novo)</a></p>
+          <p class="muted small">Enquanto isso: links de <b>arquivos</b> do Drive funcionam (cole um por linha), ou compacte a pasta em .zip.</p>`, [{ label: 'Fechar', value: null }]);
+        throw new Error('este programa do PC precisa ser atualizado para ler pastas (baixe o MotionFrame leve).');
+      }
+      throw new Error('o navegador não deixa ler pastas do Drive. No app de PC/APK funciona; aqui, compacte a pasta em .zip no Drive ou cole os links dos arquivos (um por linha).');
+    }
+    if (!list.length) throw new Error('a pasta está vazia ou não é pública (compartilhe como “qualquer pessoa com o link”).');
+    // ignora o que o MotionFrame não usa (.rar, .exe…) para não baixar à toa
+    const useful = list.filter((f) => !/\.(rar|7z|exe|msi|dmg|pdf|txt|url|ini|db)$/i.test(f.name));
+    for (const f of useful) await get(`https://drive.usercontent.google.com/download?id=${f.id}&export=download&confirm=t`, f.name);
+    const skipped = list.length - useful.length;
+    if (skipped) toast(`${skipped} arquivo(s) da pasta ignorado(s) (.rar, .exe… — o MotionFrame não abre).`, 'warn', 5000);
+  } else if (/drive\.google\.com|drive\.usercontent|docs\.google\.com/.test(url) && DRIVE_ID(url)) {
+    await get(`https://drive.usercontent.google.com/download?id=${DRIVE_ID(url)}&export=download&confirm=t`, 'arquivo');
+  } else if (/dropbox\.com/.test(url)) {
+    await get(url.replace(/[?&]dl=0/, '').replace('www.dropbox.com', 'dl.dropboxusercontent.com'), decodeURIComponent(url.split('/').pop().split('?')[0]));
+  } else if (/1drv\.ms|onedrive\.live\.com/.test(url)) {
+    const enc = btoa(url).replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+    await get(`https://api.onedrive.com/v1.0/shares/u!${enc}/root/content`, 'arquivo');
+  } else await get(url, decodeURIComponent(url.split('/').pop().split('?')[0]) || 'arquivo');
+  return files;
+}
+// ------------------------------------------------------------------ ferramentas rápidas (estilo CapCut)
+const QUICK = [
+  ['captions', '💬', 'Legendas automáticas', 'Escuta a fala do vídeo e escreve as legendas animadas sozinho.'],
+  ['voice', '🎙', 'Gravar narração', 'Fale no microfone enquanto o vídeo toca — vira uma faixa de áudio.'],
+  ['beat-sync', '🥁', 'Cortes na batida', 'Ajusta cada clipe para trocar exatamente na batida da música.'],
+  ['beat-fx', '💥', 'Efeito na batida', 'Zoom, flash ou tremida em cada batida da música.'],
+  ['transitions', '🔀', 'Transições', 'Escolha uma transição e toque em Aplicar no corte.'],
+  ['presets', '🎨', 'Cor (CC) e efeitos prontos', 'Presets de cor, shake, reverse e mais — um toque aplica.'],
+  ['speed', '⏱', 'Velocidade / câmera lenta', 'Câmera lenta suave, velocity edit e reverse (selecione o clipe).'],
+  ['topaz', '✨', 'Melhorar qualidade', 'Deixa o clipe mais nítido e liso (selecione o vídeo).'],
+  ['bg-remove', '✂︎', 'Tirar fundo', 'Recorta a pessoa do fundo (selecione o clipe).'],
+  ['export', '⤓', 'Exportar vídeo', 'Gera o .mp4 para postar.'],
+];
+async function quickToolsHub() {
+  const cmd = await modal('✨ Ferramentas rápidas', `<div class="quick-grid">${QUICK.map(([c, i, t, d]) => `<button data-q="${c}"><span class="qi">${i}</span><span class="qt"><b>${escapeHtml(t)}</b><small>${escapeHtml(d)}</small></span></button>`).join('')}</div>`,
+    [{ label: 'Fechar', value: null }], { wide: true, onMount: (w, close) => w.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => close(b.dataset.q))) });
+  if (!cmd) return;
+  if (['speed', 'topaz', 'bg-remove'].includes(cmd) && !store.layer()) { toast('Primeiro toque no clipe (na timeline ou na prévia) e depois escolha de novo.', 'warn', 5000); return; }
+  commands[cmd]?.();
+}
+
+const HOWTO = [
+  ['Colocar meu vídeo', ['Toque em 🎞 Vídeo / Foto.', 'Escolha um ou vários clipes — eles entram um depois do outro.'], 'add-media'],
+  ['Cortar um pedaço', ['Arraste a agulha branca até o ponto do corte.', 'Toque no clipe e em ✂ Dividir.', 'Toque no pedaço que sobrou e em 🗑 Excluir.'], null],
+  ['Transição entre dois clipes', ['Toque no clipe que SAI.', 'Toque em Transições, escolha uma e toque em Aplicar no corte.'], 'transitions'],
+  ['Câmera lenta / velocity', ['Toque no clipe.', 'Toque em ⏱ Velocidade e escolha um preset (Velocity, Slow suave…).'], null],
+  ['Cor (CC) bonita', ['Toque no clipe (ou em nada, para valer no vídeo todo).', 'Toque em ★ Presets › CC e escolha uma.'], 'presets'],
+  ['Legendas automáticas', ['Toque em ✨ Ferramentas rápidas › 💬 Legendas automáticas.', 'Escolha o estilo — as legendas entram animadas e dá para editar o texto depois.'], 'captions'],
+  ['Narração com a minha voz', ['Coloque a agulha onde a fala começa.', '✨ Ferramentas rápidas › 🎙 Gravar narração › Gravar.'], 'voice'],
+  ['Cortes no ritmo da música', ['Coloque a música (♪ Música) e os clipes.', '✨ Ferramentas rápidas › 🥁 Cortes na batida › escolha a cada quantas batidas troca.'], 'beat-sync'],
+  ['Texto / título', ['Toque em T Texto, escreva e arraste na prévia.', 'Em Animar (📈) ou ❖ Animações prontas ele ganha movimento.'], 'add-text'],
+  ['Exportar e postar', ['Toque em ⤓ Exportar, escolha a qualidade e salve ou compartilhe.'], 'export'],
+  ['Levar para outro aparelho', ['Tela inicial › Mais opções › 📦 Transferir tudo › Exportar.', 'No outro aparelho/programa: Importar a transferência.'], null],
+];
+async function howToGuide() {
+  const cmd = await modal('❓ Como fazer', `<div class="howto">${HOWTO.map(([t, steps, c], i) => `<details ${i === 0 ? 'open' : ''}><summary>${escapeHtml(t)}</summary><ol>${steps.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ol>${c ? `<button class="primary small" data-h="${c}">Fazer agora</button>` : ''}</details>`).join('')}</div>
+    <p class="muted small">Dica: passe o mouse (ou segure o dedo) em cima de qualquer botão para ver o que ele faz.</p>`,
+  [{ label: 'Fechar', value: null }], { wide: true, onMount: (w, close) => w.querySelectorAll('[data-h]').forEach((b) => b.addEventListener('click', () => close(b.dataset.h))) });
+  if (cmd) commands[cmd]?.();
+}
+
+async function captionsFlow() {
+  if (!store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false))) { toast('O projeto precisa ter som (vídeo com fala ou narração) para criar legendas.', 'warn', 5000); return; }
+  let style = 'pop', quality = 'rapido', lang = 'portuguese';
+  const ok = await modal('💬 Legendas automáticas', `<p>Vou escutar a fala do projeto e escrever as legendas. Tudo acontece no seu aparelho (na 1ª vez baixa o reconhecimento de fala, uns 40 MB).</p>
+    <label>Estilo <select id="capSt">${CAPTION_STYLES.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}</select></label>
+    <label>Idioma <select id="capLg"><option value="portuguese">Português</option><option value="english">Inglês</option><option value="spanish">Espanhol</option></select></label>
+    <label>Precisão <select id="capQ"><option value="rapido">Rápida (modelo pequeno)</option><option value="melhor">Melhor (mais lento, ~80 MB)</option></select></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Criar legendas', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#capSt').onchange = (e) => { style = e.target.value; }; w.querySelector('#capQ').onchange = (e) => { quality = e.target.value; }; w.querySelector('#capLg').onchange = (e) => { lang = e.target.value; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    const words = await transcribe(store.project, { quality, language: lang, onProg: (t) => toast(t, 'info', 2500) });
+    if (!words.length) { toast('Não ouvi fala nesse áudio.', 'warn'); return; }
+    const n = buildCaptions(store, words, style);
+    toast(`${n} legenda(s) criada(s) ✓ — toque numa para corrigir o texto. Elas ficam no grupo “Legendas”.`, 'ok', 6000);
+  } catch (e) { toast(`Não deu para criar as legendas: ${e.message}`, 'error', 8000); }
+}
+
+async function voiceFlow() {
+  let stop; const stopSignal = new Promise((r) => { stop = r; });
+  const at = store.time;
+  let started = false;
+  const done = modal('🎙 Gravar narração', `<p>O vídeo toca a partir da agulha enquanto você fala. Toque em <b>Parar</b> quando terminar.</p><p class="rec-time" id="recT">Pronto para gravar</p>`,
+    [{ label: 'Cancelar', value: 'cancel' }, { label: '● Gravar / ■ Parar', primary: true, value: 'toggle' }], { onMount: (w) => {
+      const btn = [...w.querySelectorAll('button')].find((b) => /Gravar/.test(b.textContent));
+      if (!btn) return;
+      btn.addEventListener('click', (e) => {
+        if (started) return; // o 2º toque fecha o modal (valor 'toggle') e para
+        e.stopImmediatePropagation(); e.preventDefault(); started = true; btn.textContent = '■ Parar';
+        recordVoice((s) => { const el = w.querySelector('#recT'); if (el) el.textContent = `● Gravando ${s.toFixed(1)} s`; }, stopSignal).then(async (file) => {
+          setPlaying(false);
+          const before = new Set(store.project.layers.map((l) => l.id));
+          await importMedia([file]);
+          const nl = store.project.layers.find((l) => !before.has(l.id) && l.type === 'audio');
+          if (nl) { const d = nl.outPoint - nl.inPoint; nl.inPoint = at; nl.outPoint = at + d; nl.name = 'Narração'; if (nl.outPoint > store.project.duration) store.project.duration = Math.min(600, Math.ceil(nl.outPoint * 10) / 10); store.commit('structure'); }
+          toast('Narração adicionada ✓', 'ok');
+        }).catch((err) => toast(`Microfone: ${err.message}`, 'error', 6000));
+        setPlaying(true);
+      }, true);
+    } });
+  const r = await done;
+  stop();
+  if (r !== 'toggle' && started) toast('Gravação cancelada: o áudio foi descartado.', 'info');
+}
+
+async function beatSyncFlow() {
+  let every = 2;
+  const ok = await modal('🥁 Cortes na batida', `<p>Cada clipe vai durar o mesmo número de batidas da música — os cortes caem certinho no ritmo.</p>
+    <label>Trocar de clipe a cada <select id="bsN"><option value="1">1 batida (bem rápido)</option><option value="2" selected>2 batidas</option><option value="4">4 batidas (1 compasso)</option><option value="8">8 batidas (lento)</option></select></label>
+    <p class="muted small">Vale para os clipes selecionados (ou todos, se nenhum estiver selecionado), na ordem da timeline.</p>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Sincronizar', primary: true, value: true }], { onMount: (w) => { w.querySelector('#bsN').onchange = (e) => { every = +e.target.value; }; } });
+  if (!ok) return;
+  try { const r = await syncClipsToBeat(store, every); toast(`${r.clips} clipe(s) no ritmo da música ✓ (${r.beats} batidas encontradas)`, 'ok', 5000); }
+  catch (e) { toast(`Não deu: ${e.message}`, 'warn', 6000); }
+}
+
+async function beatFxFlow() {
+  let kind = 'zoom', strength = 1;
+  const target = store.layer();
+  const ok = await modal('💥 Efeito na batida', `<p>Coloca um efeito em cada batida da música${target ? ` no clipe <b>${escapeHtml(target.name)}</b>` : ' sobre o vídeo todo'}.</p>
+    <label>Efeito <select id="bfK"><option value="zoom">Zoom (pulsar)</option><option value="flash">Flash de luz</option><option value="shake">Tremida</option><option value="blur">Borrão rápido</option></select></label>
+    <label>Força <select id="bfS"><option value="0.6">Suave</option><option value="1" selected>Normal</option><option value="1.6">Forte</option></select></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Aplicar', primary: true, value: true }], { onMount: (w) => { w.querySelector('#bfK').onchange = (e) => { kind = e.target.value; }; w.querySelector('#bfS').onchange = (e) => { strength = +e.target.value; }; } });
+  if (!ok) return;
+  try { const r = await beatEffects(store, kind, strength, target); toast(`Efeito em ${r.beats} batida(s) ✓`, 'ok', 4000); }
+  catch (e) { toast(`Não deu: ${e.message}`, 'warn', 6000); }
+}
+
+/** Cria uma camada de imagem a partir de um blob (guarda no aparelho). like: copia tamanho/transform de outra camada. */
+function imageLayerFromBlob(blob, name, { w, h, like = null, t0 = 0, t1 = null } = {}) {
+  const id = uid('m'), f = new File([blob], `${name}.png`, { type: 'image/png' });
+  putMedia(id, f);
+  const P = store.project;
+  const l = LAYER_FACTORIES.image(P, URL.createObjectURL(f), Math.round(like ? like.props.width : w), Math.round(like ? like.props.height : h), name);
+  l.props.mediaId = id; l.props.fileName = f.name;
+  if (like) for (const k of ['position', 'scale', 'rotation']) l.transform[k] = { value: structuredClone(valueAt(like.transform[k], store.time)), keys: [] };
+  l.inPoint = t0; l.outPoint = t1 ?? P.duration;
+  return l;
+}
+
+/** Elementos .ai grátis: entram do tamanho certo (sem preencher a tela), centralizados, a partir da agulha. */
+async function addAiElements(files) {
+  await ensureSomeProject();
+  for (const f of files) {
+    const png = await aiToPngFile(f, { maxSide: 2048 });
+    const bmp = await createImageBitmap(png);
+    const P = store.project, k = Math.min((P.width * 0.8) / bmp.width, (P.height * 0.6) / bmp.height);
+    const l = imageLayerFromBlob(png, f.name.replace(/\.ai$/, ''), { w: bmp.width * k, h: bmp.height * k, t0: store.time, t1: Math.min(P.duration, store.time + 4) });
+    bmp.close?.();
+    store.addLayer(l);
+  }
+}
+
+/** Headbop automático: recorta o jogador, separa a cabeça, limpa o fundo e anima a cabeça no ritmo. */
+async function headbopFlow() {
+  let target = store.layer();
+  if (!target || !['image', 'video'].includes(target.type)) {
+    const files = await pickFiles('image/*', false);
+    if (!files.length) return;
+    await ensureSomeProject();
+    await importMedia(files.slice(0, 1));
+    target = store.layer();
+    if (!target || target.type !== 'image') return;
+  }
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false && l !== target));
+  const o = { style: 'nod', amount: 1, bg: 'fill', blur: true, src: hasMusic ? 'music' : 'bpm', bpm: 100 };
+  const ok = await modal('🕺 Headbop automático', `<p>A IA recorta <b>${escapeHtml(target.name)}</b>, separa a cabeça, apaga a pessoa do fundo e faz a cabeça balançar em cada batida. Tudo no aparelho.</p>
+    <label>Movimento <select id="hbS"><option value="nod">Aceno (headbop clássico)</option><option value="sway">Balanço para os lados</option><option value="bounce">Pulo com squash</option></select></label>
+    <label>Força <select id="hbA"><option value="0.6">Suave</option><option value="1" selected>Normal</option><option value="1.6">Forte</option></select></label>
+    <label>Fundo <select id="hbB"><option value="fill">Foto sem a pessoa (preenchido)</option><option value="original">Foto original</option><option value="green">Verde (chroma key)</option></select></label>
+    <label>Ritmo <select id="hbR"><option value="music" ${hasMusic ? 'selected' : ''}>Batidas da música do projeto</option><option value="bpm" ${hasMusic ? '' : 'selected'}>BPM fixo</option></select></label>
+    <label>BPM <input id="hbP" type="number" min="40" max="220" value="100"></label>
+    <label class="row"><input id="hbBl" type="checkbox" checked> Desfocar o fundo (como nas edits)</label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Criar headbop', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#hbS').onchange = (e) => { o.style = e.target.value; }; w.querySelector('#hbA').onchange = (e) => { o.amount = +e.target.value; };
+    w.querySelector('#hbB').onchange = (e) => { o.bg = e.target.value; }; w.querySelector('#hbR').onchange = (e) => { o.src = e.target.value; };
+    w.querySelector('#hbP').onchange = (e) => { o.bpm = Math.max(40, Math.min(220, +e.target.value || 100)); }; w.querySelector('#hbBl').onchange = (e) => { o.blur = e.target.checked; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  toast('Recortando o jogador e separando a cabeça… (na 1ª vez baixa a IA)', 'info', 6000);
+  try {
+    const { frameOf, buildHeadbop, headbopKeys } = await import('./headbop.js');
+    const img = await frameOf(target, store.time);
+    const r = await buildHeadbop(img, { bg: o.bg });
+    const t0 = target.inPoint, t1 = target.outPoint;
+    let beats = [];
+    if (o.src === 'music') { try { beats = await projectBeats(store); } catch (e) { toast(`${e.message} — usando ${o.bpm} BPM.`, 'warn', 5000); } }
+    if (beats.length < 2) { beats = []; for (let b = t0 + 0.2; b < t1; b += 60 / o.bpm) beats.push(+b.toFixed(3)); }
+    const ks = headbopKeys(beats, { style: o.style, amount: o.amount, t0, t1 });
+    const fx = createEffectInstance('headbopWarp', { ...r.rig, tilt: { keys: ks.tilt }, nod: { keys: ks.nod }, bob: { keys: ks.bob }, lean: { keys: ks.lean } });
+    const added = [];
+    let person = target;
+    if (!r.hasAlpha && o.bg !== 'original') { // foto com fundo: fundo limpo embaixo + pessoa recortada que se mexe
+      const bg = imageLayerFromBlob(r.bg, 'Headbop · Fundo', { like: target, t0, t1 });
+      if (o.blur && o.bg !== 'green') bg.effects.push(createEffectInstance('blur', { radius: 12 }));
+      person = imageLayerFromBlob(r.person, 'Headbop · Jogador', { like: target, t0, t1 });
+      added.push(bg, person);
+      target.visible = false;
+    }
+    person.effects = person.effects.filter((e) => e.type !== 'headbopWarp');
+    person.effects.unshift(fx);
+    for (const l of added) store.addLayer(l);
+    store.select(person.id);
+    store.commit('structure');
+    toast(`Headbop pronto ✓ — ${ks.tilt.length} batidas. Ajuste em Efeitos › Headbop (deformação): inclinação, aceno, quique e os pinos.`, 'ok', 7000);
+  } catch (e) { toast(`Headbop: ${e.message}`, 'error', 8000); }
+}
+
+/** Animador de personagem de anime/mangá: PNG do personagem → cabeça, cabelo, braços e corpo se mexendo (puppet automático). */
+async function animeCharFlow() {
+  let targets = store.selectedLayers().filter((l) => l.type === 'image');
+  let picked = [];
+  if (!targets.length) {
+    picked = await pickFiles('image/*', true);
+    if (!picked.length) return;
+    await ensureSomeProject();
+  }
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false));
+  const o = { style: 'idle', bpm: 100, beat: hasMusic };
+  const ok = await modal('🧍 Animar personagem (mangá/anime)', `<p>Coloque o PNG do personagem (de preferência já recortado). O app acha a cabeça, o pescoço, os ombros e os pés e faz <b>cabeça, cabelo, braços e corpo</b> se mexerem — como um Puppet Warp automático. Os pinos podem ser ajustados no efeito “Personagem animado”.</p>
+    <label>Movimento <select id="acS"><option value="idle">Parado respirando (idle)</option><option value="wind">Vento (cabelo forte)</option><option value="dance">Balançando no ritmo</option><option value="hype">Agitado (edit)</option></select></label>
+    <label>BPM (para “no ritmo”) <input id="acB" type="number" min="50" max="200" value="${o.bpm}"></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Animar', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#acS').onchange = (e) => { o.style = e.target.value; }; w.querySelector('#acB').onchange = (e) => { o.bpm = Math.max(50, Math.min(200, +e.target.value || 100)); };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    if (picked.length) {
+      const before = new Set(store.project.layers.map((l) => l.id));
+      for (const f of picked) {
+        const id = uid('m'); putMedia(id, f);
+        const src = URL.createObjectURL(f), img = new Image(); img.src = src; await img.decode();
+        const P = store.project, k = Math.min((P.width * 0.9) / img.naturalWidth, (P.height * 0.85) / img.naturalHeight);
+        const l = LAYER_FACTORIES.image(P, src, Math.round(img.naturalWidth * k), Math.round(img.naturalHeight * k), f.name.replace(/\.[^.]+$/, ''));
+        l.props.mediaId = id; l.props.fileName = f.name; l.inPoint = store.time; l.outPoint = P.duration;
+        store.layers.unshift(l);
+      }
+      targets = store.layers.filter((l) => !before.has(l.id));
+    }
+    const { autoRig } = await import('./anime-rig.js');
+    const S = { idle: { head: 0.7, hair: 0.8, arms: 0.4, breath: 1, sway: 0.5, speed: 0.35 }, wind: { head: 0.6, hair: 2.6, arms: 0.5, breath: 0.8, sway: 0.8, speed: 0.6 }, dance: { head: 1.4, hair: 1.4, arms: 1.3, breath: 1.2, sway: 1.6, speed: o.bpm / 120 }, hype: { head: 1.8, hair: 2, arms: 1.8, breath: 1.5, sway: 1.4, speed: 1.1 } }[o.style];
+    let n = 0;
+    for (const l of targets) {
+      const img = new Image(); img.src = l.props.src; await img.decode();
+      const rig = await autoRig(img);
+      if (rig.cutout) { // sem alfa: troca pela versão recortada
+        const id = uid('m'), f = new File([rig.cutout], `${l.name} (recorte).png`, { type: 'image/png' });
+        putMedia(id, f); l.props.src = URL.createObjectURL(f); l.props.mediaId = id; l.props.fileName = f.name;
+      }
+      l.effects = l.effects.filter((e) => e.type !== 'animePuppet');
+      l.effects.unshift(createEffectInstance('animePuppet', { ...S, ...rig.pins }));
+      n++;
+    }
+    store.commit('structure');
+    toast(`${n} personagem(ns) animado(s) ✓ — ajuste força e pinos em Efeitos › Personagem animado. Dica: some Shake e Glow para o estilo de edit.`, 'ok', 7000);
+  } catch (e) { toast(`Animar personagem: ${e.message}`, 'error', 8000); }
+}
+
+/** Animador automático de mangá: páginas/imagens → edit com câmera nos quadros, transições e efeitos no ritmo. */
+async function mangaAnimFlow() { // páginas de mangá → edit com câmera nos quadros
+  const selImgs = store.selectedLayers().filter((l) => l.type === 'image');
+  const files = selImgs.length ? await Promise.all(selImgs.map(async (l) => new File([await (await fetch(l.props.src)).blob()], `${l.name}.png`, { type: 'image/png' }))) : await pickFiles('image/*', true);
+  if (!files.length) return;
+  for (const l of selImgs) l.visible = false;
+  await ensureSomeProject();
+  const hasMusic = store.project.layers.some((l) => l.type === 'audio' || (l.type === 'video' && l.props.hasAudio !== false));
+  const o = { per: 2, src: hasMusic ? 'music' : 'bpm', bpm: 120, rtl: true, look: 'auto', title: '' };
+  const ok = await modal('📖 Edit de mangá (páginas)', `<p>${files.length} imagem(ns). Vou achar os quadros de cada página e montar a edit: câmera entrando em cada quadro, whip/zoom/flash/glitch entre eles, linhas de velocidade, impact frame e shake — no ritmo.</p>
+    <label>Ordem dos quadros <select id="maR"><option value="rtl">Mangá japonês (direita → esquerda)</option><option value="ltr">Ocidental (esquerda → direita)</option></select></label>
+    <label>Cada quadro dura <select id="maP"><option value="1">1 batida (rápido)</option><option value="2" selected>2 batidas</option><option value="4">4 batidas (lento)</option></select></label>
+    <label>Ritmo <select id="maS"><option value="music" ${hasMusic ? 'selected' : ''}>Batidas da música do projeto</option><option value="bpm" ${hasMusic ? '' : 'selected'}>BPM fixo</option></select></label>
+    <label>BPM <input id="maB" type="number" min="60" max="200" value="120"></label>
+    <label>Visual <select id="maL"><option value="auto">Automático (grão + contraste)</option><option value="manga">Transformar em mangá P&B (retícula + nanquim)</option><option value="none">Sem look</option></select></label>
+    <label>Título no começo (opcional) <input id="maT" type="text" placeholder="ex.: GOJO"></label>`,
+  [{ label: 'Cancelar', value: false }, { label: 'Animar', primary: true, value: true }], { onMount: (w) => {
+    w.querySelector('#maR').onchange = (e) => { o.rtl = e.target.value === 'rtl'; }; w.querySelector('#maP').onchange = (e) => { o.per = +e.target.value; };
+    w.querySelector('#maS').onchange = (e) => { o.src = e.target.value; }; w.querySelector('#maB').onchange = (e) => { o.bpm = Math.max(60, Math.min(200, +e.target.value || 120)); };
+    w.querySelector('#maL').onchange = (e) => { o.look = e.target.value; }; w.querySelector('#maT').oninput = (e) => { o.title = e.target.value; };
+  } });
+  if (!ok) return;
+  setPlaying(false);
+  try {
+    const { planShots, buildMangaEdit } = await import('./manga-anim.js');
+    const images = [], plans = [];
+    for (const f of files) {
+      const id = uid('m'); putMedia(id, f);
+      const src = URL.createObjectURL(f), img = new Image(); img.src = src; await img.decode();
+      images.push({ img, iw: img.naturalWidth, ih: img.naturalHeight, src, id, name: f.name });
+      plans.push(planShots(img, { rtl: o.rtl }));
+    }
+    const P = store.project, t0 = store.time;
+    let beats = [];
+    if (o.src === 'music') { try { beats = (await projectBeats(store)).filter((b) => b >= t0); } catch (e) { toast(`${e.message} — usando ${o.bpm} BPM.`, 'warn', 5000); } }
+    const total = plans.reduce((n, p) => n + p.shots.length, 0) * o.per + 2;
+    if (beats.length < total) { const last = beats[beats.length - 1] ?? t0, step = beats.length > 3 ? (beats[beats.length - 1] - beats[0]) / (beats.length - 1) : 60 / o.bpm; for (let b = last + (beats.length ? step : 0); beats.length < total; b += step) beats.push(+b.toFixed(3)); }
+    const r = buildMangaEdit({
+      P, images, plans, beats, t0, beatsPerShot: o.per,
+      makeLayer: (k, a, b) => { const im = images[k]; const l = LAYER_FACTORIES.image(P, im.src, im.iw, im.ih, im.name); l.props.mediaId = im.id; l.props.fileName = im.name; l.inPoint = a; l.outPoint = b; return l; },
+      fx: (type, params) => createEffectInstance(type, params),
+    });
+    P.duration = Math.min(600, Math.max(P.duration, Math.ceil(r.end * 10) / 10));
+    for (const l of r.layers) store.layers.unshift(l);
+    const s0 = r.layers[0]?.inPoint ?? t0;
+    // look por cima de tudo (camada de ajuste)
+    if (o.look !== 'none') {
+      const adj = LAYER_FACTORIES.adjustment(P); adj.name = 'Mangá · Look'; adj.inPoint = s0; adj.outPoint = r.end;
+      if (o.look === 'manga') adj.effects.push(createEffectInstance('mangaTone', { dot: 5 }));
+      else adj.effects.push(createEffectInstance('brightnessContrast', { contrast: 18 }));
+      adj.effects.push(createEffectInstance('noise', { amount: 10 }), createEffectInstance('vignette', { amount: 45 }));
+      store.layers.unshift(adj);
+    }
+    if (o.title.trim()) {
+      const tx = LAYER_FACTORIES.text(P); Object.assign(tx.props, { text: o.title.trim().toUpperCase(), fontFamily: '"Bebas Neue", Impact, sans-serif', fontWeight: 400, fontSize: Math.round(P.width * 0.16), letterSpacing: Math.round(P.width * 0.03), color: '#e8f4ff' });
+      tx.name = 'Título'; tx.inPoint = s0; tx.outPoint = Math.min(r.end, s0 + Math.max(1.5, (beats[4] ?? s0 + 2) - s0));
+      tx.transform.position.value = [P.width / 2, P.height * 0.8];
+      tx.transform.opacity = { value: 0, keys: [{ t: s0, v: 0, ease: 'easeOut' }, { t: s0 + 0.25, v: 100, ease: 'linear' }, { t: tx.outPoint - 0.2, v: 100, ease: 'easeIn' }, { t: tx.outPoint, v: 0, ease: 'linear' }] };
+      tx.effects.push(createEffectInstance('glow', { threshold: 20, radius: 30, intensity: 1.6, color: [0.3, 0.7, 1, 1], useColor: true }));
+      store.layers.unshift(tx);
+    }
+    store.commit('structure');
+    const pages = plans.filter((p) => p.manga).length;
+    toast(`Mangá animado ✓ — ${r.count} tomadas${pages ? ` (${pages} página(s) com quadros detectados)` : ''}. Tudo editável na timeline.`, 'ok', 7000);
+  } catch (e) { toast(`Animar mangá: ${e.message}`, 'error', 8000); }
+}
+
+/** Transferir tudo entre programas/aparelhos (MotionFrame.exe antigo → leve, PC → outro PC). */
+async function transferFlow() {
+  const go = await modal('Transferir tudo', `<p>Leva <b>todos os projetos</b>, as mídias, fontes, presets, configurações e o <b>acesso deste aparelho</b> para outro programa (ex.: do MotionFrame.exe antigo para o <b>MotionFrame leve</b>).</p>
+    <p class="muted small">1) Aqui: <b>Exportar</b> → salva <i>MotionFrame-transferencia….zip</i> (em partes, se for grande).<br>2) No outro programa: tela de acesso ou Mais opções › Transferir tudo › <b>Importar</b> e escolha o(s) arquivo(s). O acesso vem junto: no mesmo PC, não precisa de token novo.</p>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Importar', value: 'imp' }, { label: '📦 Exportar tudo', primary: true, value: 'exp' }]);
+  if (!go) return;
+  const { exportAll, importAll } = await import('./transfer.js');
+  if (go === 'exp') {
+    try {
+      toast('Preparando a transferência…', 'info', 3000);
+      const parts = await exportAll((t) => toast(t, 'info', 1200));
+      for (const pt of parts) await saveFile(pt.name, pt.blob);
+      toast(parts.length > 1 ? `Transferência pronta em ${parts.length} partes ✓ — importe todas no outro programa.` : 'Transferência pronta ✓ — importe esse arquivo no outro programa.', 'ok', 7000);
+      if (parts.skipped?.length) modal('Algumas mídias ficaram de fora', `<p>Estes arquivos estavam salvos no programa mas não puderam ser lidos (o arquivo interno se perdeu — acontece quando o Windows/antivírus limpa a pasta do app ou o disco encheu):</p><ul class="small">${parts.skipped.slice(0, 30).map((n) => `<li>${escapeHtml(String(n))}</li>`).join('')}${parts.skipped.length > 30 ? '<li>…</li>' : ''}</ul><p class="muted small">Todo o resto foi transferido. No outro programa esses clipes aparecem como mídia offline: use Substituir mídia com o arquivo original.</p>`, [{ label: 'Ok', value: null }]);
+    } catch (e) { toast(`Não deu para exportar: ${e.message}`, 'error', 7000); }
+    return;
+  }
+  const files = await pickFiles('.zip,application/zip', true);
+  if (!files?.length) return;
+  try {
+    const r = await importAll(files, (t) => toast(t, 'info', 1200));
+    toast(`Transferência importada: ${r.projects} projeto(s), ${r.media} mídia(s) ✓ — recarregando…`, 'ok', 3000);
+    setTimeout(() => location.reload(), 1500);
+  } catch (e) { toast(`Não deu para importar: ${e.message}`, 'error', 8000); }
+}
+
+async function importFromLink() {
+  let typed = '';
+  const txt = await modal('Importar de um link', `<p>Cole o link do projeto (<b>.aep, .xml, .zip</b>, projeto do MotionFrame) ou de uma <b>pasta do Google Drive</b> com o projeto, as mídias, as fontes e os presets. O MotionFrame baixa tudo e abre junto — sem precisar ter nada no aparelho.</p>
+    <textarea id="lnkIn" rows="4" style="width:100%" placeholder="https://drive.google.com/drive/folders/…&#10;(pode colar vários links, um por linha)"></textarea>
+    <p class="muted small">Funciona com Google Drive (arquivo ou pasta pública), Dropbox, OneDrive e links diretos. Fontes que faltarem são baixadas do Google Fonts.</p>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Baixar e abrir', primary: true, value: 'go' }], { onMount: (w) => { const i = w.querySelector('#lnkIn'); i?.addEventListener('input', () => { typed = i.value; }); setTimeout(() => i?.focus(), 50); } });
+  const raw = txt === 'go' ? typed : null;
+  const links = String(raw || '').split(/\s+/).filter((u) => /^https?:\/\//.test(u));
+  if (!links.length) return;
+  const all = [];
+  try {
+    for (const u of links) all.push(...await downloadLink(u, (n, name) => toast(`Baixando ${n}: ${name}`, 'info', 1500)));
+  } catch (e) { toast(`Não deu para baixar: ${e.message}`, 'error', 8000); if (!all.length) return; }
+  toast(`${all.length} arquivo(s) baixado(s) — abrindo…`, 'ok', 2500);
+  if (home.visible) await ensureSomeProject();
+  await routeFiles(all);
+}
+
+/** Textos do projeto com nome de fonte do AE (PostScript: "DancingScript-Regular") → família instalada ("Dancing Script"). */
+function matchFontsToInstalled() {
+  const key = (n) => String(n || '').toLowerCase().replace(/[-_ ](regular|bold|italic|medium|light|black|semibold|thin|heavy|book|roman)\b.*$/g, '').replace(/[^a-z0-9]/g, '');
+  const fams = userFonts().map((f) => f.family);
+  let n = 0;
+  for (const l of flatLayers(store.project.layers)) {
+    if (l.type !== 'text') continue;
+    const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
+    const hit = fams.find((f) => key(f) === key(first)) || fams.find((f) => key(first).startsWith(key(f)) && key(f).length > 3);
+    if (hit && hit !== first) { l.props.fontFamily = `"${hit}", ${l.props.fontFamily}`; n++; }
+  }
+  if (n) { store.commit('structure'); toast(`${n} texto(s) usando as fontes do pacote ✓`, 'ok', 3500); }
+  resolveProjectFonts();
+}
+/** Fontes que o projeto pede e não estão no aparelho: baixa do Google Fonts (sem precisar ter a fonte no PC). */
+async function resolveProjectFonts() {
+  const fams = userFonts().map((f) => f.family.toLowerCase());
+  let n = 0;
+  for (const l of flatLayers(store.project.layers)) {
+    if (l.type !== 'text') continue;
+    const first = /^"?([^",]+)"?/.exec(l.props.fontFamily || '')?.[1];
+    if (!first || fams.includes(first.toLowerCase()) || /^(inter|system-ui|sans-serif|serif|monospace|impact|arial|georgia)$/i.test(first)) continue;
+    const g = await resolveGoogleFont(first);
+    if (g && isSFPro(first)) { l.props.fontScale = SF_SCALE; l.props.fontScaleX = SF_SCALE_X; l.props.fontShiftY = SF_SHIFT_Y; } // SF Pro → Inter: mesma largura e linha de base do After
+    if (g && g !== first) { l.props.fontFamily = `"${g}", ${l.props.fontFamily}`; n++; }
+    else if (g) n++;
+  }
+  if (n) { frameCacheClear(); store.commit('structure'); toast(`${n} texto(s) com a fonte baixada do Google Fonts ✓`, 'ok', 3500); }
+}
+
+/**
+ * Abre qualquer coisa no lugar certo — inclusive TUDO JUNTO: escolha (ou arraste) o .aep / .xml / .zip do projeto com as
+ * pastas de mídias, fontes e presets. Ordem: instala as fontes, adiciona os presets (.ffx) e efeitos (.aex), abre o projeto
+ * e já conecta as mídias pelo nome (sem perguntar). Sem projeto, as mídias entram como camadas.
+ */
+async function routeFiles(files) {
+  // transferência completa de outro programa: restaura tudo (projetos, mídias, acesso)
+  const tr = files.filter((f) => /MotionFrame-transferencia.*\.zip$/i.test(f.name || ''));
+  if (tr.length) {
+    try { const { importAll } = await import('./transfer.js'); const r = await importAll(tr, (t) => toast(t, 'info', 1200)); toast(`Transferência importada: ${r.projects} projeto(s) ✓ — recarregando…`, 'ok', 3000); setTimeout(() => location.reload(), 1500); }
+    catch (e) { toast(`Transferência: ${e.message}`, 'error', 8000); }
+    return;
+  }
+  files = await expandZips(files);
+  const pack = files.find((f) => f.mfPack);
+  files = files.filter((f) => !f.mfPack);
+  const fonts = files.filter((f) => isFontFile(f.name));
+  const xml = files.filter((f) => /\.(xml|fcpxml|amproj)$/i.test(f.name));
+  const aep = files.filter((f) => /\.aepx?$/i.test(f.name));
+  const aex = files.filter((f) => /\.aex$/i.test(f.name));
+  const mfjson = files.filter((f) => /\.motionframe\.json$/i.test(f.name));
+  const presets = files.filter((f) => /\.(ffx|frameify|rgx|cube|json)$/i.test(f.name) && !mfjson.includes(f));
+  const media = files.filter((f) => MEDIA_TYPES[f.name.split('.').pop().toLowerCase()] || /\.ai$/i.test(f.name));
+  // vários projetos no pacote/pasta: pergunta qual abrir (os presets, fontes e mídias entram de qualquer jeito)
+  const projs = [...mfjson, ...aep, ...xml];
+  if (!pack && projs.length > 1) {
+    const pick = await modal('Qual projeto abrir?', `<div class="menu-list">${projs.map((f, i) => `<button data-p="${i}">${/\.aep/i.test(f.name) ? 'Ae' : /\.json/i.test(f.name) ? '🎬' : '📄'} ${escapeHtml(f.name)}</button>`).join('')}</div>`,
+      [{ label: 'Nenhum (só presets/fontes)', value: -1 }], { onMount: (w, close) => w.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => close(+b.dataset.p))) });
+    const chosen = pick >= 0 ? projs[pick] : null;
+    for (const arr of [mfjson, aep, xml]) arr.splice(0, arr.length, ...arr.filter((f) => f === chosen));
+  }
+  const project = pack || mfjson[0] || aep[0] || xml[0];
+  const done = [];
+  if (fonts.length) { const r = await importFonts(fonts).catch(() => ({ ok: [] })); if (r.ok?.length) done.push(`${r.ok.length} fonte(s)`); }
+  if (presets.length) { library.importFiles(presets); done.push(`${presets.length} preset(s)`); }
+  if (aex.length) { fxBrowser.importAex(aex); done.push(`${aex.length} plugin(s) .aex`); }
+  if (pack) await openUnpacked(pack.mfPack, pack.file, true);
+  else if (mfjson[0]) { const d = await unpackProject(mfjson[0]).catch(() => null); if (d) await openUnpacked(d, mfjson[0], true); }
+  else if (aep[0]) await openAEPFlow(aep[0], { media });
+  else if (xml[0]) await openXMLFlow(xml[0], { media });
+  else if (media.length) importMedia(media);
+  if (project) matchFontsToInstalled();
+  if (project && done.length) toast(`Junto com o projeto: ${done.join(', ')} ✓`, 'ok', 5000);
+  else if (!project && !media.length && done.length) { openSheet('presets'); toast(`Importado: ${done.join(', ')} ✓`, 'ok', 4000); }
+}
+
+// ------------------------------------------------------------------ autosave
+let saveTimer = 0;
+function projectThumb() {
+  try {
+    if (store.project.cover) return store.project.cover; // capa escolhida (como o "Capa" do CapCut)
+    if (!getSettings().autosaveThumb) return undefined;
+    const c = document.createElement('canvas');
+    const k = 180 / Math.max(view.width, view.height);
+    c.width = Math.max(1, Math.round(view.width * k)); c.height = Math.max(1, Math.round(view.height * k));
+    c.getContext('2d').drawImage(view, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', 0.6);
+    c.width = c.height = 0;
+    return url;
+  } catch { return undefined; }
+}
+function autosave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { if (!home.visible) saveProjectData(store.project, projectThumb()); }, 700);
+}
+
+function demoProject() {
+  const p = createProject(1080, 1920);
+  p.duration = 6;
+  p.name = 'Meu edit';
+  const bg = LAYER_FACTORIES.solid(p); bg.name = 'Fundo'; bg.props.fill = '#120d2a';
+  const circle = LAYER_FACTORIES.ellipse(p); circle.props.width = circle.props.height = 560; circle.props.fill = '#7c5cff';
+  circle.transform.position.value = [540, 800];
+  circle.effects.push(createEffectInstance('deepGlow', { radius: 220, exposure: 1.2 }));
+  circle.transform.scale.keys = [{ t: 0, v: [0, 0], ease: 'back' }, { t: 0.8, v: [100, 100], ease: 'linear' }];
+  const title = LAYER_FACTORIES.text(p); title.props.text = 'MOTIONFRAME'; title.props.fontFamily = 'Impact, "Arial Black", sans-serif'; title.props.fontSize = 130;
+  title.transform.position.value = [540, 1380];
+  title.transform.opacity.keys = [{ t: 0.4, v: 0, ease: 'easeOut' }, { t: 1, v: 100, ease: 'linear' }];
+  title.transform.position.keys = [{ t: 0.4, v: [540, 1560], ease: 'bezier', outInf: 0.85, inInf: 0.85 }, { t: 1.1, v: [540, 1380], ease: 'linear' }];
+  title.effects.push(createEffectInstance('rgbSplit', { amount: { keys: [{ t: 0.4, v: 30, ease: 'easeOut' }, { t: 1.2, v: 2, ease: 'linear' }] } }));
+  const sub = LAYER_FACTORIES.text(p); sub.props.text = 'importe .ffx · efeitos de edit'; sub.props.fontSize = 46; sub.props.fontWeight = 400;
+  sub.transform.position.value = [540, 1500];
+  sub.transform.opacity.keys = [{ t: 0.9, v: 0, ease: 'easeOut' }, { t: 1.5, v: 100, ease: 'linear' }];
+  const adj = LAYER_FACTORIES.adjustment(p); adj.name = 'Ajuste · Shake impacto'; adj.inPoint = 1.1; adj.outPoint = 1.8;
+  adj.effects.push(createEffectInstance('shake', { frequency: 16, amount: { keys: [{ t: 1.1, v: 60, ease: 'easeOut' }, { t: 1.6, v: 0, ease: 'linear' }] }, rotation: 3, zoom: 5 }));
+  adj.effects.push(createEffectInstance('motionBlur', { amount: 150 }));
+  p.layers = [adj, sub, title, circle, bg];
+  return p;
+}
+
+// ------------------------------------------------------------------ projetos e tela inicial (estilo Alight Motion)
+async function openProjectById(id) {
+  if (pendingMediaCount()) await flushMedia(); // mídia importada há pouco ainda gravando
+  const data = await loadProjectDataAsync(id);
+  if (!data) { toast('Não consegui ler este projeto agora. Ele não foi apagado: tente abrir de novo.', 'error', 6000); home.render(); return; }
+  data.id = id;
+  ensureRecipesFromProject(data); // efeitos próprios usados no projeto (mesmo se não estiverem salvos neste aparelho)
+  await saveBackup(data, true); // versão de segurança de como o projeto estava ao abrir
+  await relinkMedia(data);
+  pruneAudio(new Set(flatLayers(data.layers).map((l) => l.props?.src).filter(Boolean))); // áudio de outros projetos sai da memória
+  const missing = flatLayers(data.layers).filter((l) => l.missing);
+  if (missing.length) toast(`${missing.length} mídia(s) não encontrada(s) neste aparelho: as camadas continuam no projeto (marcadas como offline). Toque na camada › Substituir mídia para religar.`, 'warn', 8000);
+  store.load(data);
+  store.setTime(0);
+  home.hide();
+  updateTitle(); renderToolbar(); layoutCanvas(); timeline.render();
+  if (desktop.matches) { sheet.classList.add('open'); renderDock(); }
+  setTimeout(() => maybeStartTour(editorLayout()), 900);
+}
+
+/** Animar logo: escolhe a imagem, separa em peças e abre um projeto novo com a animação montada. */
+async function animateLogoFlow() {
+  const [f] = await pickFiles('image/*', false);
+  if (!f) return;
+  try {
+    const { logoAnimDialog } = await import('./logoanim-ui.js');
+    const img = await createImageBitmap(f);
+    const P = await logoAnimDialog(img, f.name.replace(/\.[^.]+$/, ''), async (blob) => { const id = uid('m'); putMedia(id, blob); return { mediaId: id, src: URL.createObjectURL(blob) }; });
+    if (!P) return;
+    saveProjectData(P, null);
+    await openProjectById(P.id);
+    toast('Logo animada criada. Toque ▶ — cada peça é uma camada editável; troque o estilo criando de novo.', 'ok', 6000);
+  } catch (e) { toast(`Não deu para animar a logo: ${e.message}`, 'error', 6000); }
+}
+
+/** Início rápido (como o CapCut): escolhe os vídeos → projeto vertical 1080×1920 já com os clipes em sequência. */
+async function quickProjectFlow() {
+  const files = await pickFiles('video/*,image/*', true);
+  if (!files?.length) return;
+  const s = getSettings();
+  const pre = COMP_PRESETS.find((x) => x.id === s.compPreset) || COMP_PRESETS[0];
+  const p = createProject(pre.w, pre.h);
+  Object.assign(p, { id: uid('prj'), name: `Projeto ${listProjects().length + 1}`, fps: pre.fps, duration: 10, background: '#000000' });
+  saveProjectData(p, null);
+  await openProjectById(p.id);
+  await importMedia(files);
+  store.selectedLayerId = null; store.setTime(0); store.commit('structure');
+  toast('Pronto! Toque num clipe para pôr preset, transição ou efeito.', 'ok', 4000);
+}
+
+async function createProjectFlow() {
+  const s = getSettings();
+  const pre = COMP_PRESETS.find((x) => x.id === s.compPreset) || COMP_PRESETS[0];
+  const res = await compDialog({ mode: 'new', project: { name: `Projeto ${listProjects().length + 1}`, width: pre.w, height: pre.h, fps: pre.fps, duration: 10, background: '#000000' }, resolution: s.quality });
+  if (!res) return;
+  const p = createProject(res.width, res.height);
+  Object.assign(p, { id: uid('prj'), name: res.name === 'Comp 1' ? `Projeto ${listProjects().length + 1}` : res.name, fps: res.fps, duration: res.duration, background: res.background, startTC: res.startTC });
+  saveProjectData(p, null);
+  applyResolution(res.resolution);
+  await openProjectById(p.id);
+  toast('Projeto criado. Comece importando um vídeo (🎞 Vídeo / Foto).', 'ok', 3500);
+}
+
+async function openUnpacked(data, f, asNew) {
+  try {
+    if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto do MotionFrame');
+    if (asNew) {
+      data.id = uid('prj'); data.name = data.name || f.name.replace(/\.motionframe\.(json|zip)$/i, '');
+      saveProjectData(data, null);
+      await openProjectById(data.id);
+    } else { await relinkMedia(data); store.load(data); updateTitle(); layoutCanvas(); }
+    toast('Projeto aberto com as mídias ✓', 'ok', 4000);
+  } catch (e) { toast(`Não foi possível abrir: ${e.message}`, 'error'); }
+}
+
+async function importProjectFile() {
+  const picked = await pickFiles('.json,.amproj,.xml,.fcpxml,.zip,.aep,.aepx,.ffx,.ttf,.otf,.woff,.woff2,video/*,image/*,audio/*,application/json', true);
+  if (!picked?.length) return;
+  // vários arquivos (projeto + mídias + fontes + presets) ou .aep: abre tudo junto
+  if (picked.length > 1 || /\.aepx?$/i.test(picked[0].name)) return routeFiles(picked);
+  const f = picked[0];
+  if (/\.zip$/i.test(f.name)) { const pk = await unpackProject(f).catch(() => null); if (pk) return openUnpacked(pk, f, true); }
+  if (/\.(amproj|xml|fcpxml|zip)$/i.test(f.name)) return openXMLFlow(f);
+  try {
+    const data = await unpackProject(f);
+    if (!Array.isArray(data.layers) || !data.width) throw new Error('arquivo não é um projeto do MotionFrame');
+    data.id = uid('prj');
+    data.name = data.name || f.name.replace(/\.(motionframe\.)?json$/i, '');
+    saveProjectData(data, null);
+    await openProjectById(data.id);
+    toast('Projeto importado. Reimporte vídeos/áudios que não estavam neste aparelho.', 'ok', 4000);
+  } catch (e) { toast(`Não foi possível importar: ${e.message}`, 'error'); }
+}
+
+/** Arquivos do After Effects: .ffx (preset) e .aep/.aepx (efeitos e keyframes do projeto viram presets). */
+async function importAEFiles() {
+  const files = await pickFiles('.ffx,.aep,.aepx,.json,application/octet-stream');
+  if (!files.length) return;
+  const ffx = files.filter((f) => /\.(ffx|json)$/i.test(f.name));
+  const aep = files.filter((f) => /\.aepx?$/i.test(f.name));
+  if (home.visible) await ensureSomeProject();
+  if (ffx.length) { openSheet('presets'); library.importFiles(ffx); }
+  for (const f of aep) await openAEPFlow(f);
+}
+
+/** Abre um .aep como projeto novo: escolhe a composição, converte camadas/keyframes/efeitos e pede as mídias. */
+async function openAEPFlow(file, { media: given = null } = {}) {
+  if (!file) { [file] = await pickFiles('.aep,application/octet-stream', false); if (!file) return; }
+  const base = file.name.replace(/\.aepx?$/i, '');
+  let parsed;
+  try { parsed = parseAEP(await file.arrayBuffer()); } catch (e) { toast(`${file.name}: ${e.message}`, 'error', 5000); return; }
+  const comps = mainComps(parsed).filter((c) => c.layers.some((l) => !l.camera));
+  if (!comps.length) { toast(`${file.name}: nenhuma composição com camadas.`, 'error'); return; }
+  let compId = comps[0].id;
+  if (comps.length > 1) {
+    const pick = await modal(`Abrir “${escapeHtml(base)}”`, `<p>Escolha a composição (a principal está primeiro):</p><div class="menu-list">${comps.slice(0, 30).map((c) => `<button data-c="${c.id}">🎬 ${escapeHtml(c.name || 'Comp')} <span class="muted small">${c.width}×${c.height} · ${Math.round(c.fps * 100) / 100}fps · ${c.duration.toFixed(1)}s · ${c.layers.filter((l) => !l.camera).length} camadas${c.usedIn.length ? ' · pré-comp' : ''}</span></button>`).join('')}</div>`,
+      [{ label: 'Cancelar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-c]').forEach((b) => b.addEventListener('click', () => close(+b.dataset.c))) });
+    if (pick == null) return;
+    compId = pick;
+  }
+  const res = aepToProject(parsed, compId, base);
+  const p = res.project;
+  p.id = uid('prj');
+  saveProjectData(p, null);
+  await openProjectById(p.id);
+  matchFontsToInstalled();
+  const extra = [...res.notes, ...(res.unsupported.length ? [`Efeitos sem equivalente: ${res.unsupported.slice(0, 8).join(', ')}.`] : [])];
+  if (res.media.length && given?.length) { await relinkAEMedia({ files: given }); return; } // veio tudo junto: conecta direto
+  if (res.media.length) {
+    const go = await modal('Conectar vídeos e fotos', `<p>O projeto usa <b>${res.media.length}</b> arquivo(s) que ficam no computador e não vêm dentro do .aep:</p>
+      <ul class="small">${res.media.slice(0, 20).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}${res.media.length > 20 ? '<li>…</li>' : ''}</ul>
+      <p class="muted small">Escolha esses arquivos no aparelho (pode selecionar vários). Eles entram no lugar certo, com o mesmo tempo, posição, keyframes e efeitos. Dá para fazer depois em ☰ Menu › Conectar vídeos/fotos.</p>
+      ${extra.length ? `<p class="muted small">${extra.map(escapeHtml).join('<br>')}</p>` : ''}
+      <p class="muted small"><b>Não tem esses arquivos?</b> Toque em “Usar outros vídeos/fotos”: os que você escolher entram no lugar dos que faltam, em ordem, preenchendo o quadro sem distorcer.</p>`,
+      [{ label: 'Depois', value: false }, { label: 'Usar outros vídeos/fotos', value: 'sub' }, { label: 'Escolher arquivos', primary: true, value: true }]);
+    if (go === 'sub') await relinkAEMedia({ substitute: true });
+    else if (go) await relinkAEMedia();
+  } else toast(`Projeto “${base}” aberto ✓${extra.length ? ' — ' + extra[0] : ''}`, 'ok', 5000);
+}
+
+async function openXMLFlow(file, { media: given = null } = {}) {
+  if (!file) { [file] = await pickFiles('.xml,.fcpxml,.fcpxmld,.amproj,.zip,text/xml,application/xml', false); if (!file) return; }
+  const base = file.name.replace(/\.(fcp)?xml$|\.amproj$|\.zip$/i, '');
+  let res, zipMedia = null;
+  try {
+    if (/\.(amproj|zip)$/i.test(file.name)) {
+      // .amproj (Alight Motion, Gold Motion, Alemon…) = ZIP com o XML do projeto + as mídias usadas
+      const { readZip } = await import('./zip.js');
+      const z = await readZip(file);
+      const xmlName = z.names.find((n) => /\.xml$/i.test(n)) || z.names.find((n) => !/\.(jpe?g|png|webp|gif|mp4|mov|m4v|webm|mp3|m4a|aac|wav|ogg|ttf|otf)$/i.test(n));
+      if (!xmlName) throw new Error('o arquivo não tem o XML do projeto');
+      res = xmlToProject(await (await z.get(xmlName)).text(), base);
+      const TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', mp4: 'video/mp4', m4v: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg' };
+      zipMedia = [];
+      for (const n of z.names) {
+        const short = n.split('/').pop(), ext = short.split('.').pop().toLowerCase();
+        if (/^screenshot_|nodevideo/i.test(short)) continue; // print do Node Video (mostra os ajustes do Time Slice), não é mídia do projeto
+        if (TYPES[ext]) zipMedia.push(new File([await z.get(n, TYPES[ext])], short, { type: TYPES[ext] }));
+        else if (/^(ttf|otf)$/.test(ext)) await importFonts([new File([await z.get(n)], short)]).catch(() => {});
+      }
+    } else res = xmlToProject(await file.text(), base);
+  } catch (e) { toast(`${file.name}: ${e.message}`, 'error', 5000); return; }
+  if (!zipMedia && given?.length && res.amEffects) zipMedia = []; // XML do Alight com as mídias escolhidas junto
+  if (zipMedia) {
+    const p = res.project; p.id = uid('prj');
+    saveProjectData(p, null);
+    await openProjectById(p.id);
+    if (zipMedia.length || given?.length) await relinkAEMedia({ files: [...zipMedia, ...(given || [])] });
+    toast(`Projeto do Alight Motion “${p.name || base}” aberto: ${flatLayers(p.layers).length} camada(s)${res.notes.length ? ' — ' + res.notes[res.notes.length - 1] : ''}`, 'ok', 6000);
+    return;
+  }
+  if (!res.project.layers.length) { toast(`${file.name}: a sequência não tem clipes.`, 'warn'); return; }
+  const p = res.project;
+  p.id = uid('prj');
+  saveProjectData(p, null);
+  await openProjectById(p.id);
+  if (given?.length) { await relinkAEMedia({ files: given }); return; }
+  const go = await modal('Conectar os clipes do XML', `<p>A sequência “${escapeHtml(p.name || base)}” foi montada: <b>${p.layers.length}</b> clipe(s), ${p.width}×${p.height}, ${p.fps}fps, ${p.duration.toFixed(1)}s.</p>
+    <p>Ela usa <b>${res.media.length}</b> arquivo(s):</p><ul class="small">${res.media.slice(0, 20).map((m) => `<li>${escapeHtml(m)}</li>`).join('')}${res.media.length > 20 ? '<li>…</li>' : ''}</ul>
+    <p class="muted small">Escolha esses arquivos (pode marcar vários): cada um entra no clipe certo pelo nome, com o mesmo corte, tempo e velocidade.${res.notes.length ? '<br>' + res.notes.map(escapeHtml).join('<br>') : ''}</p>`,
+  [{ label: 'Depois', value: false }, { label: 'Usar outros vídeos/fotos', value: 'sub' }, { label: 'Escolher arquivos', primary: true, value: true }]);
+  if (go === 'sub') await relinkAEMedia({ substitute: true });
+  else if (go) await relinkAEMedia();
+}
+
+async function importFontsFlow(files) {
+  if (!files) files = await pickFiles('.ttf,.otf,.woff,.woff2,font/*', true);
+  if (!files?.length) {
+    const list = userFonts();
+    if (!list.length) return;
+    const rm = await modal('Fontes importadas', `<div class="menu-list">${list.map((f) => `<button data-f="${escapeHtml(f.family)}"><span style="font-family:'${escapeHtml(f.family)}'">${escapeHtml(f.family)}</span> <span class="muted small">tocar para remover</span></button>`).join('')}</div>`,
+      [{ label: 'Fechar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-f]').forEach((b) => b.addEventListener('click', () => close(b.dataset.f))) });
+    if (rm) { await removeFont(rm); toast(`Fonte “${rm}” removida.`, 'ok'); }
+    return;
+  }
+  const { ok, bad } = await importFonts(files);
+  if (ok.length) {
+    const l = store.layer();
+    if (l?.type === 'text' && ok.length === 1) { l.props.fontFamily = `"${ok[0]}", sans-serif`; store.commit(); }
+    toast(`Fonte(s) importada(s): ${ok.join(', ')} — escolha em Texto › Fonte.`, 'ok', 4500);
+  }
+  if (bad.length) toast(`Não deu para ler: ${bad.join(', ')}`, 'warn', 4500);
+  store.emit('change');
+}
+
+/** Troca os espaços reservados das mídias do .aep pelos arquivos escolhidos (casando pelo nome do arquivo). */
+const AUD_RE = /\.(mp3|wav|aiff?|m4a|aac|ogg|flac)$/i;
+async function relinkAEMedia({ substitute = false, files = null } = {}) {
+  if (!files) files = await pickFiles('video/*,image/*,audio/*,.ai');
+  if (!files.length) return;
+  // .ai (PDF do Illustrator) entra como PNG da página 1; o nome continua igual (Clock.ai → Clock.png)
+  // cada camada do .ai vira uma imagem; a camada do projeto com o mesmo nome (Tehran, New York, bar, oval…) recebe a sua
+  const aiLayers = new Map();
+  const nk = (x) => String(x || '').toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+  const conv = await Promise.all(files.map(async (f) => {
+    try {
+      if (!(await isAiFile(f))) return f;
+      try { for (const lf of await aiToLayerFiles(f)) if (lf.aiLayer) aiLayers.set(`${nk(f.name)}|${nk(lf.aiLayer)}`, lf); } catch { /* sem camadas: usa a página inteira */ }
+      return await aiToPngFile(f); // página inteira (reserva para camadas sem par)
+    } catch (e) { toast(`Não deu para abrir “${f.name}”: ${e?.message || e}`, 'error', 6000); return null; }
+  }));
+  files = conv.filter(Boolean);
+  if (!files.length) return;
+  const used = new Set();
+  const saved = new Map();
+  const norm = (n) => n.toLowerCase().replace(/\.[^.]+$/, '').replace(/[^a-z0-9]+/g, '');
+  const byName = new Map();
+  for (const f of files) { byName.set(f.name.toLowerCase(), f); if (!byName.has(norm(f.name))) byName.set(norm(f.name), f); }
+  let done = 0;
+  const holders = flatLayers(store.project.layers).filter((l) => l.props?.aeMedia);
+  for (const l of holders) {
+    const ae = l.props.aeMedia;
+    const cleanName = l.name.replace(/^⚠ /, '');
+    let f = /\.ai$/i.test(ae.file) ? (aiLayers.get(`${nk(ae.file)}|${nk(cleanName)}`) || aiLayers.get(`${nk(ae.file)}|${nk(cleanName.replace(/\s+\d+$/, ''))}`) || null) : null;
+    f = f || byName.get(ae.file.toLowerCase()) || byName.get(norm(ae.file)) || (holders.length === 1 && files.length === 1 ? files[0] : null);
+    // substituir: os que não casaram pelo nome recebem os outros arquivos escolhidos, em ordem (sem repetir enquanto der)
+    let swapped = false;
+    if (!f && substitute && ae.kind !== 'audio' && !AUD_RE.test(ae.file)) {
+      const pool = files.filter((x) => !x.type.startsWith('audio/'));
+      f = pool.find((x) => !used.has(x)) || pool[done % Math.max(1, pool.length)] || null;
+      swapped = !!f;
+    }
+    if (!f) continue;
+    used.add(f);
+    // uma cópia por arquivo (antes cada camada guardava outra cópia e o navegador ficava sem memória)
+    if (!saved.has(f)) { const id = uid('m'); putMedia(id, f); saved.set(f, { mediaId: id, src: URL.createObjectURL(f) }); }
+    const { mediaId, src } = saved.get(f);
+    const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
+    const isAudio = f.type.startsWith('audio/');
+    l.type = isAudio ? 'audio' : isVideo ? 'video' : 'image';
+    l.name = l.name.replace(/^⚠ /, '');
+    const keep = { width: ae.width, height: ae.height };
+    l.props = isAudio ? { src, mediaId, volume: 100, sourceStart: ae.sourceStart || 0, muted: false }
+      : { src, mediaId, width: keep.width, height: keep.height, ...(swapped ? { fit: 'cover', replacedFrom: ae.file } : ae.fit ? { fit: ae.fit } : {}), ...(isVideo ? { sourceStart: swapped ? 0 : ae.sourceStart || 0, speed: ae.speed || 1, volume: 100 } : {}) };
+    if (isVideo) {
+      detectFps(src).then((fps) => { if (fps) { l.props.sourceFps = fps; store.commit(); } });
+      loadAudio(src).then(() => { l.props.hasAudio = true; store.emit('change'); }).catch(() => { l.props.hasAudio = false; });
+    }
+    if (isAudio) await loadAudio(src).catch(() => {});
+    done++;
+  }
+  store.commit();
+  ensureCaches?.(store.project);
+  timeline.render(); renderToolbar();
+  const left = flatLayers(store.project.layers).filter((l) => l.props?.aeMedia).length;
+  toast(`${done} mídia(s) conectada(s) ✓${left ? ` · faltam ${left} (nomes diferentes? escolha de novo)` : ''}`, left ? 'warn' : 'ok', 5000);
+}
+
+async function ensureSomeProject() {
+  const list = listProjects();
+  if (list.length) await openProjectById(list[0].id);
+  else { const p = createProject(1080, 1920); Object.assign(p, { id: uid('prj'), name: 'Projeto 1' }); saveProjectData(p, null); await openProjectById(p.id); }
+}
+
+async function goHome() {
+  import('./courses.js').then((m) => m.endLesson());
+  setPlaying(false);
+  clearTimeout(saveTimer);
+  if (pendingMediaCount()) { toast('Salvando os vídeos no aparelho…', 'info', 3000); await flushMedia(); }
+  saveProjectData(store.project, projectThumb());
+  closeSheet();
+  home.show();
+}
+
+// Comunidade (feed, mercado, chat) desligada nesta versão beta — volta numa próxima versão.
+const home = new HomeScreen({
+  newProject: async () => {
+    const s = getSettings(); const pre = COMP_PRESETS.find((x) => x.id === s.compPreset) || COMP_PRESETS[0];
+    const r = await newProjectSheet({ name: `Projeto ${listProjects().length + 1}`, ratio: pre.w > pre.h ? '16:9' : pre.w === pre.h ? '1:1' : '9:16', fps: pre.fps });
+    if (!r) return;
+    const p = createProject(r.width, r.height);
+    Object.assign(p, { id: uid('prj'), name: r.name, fps: r.fps, duration: r.duration, background: r.background });
+    saveProjectData(p, null);
+    await openProjectById(p.id);
+    toast('Projeto criado. Adicione vídeo, texto ou presets na barra de baixo.', 'ok', 3500);
+  },
+  tool: async (id) => { await ensureSomeProject(); commands[id]?.(); },
+  interface: async () => { await interfaceDialog(null, () => { applyUIMode(); renderToolbar(); timeline.render(); fxBrowser.render(); home.render(); }); },
+  open: (id) => openProjectById(id),
+  afterDelete: () => cleanUnusedMedia(),
+  create: () => quickProjectFlow(),
+  createAdvanced: () => createProjectFlow(),
+  importProject: () => importProjectFile(),
+  importLink: () => importFromLink(),
+  transfer: () => transferFlow(),
+  logoAnim: () => animateLogoFlow(),
+  demoLogo: async () => {
+    // projeto de exemplo de motion design: logo feita com o pacote MoGraph (formas com Trim Paths, texto cinético, logo reveal)
+    const { buildLogoDemoProject } = await import('./mograph.js');
+    const p = buildLogoDemoProject();
+    saveProjectData(p, null);
+    await openProjectById(p.id);
+    toast('Projeto de demonstração aberto: toque ▶ para ver a logo animada. Tudo é editável (camadas de forma, texto e efeitos).', 'ok', 5000);
+  },
+  importAE: () => importAEFiles(),
+  lesson: async (id) => {
+    const { startLesson } = await import('./courses.js');
+    await startLesson(id, { store, commands, setPlaying, toast, openProject: async (p) => { saveProjectData(p, null); await openProjectById(p.id); } });
+  },
+  presets: async () => { await ensureSomeProject(); openSheet('presets'); },
+  plugins: async () => { await ensureSomeProject(); openSheet('browser'); fxBrowser.cat = 'Meus plugins'; fxBrowser.render(); },
+  settings: async () => {
+    const r = await settingsDialog(COMP_PRESETS);
+    home.render(); // (projeto recuperado aparece na lista)
+    if (r?.help) showHelp();
+    else if (r?.clear) { ensureCaches({ layers: [] }); toast('Cache de quadros limpo.', 'ok'); }
+    else if (r) { applyResolution(getSettings().quality); renderToolbar(); timeline.render(); }
+  },
+  exportJSON: (p) => saveFile(`${(p.name || 'projeto').replace(/[^\w-]+/g, '_')}.motionframe.json`, new Blob([JSON.stringify(p)], { type: 'application/json' })),
+});
+
+(async () => {
+  // migração: o projeto único das versões anteriores vira o 1º projeto da lista
+  const old = storage.get(AUTOSAVE_KEY, null);
+  if (old && Array.isArray(old.layers) && !listProjects().length) {
+    old.id = old.id || uid('prj');
+    old.name = old.name || 'Meu edit';
+    saveProjectData(old, null);
+  }
+  try { localStorage.removeItem(AUTOSAVE_KEY); } catch { /* ok */ }
+  applyResolution(getSettings().quality);
+  applyUIMode();
+  store.load(createProject(1080, 1920));
+  updateTitle(); renderToolbar(); layoutCanvas();
+  registerServiceWorker();
+  loadSavedFonts().then(() => { frameCacheClear(); store.emit('change'); }).catch(() => {});
+  home.show();
+  // programa antigo (Electron): avisa uma vez sobre o MotionFrame leve e a transferência
+  if (/Electron/i.test(navigator.userAgent)) {
+    let seen = false; try { seen = localStorage.getItem('motionframe.leveHint') === '1'; } catch { /* */ }
+    if (!seen) setTimeout(async () => {
+      try { localStorage.setItem('motionframe.leveHint', '1'); } catch { /* */ }
+      const r = await modal('Novo: MotionFrame leve', `<p>Existe uma versão nova do programa do PC, o <b>MotionFrame leve</b>: menor, mais rápido e lê pastas do Google Drive (🔗 Importar de link).</p><p>Para não perder nada: <b>📦 Transferir tudo › Exportar</b> aqui, e no leve <b>Importar</b> — projetos, mídias e o acesso vão junto (sem token novo).</p>`,
+        [{ label: 'Depois', value: null }, { label: 'Baixar o leve', value: 'dl' }, { label: '📦 Transferir agora', primary: true, value: 'tr' }]);
+      if (r === 'tr') transferFlow();
+      else if (r === 'dl') window.open('https://gabriel050413.github.io/Teste-AF-HUB/downloads/MotionFrame-leve.exe', '_blank');
+    }, 2500);
+  }
+})();
+
+// Acesso para automação/testes (Playwright) e depuração no console.
+window.motionframe = { routeFiles: (f) => routeFiles(f), store, transPanel, openSheet, openProjectById, tour: () => commands.tour(), commands, home, goHome, pack: { media: projectMediaIds, build: buildProjectPack, unpack: unpackProject } };

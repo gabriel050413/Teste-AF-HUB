@@ -1,0 +1,29 @@
+# MotionFrame Cloud no Render (botão "Deploy to Render" no README do motion-editor).
+# O banco SQLite e os vídeos ficam no disco persistente montado em /data (o disco exige um plano pago do Render;
+# no plano grátis o serviço funciona, mas os dados somem quando ele reinicia).
+services:
+  - type: web
+    name: motionframe-cloud
+    runtime: docker
+    rootDir: motion-editor
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DEFAULT_POINTS
+        value: "100"
+      - key: AI_UI_COST
+        value: "25"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+    disk:
+      name: motionframe-data
+      mountPath: /data
+      sizeGB: 5

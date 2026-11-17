@@ -1,0 +1,63 @@
+// Worker de renderização da EXPORTAÇÃO: o mesmo motor (renderer.js + efeitos WebGL) rodando fora da tela principal,
+// numa OffscreenCanvas. A interface continua respondendo (barra de progresso, botões) mesmo em quadros pesados, e o
+// .exe não mostra mais "o editor não está respondendo". Os vídeos são lidos pelo leitor sequencial (WebCodecs) e as
+// imagens chegam como ImageBitmap. Qualquer erro é avisado e a exportação continua na tela principal.
+// O modelo de IA do Remover fundo (MediaPipe) carrega o WebAssembly com importScripts(), que não existe em Workers do
+// tipo módulo. Este substituto baixa o script de forma síncrona e o executa no escopo global (mesmo efeito).
+if (typeof self.importScripts !== 'function' || (() => { try { self.importScripts(); return false; } catch { return true; } })()) {
+  self.importScripts = (...urls) => {
+    for (const u of urls) {
+      const x = new XMLHttpRequest();
+      x.open('GET', new URL(u, self.location.href).href, false);
+      x.send();
+      if (x.status && x.status >= 400) throw new Error(`importScripts: ${x.status} ${u}`);
+      (0, eval)(`${x.responseText}\n//# sourceURL=${u}`);
+    }
+  };
+}
+import { renderFrame } from './renderer.js';
+import { prepare, setWorkerMedia, setExporting, exactFramesReady } from './media.js';
+import { getGL, glLost } from './gl.js';
+import { loadFontsInWorker } from './fonts.js';
+import { prepareBgModels, bgStatus } from './bgremove.js';
+import { prepareRoto } from './roto.js';
+import { flatLayers } from './state.js';
+
+let P = null, canvas = null, ctx = null, scale = 1, preview = false;
+
+self.onmessage = async ({ data: m }) => {
+  try {
+    if (m.type === 'init') {
+      P = m.project; scale = m.scale; preview = m.mode === 'preview'; // prévia: quadros exatos, qualidade leve
+      setWorkerMedia(m.media || {});
+      setExporting(true);
+      canvas = new OffscreenCanvas(m.width, m.height);
+      ctx = canvas.getContext('2d', { alpha: false });
+      if (!getGL()) throw new Error('WebGL indisponível no Worker');
+      await loadFontsInWorker(m.fonts || []); // texto: as mesmas fontes da tela (Google/importadas)
+      // Remover fundo: o modelo de IA carrega aqui também; se não der, a exportação segue na tela principal
+      const layers = flatLayers(P.layers);
+      const models = new Set(); for (const l of layers) for (const fx of l.effects || []) if (fx.enabled !== false && fx.type === 'bgRemove') models.add(Math.round(fx.params.model?.value ?? 1));
+      await prepareRoto(layers).catch(() => {});
+      if (models.size) { await prepareBgModels(layers); for (const md of models) if (bgStatus(md) !== 'ready') throw new Error('modelo de Remover fundo não carregou no Worker'); }
+      self.postMessage({ type: 'ready' });
+    } else if (m.type === 'frame') {
+      await prepare(P, m.t, { exact: true });
+      const opts = preview ? { exact: true } : { final: true };
+      const ready = exactFramesReady(P, m.t);
+      renderFrame(ctx, P, m.t, scale, opts);
+      for (let retry = 0; retry < 3 && glLost(); retry++) { // GPU caiu: recria o contexto e refaz o quadro
+        await new Promise((r) => setTimeout(r, 250));
+        getGL();
+        renderFrame(ctx, P, m.t, scale, opts);
+      }
+      const bm = canvas.transferToImageBitmap();
+      self.postMessage({ type: 'frame', i: m.i, bm, ready }, [bm]);
+    } else if (m.type === 'end') {
+      setExporting(false);
+      self.close();
+    }
+  } catch (e) {
+    self.postMessage({ type: 'error', i: m.i, message: String(e?.message || e) });
+  }
+};
