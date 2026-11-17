@@ -119,7 +119,7 @@ export default [
     type: 'brightnessContrast', label: 'Brilho e contraste', category: 'Cor',
     params: [num('brightness', 'Brilho', 0, -150, 150), num('contrast', 'Contraste', 0, -100, 100)],
     // AE (Brilho e contraste novo): +70 já clareia bastante os meios-tons
-    render: fx(BC, (p) => { const T = globalThis.__MF_TUNE || {}; const q = Math.max(0, p.brightness / 90) * (T.bcQuad ?? 1.2); /* brilho positivo do AE novo: curva que preserva os pretos (gama levantava demais); Galego 16,0→14,9 */ return { u_b: p.brightness / 90, u_bn: Math.min(0, p.brightness / 170), u_c: p.contrast / 100, u_bq: q }; }),
+    render: fx(BC, (p) => { const T = globalThis.__MF_TUNE || {}; const q = Math.max(0, p.brightness / 90) * (T.bcQuad ?? 0.6); /* brilho positivo do AE novo (curva que preserva os pretos): +18 levanta o cinza médio ~12/255, como no AE/Photoshop; 1,2 era o dobro (ZAZ dark ficava clara) */ return { u_b: p.brightness / 90, u_bn: Math.min(0, p.brightness / 170), u_c: p.contrast / 100, u_bq: q }; }),
   },
   {
     type: 'hueSat', label: 'Matiz / Saturação', category: 'Cor',
