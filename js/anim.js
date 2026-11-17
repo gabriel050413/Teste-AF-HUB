@@ -222,6 +222,13 @@ export function curveOf(key, next) {
     case 'easeIn': return [0.33, 0, 1, 1];
     case 'easeOut': return [0, 0, 0.67, 1];
     case 'back': return [0.34, 1.56, 0.64, 1];
+    // curvas nomeadas de motion design: o gráfico mostra a curva de verdade (antes aparecia reta)
+    case 'expoOut': return [0.16, 1, 0.3, 1];
+    case 'expoIn': return [0.7, 0, 0.84, 0];
+    case 'expoInOut': return [0.87, 0, 0.13, 1];
+    case 'backIn': return [0.36, 0, 0.66, -0.56];
+    case 'elastic': return [0.5, 1.8, 0.5, 0.75];
+    case 'bounce': return [0.2, 1.3, 0.6, 1];
     case 'bezier': return [clamp01(key.outInf ?? 0.333), Array.isArray(key.bz) ? key.bz[0] : 0, 1 - clamp01(next?.inInf ?? 0.333), Array.isArray(key.bz) ? key.bz[1] : 1];
     default: return [0, 0, 1, 1];
   }

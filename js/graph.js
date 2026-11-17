@@ -33,17 +33,37 @@ export function miniCurve(c) {
   return `<svg viewBox="0 -4 40 30"><path d="${d}" fill="none" stroke="currentColor" stroke-width="2"/></svg>`;
 }
 
-/** Keyframes selecionados que têm um próximo keyframe (onde a curva atua). */
+/** Acha a camada em qualquer nível (dentro de grupos/pré-comps também). */
+function findLayer(store, id) {
+  const find = (ls) => { for (const l of ls || []) { if (l.id === id) return l; const k = l.props?.layers && find(l.props.layers); if (k) return k; } return null; };
+  return find(store.layers) || find(store.project.layers);
+}
+/**
+ * Trechos de curva dos keyframes selecionados: do keyframe até o próximo. No último keyframe da propriedade
+ * vale o trecho que CHEGA nele (como no Alight Motion, onde a curva fica no keyframe de chegada).
+ */
 function editable(store) {
-  const out = [];
+  const out = [], seen = new Set();
   for (const s of store.selectedKeys) {
-    const layer = store.project.layers.find((l) => l.id === s.layerId) || null;
+    const layer = findLayer(store, s.layerId);
     const prop = layer ? resolveProp(layer, s.path) : null;
-    if (!prop) continue;
-    const i = prop.keys.indexOf(s.key);
-    if (i >= 0 && i < prop.keys.length - 1) out.push({ ...s, prop, next: prop.keys[i + 1] });
+    if (!prop?.keys) continue;
+    let i = prop.keys.indexOf(s.key);
+    if (i < 0) continue;
+    if (i === prop.keys.length - 1) i -= 1; // último: edita o trecho anterior
+    if (i < 0 || seen.has(prop.keys[i])) continue;
+    seen.add(prop.keys[i]);
+    out.push({ ...s, key: prop.keys[i], prop, next: prop.keys[i + 1] });
   }
   return out;
+}
+/** Inverte o gráfico (como o "inverter" do Alight Motion): entrada vira saída — gira a curva 180°. */
+export const invertCurve = (c) => [1 - c[2], 1 - c[3], 1 - c[0], 1 - c[1]];
+/** Inverte a curva de cada trecho selecionado (cada um com a sua curva). Devolve quantos mudaram. */
+export function invertSelected(store) {
+  const list = editable(store);
+  for (const s of list) { const c = invertCurve(curveOf(s.key, s.next)); s.key.ease = 'curve'; s.key.curve = c.map((v) => +v.toFixed(4)); delete s.key.bz; delete s.key.outInf; delete s.next.inInf; }
+  return list.length;
 }
 
 function curveHtml(store) {
@@ -72,7 +92,7 @@ function curveHtml(store) {
     <div class="kt-row">
       <button data-gact="copy">⎘ Copiar gráfico</button>
       <button data-gact="paste" ${clip ? '' : 'disabled'}>📋 Colar gráfico</button>
-      <button data-gact="mirror">⇋ Espelhar</button>
+      <button data-gact="invert" title="Como no Alight Motion: a entrada vira saída (curva girada)">⇅ Inverter gráfico</button>
     </div>
   </div>`;
 }
@@ -138,7 +158,7 @@ function bindCurve(root, store, { toast } = {}) {
   root.querySelectorAll('[data-gp]').forEach((b) => b.addEventListener('click', () => { c = CURVE_PRESETS[+b.dataset.gp][1].slice(); apply(true); }));
   root.querySelector('[data-gact="copy"]')?.addEventListener('click', () => { setCurveClipboard(c); toast?.('Gráfico copiado. Selecione outros keyframes e toque em Colar gráfico.', 'ok'); store.emit('keys'); });
   root.querySelector('[data-gact="paste"]')?.addEventListener('click', () => { const k = curveClipboard(); if (k) { c = k.slice(); apply(true); } });
-  root.querySelector('[data-gact="mirror"]')?.addEventListener('click', () => { c = [1 - c[2], 1 - c[3], 1 - c[0], 1 - c[1]]; apply(true); });
+  root.querySelector('[data-gact="invert"]')?.addEventListener('click', () => { const n = invertSelected(store); c = curveOf(list[0].key, list[0].next); apply(true); if (n > 1) toast?.(`${n} gráficos invertidos.`, 'ok'); });
   return () => cancelAnimationFrame(raf);
 }
 
@@ -149,10 +169,12 @@ export function sampleValue(prop, t) { return valueAt(prop, t); }
 export function graphHtml(store) {
   const m = graphMode();
   const tabs = `<div class="graph-tabs">${[['speed', 'Velocidade'], ['value', 'Valor'], ['curve', 'Curva']].map(([k, l]) => `<button data-gmode="${k}" class="${m === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
-  return `<div class="graph-wrap">${tabs}${m === 'curve' ? curveHtml(store) : aeGraphHtml(store, m)}</div>`;
+  const inv = m !== 'curve' && store.selectedKeys.length ? '<div class="kt-row"><button data-gact="invert-ae" title="Como no Alight Motion: a entrada vira saída">⇅ Inverter gráfico</button></div>' : '';
+  return `<div class="graph-wrap">${tabs}${m === 'curve' ? curveHtml(store) : aeGraphHtml(store, m)}${inv}</div>`;
 }
 
 export function bindGraph(root, store, opts = {}) {
   root.querySelectorAll('[data-gmode]').forEach((b) => b.addEventListener('click', () => { setGraphMode(b.dataset.gmode); store.emit('keys'); }));
+  root.querySelector('[data-gact="invert-ae"]')?.addEventListener('click', () => { const n = invertSelected(store); store.commit(); opts.toast?.(n ? `Gráfico invertido (${n}).` : 'Selecione um keyframe com outro antes/depois dele.', n ? 'ok' : 'warn'); store.emit('keys'); });
   return graphMode() === 'curve' ? bindCurve(root, store, opts) : bindAeGraph(root, store, graphMode(), opts);
 }
