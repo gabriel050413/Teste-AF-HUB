@@ -9,7 +9,7 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v214';
+export const APP_VERSION = 'v215';
 export const APP_LABEL = 'v1.0.0 BETA TEST';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
