@@ -97,7 +97,7 @@ export function looksFromTools(tools, strength = 100) {
         break;
       }
       // Vignette (Looks): [Center X, Center Y, Size, Softness, Falloff, Amount, Exposure Comp., R, G, B, Aspect]
-      case 'vign': /* calibrado com o print do AE (Rafa CC): Amount × 1, tamanho 45 */ p.vignette = Math.max(p.vignette, clampN(v[5] ?? 0, 0, 100)); p.vignetteSize = clampN(45 - ((v[2] ?? 1) - 1) * 50, 5, 85); p.exposure += v[6] || 0; break;
+      case 'vign': /* Size da Looks = raio da área clara (maior = vinheta mais fraca); medido no Frameify (Omar/Sonheii 4K), Rafa igual */ p.vignette = Math.max(p.vignette, clampN(v[5] ?? 0, 0, 100)); p.vignetteSize = clampN((globalThis.__MF_TUNE?.vigB ?? 33) + ((v[2] ?? 1) - 1) * (globalThis.__MF_TUNE?.vigS ?? 25), 5, 95); p.exposure += v[6] || 0; break;
       // Gradient (Looks): [X1, Y1, X2, Y2, Falloff, Tint %, Exposure Comp., R, G, B] — tinge em degradê
       case 'grad': {
         const a = clampN((v[5] ?? 0) / 100, 0, 1);
