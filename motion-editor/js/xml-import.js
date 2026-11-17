@@ -7,7 +7,7 @@
 import { createProject, LAYER_FACTORIES } from './state.js';
 import { EFFECT_MAP } from './effects.js';
 import { uid } from './util.js';
-import { clone } from './anim.js';
+import { clone, valueAt } from './anim.js';
 const setv = (p, v) => { p.value = clone(v); };
 
 // ---------------------------------------------------------------- XML mínimo (sem DOM, funciona em teste no Node)
@@ -271,7 +271,8 @@ function amAnim(el, conv, t0, dur, span = dur) {
     // t é a fração do trecho da camada; com velocidade ≠ 1 o AM normaliza pelo trecho do conteúdo (outTime − inTime):
     // ex.: speed 0,65 → t vai até 1/0,65 = 1,54 e esse keyframe cai no fim da camada
     const lim = Math.max(1, dur / Math.max(1e-6, span)) + 0.0001;
-    const norm01 = kfs.every((k) => num(k.attrs.t) <= lim);
+    // t é fração da duração (pode passar de 1: keyframes além do fim da camada, ex.: 2,2); só valores grandes são ms
+    const norm01 = kfs.every((k) => num(k.attrs.t) <= Math.max(lim, 50));
     dur = span;
     const keys = kfs.map((k) => ({ t: +(t0 + (norm01 ? num(k.attrs.t) * dur : num(k.attrs.t) / 1000)).toFixed(4), v: conv(amNum(k.attrs.v), k.attrs.v), ...amEase(k.attrs.e) }))
       .sort((a, b) => a.t - b.t);
@@ -287,7 +288,8 @@ function amAnim(el, conv, t0, dur, span = dur) {
 const setAP = (prop, v) => { if (!v) return; if (v.keys) { prop.keys = v.keys; prop.value = clone(v.keys[0].v); } else prop.value = v.value; };
 const AM_BLEND = { multiply: 'multiply', screen: 'screen', overlay: 'overlay', darken: 'darken', lighten: 'lighten', 'color-dodge': 'color-dodge', 'color-burn': 'color-burn',
   'hard-light': 'hard-light', 'soft-light': 'soft-light', diff: 'difference', difference: 'difference', exclude: 'exclusion', exclusion: 'exclusion', hue: 'hue', saturation: 'saturation',
-  color: 'color', luminosity: 'luminosity', add: 'lighter', lighter: 'lighter', 'darker-color': 'darken', 'lighter-color': 'lighten', divide: 'color-dodge', subtract: 'difference' };
+  color: 'color', luminosity: 'luminosity', add: 'lighter', lighter: 'lighter', 'darker-color': 'darken', 'lighter-color': 'lighten', divide: 'color-dodge', subtract: 'difference',
+  'pin-light': 'hard-light', 'linear-light': 'hard-light', 'vivid-light': 'hard-light', 'hard-mix': 'hard-light', 'linear-burn': 'color-burn', 'linear-dodge': 'lighter' };
 
 // efeitos do Alight Motion (ids reais) → efeito do MotionFrame com conversão dos parâmetros
 const P = (el) => { const o = {}; for (const pr of kids(el, 'property')) o[pr.attrs.name] = pr; return o; };
@@ -324,7 +326,7 @@ const AM_EXACT = {
   jitter: ['shake', {}], flicker: ['flicker', {}], strobe: ['strobe', {}], lensflare: ['lensFlare', {}], lightleak: ['lightLeak', {}],
 };
 // sem equivalente direto, mas viram animação na própria camada
-const AM_TO_KEYS = new Set(['fade', 'spin', 'swing2', 'oscillate3', 'textspacing', 'textprogress']);
+const AM_TO_KEYS = new Set(['fade', 'spin', 'swing2', 'oscillate3', 'textspacing', 'textprogress', 'flicker2', 'blink2']);
 const AM_FALLBACK = [
   [/shake|wiggle|jitter|random/, 'shake'], [/motion.?blur/, 'motionBlur'], [/zoom.?blur|radial.?blur/, 'radialBlur'], [/dir(ectional)?.?blur/, 'dirBlur'],
   [/gaussian|blur/, 'blur'], [/glow/, 'glow'], [/chromatic|rgb|split/, 'rgbSplit'], [/vignette/, 'vignette'], [/sharpen/, 'sharpen'],
@@ -335,7 +337,7 @@ const AM_FALLBACK = [
 ];
 function amEffect(type, map, fxEl, t0, dur) {
   const def = EFFECT_MAP[type];
-  const fx = { id: uid('fx'), type, enabled: fxEl.attrs.enabled !== 'false', params: {} };
+  const fx = { id: uid('fx'), type, enabled: fxEl.attrs.enabled !== 'false' && fxEl.attrs.hidden !== 'true', params: {} };
   for (const pd of def.params) fx.params[pd.key] = { value: Array.isArray(pd.default) ? pd.default.slice() : pd.default, keys: [] };
   const props = P(fxEl);
   const set = (key, pr, f = (x) => x) => {
@@ -364,6 +366,86 @@ function amEffect(type, map, fxEl, t0, dur) {
   }
   return fx;
 }
+// ---------------------------------------------------------------- conversão calibrada (ids reais do Alight Motion 5)
+// Cada entrada recebe g(nome, conversão) → valor/keyframes do parâmetro e devolve [[tipo, params], …].
+// Faixas medidas em projetos reais: força dos desfoques 0–1, mag do shake em px, brilho/contraste −1…1, etc.
+let AMW = 1920, AMH = 1080;
+const AM2 = {
+  gaussianblur: (g) => [['blur', { radius: g('strength', (v) => v * 100) }]],
+  boxblur3: (g) => [['blur', { radius: g('strength', (v) => v * 100) }]],
+  dblur: (g) => [['dirBlur', { angle: g('angle', (v) => v), length: g('strength', (v) => v * 160) }]],
+  zoomblur3: (g) => [['radialBlur', { mode: 1, amount: g('strength', (v) => Math.min(100, v * 100)), center: g('centerPoint', (v, raw) => { const a = String(raw).split(',').map(Number); return [0.5 + (a[0] || 0) / AMW, 0.5 + (a[1] || 0) / AMH]; }) }]],
+  'streaks-zoom': (g) => [['radialBlur', { mode: 1, amount: g('strength', (v) => Math.min(100, v * 90)) }]],
+  chromaticzoomblur: (g) => [['radialBlur', { mode: 1, amount: g('strength', (v) => Math.min(100, v * 100)) }], ['rgbSplit', { mode: 2, amount: g('strength', (v) => v * 30) }]],
+  spinblur2: (g) => [['radialBlur', { mode: 2, amount: g('angle', (v) => Math.min(100, Math.abs(v) * 4)) }]],
+  'streaks-spin': (g) => [['radialBlur', { mode: 2, amount: g('angle', (v) => Math.min(100, Math.abs(v) * 4)) }]],
+  streaks: (g) => [['dirBlur', { angle: g('angle', (v) => v + 90), length: g('strength', (v) => v * 1400) }]],
+  motionblur4: (g) => [['motionBlur', { amount: g('tune', (v) => Math.max(20, v * 160)), samples: 16 }]],
+  shake2: (g) => [['shake', { amount: g('mag', (v) => v), frequency: g('freq', (v) => v || 12), rotation: 0 }]],
+  jitter: (g) => [['shake', { amount: g('mag', (v) => v), frequency: g('freq', (v) => v || 10), rotation: 0, mode: 2 }]],
+  exposure: (g) => [['exposure', { exposure: g('exposure', (v) => v), gamma: g('gamma', (v) => v || 1), offset: g('offset', (v) => v) }]],
+  brightcont2: (g) => [['brightnessContrast', { brightness: g('brightness', (v) => v * 100), contrast: g('contrast', (v) => v * 100) }]],
+  // neutro = 1 nos dois (medido: shadows 0,42 + highlights 1,99 = contraste forte com pretos fundos)
+  highlightshadow: (g) => [['colorGrade', { highlights: g('highlights', (v) => Math.max(-100, Math.min(100, (v - 1) * 70))), shadows: g('shadows', (v) => Math.max(-100, Math.min(100, (v - 1) * 70))) }]],
+  satvib: (g) => [['vibrance', { saturation: g('saturation', (v) => v * 100), vibrance: g('vib', (v) => (v - 1) * 100) }]],
+  noise3: (g) => [['noise', { amount: g('amount', (v) => Math.min(100, v * 35)), color: g('mono', (v, raw) => !/true/.test(String(raw))) }]],
+  colortemperature: (g) => [['colorGrade', { temperature: g('temperature', (v) => Math.max(-100, Math.min(100, (6.5 - v) * 28))) }]],
+  colorbalance: (g) => [['colorBalance', { shR: g('crLow', (v) => v), shG: g('mgLow', (v) => v), shB: g('ybLow', (v) => v), miR: g('crMid', (v) => v), miG: g('mgMid', (v) => v), miB: g('ybMid', (v) => v), hiR: g('crHigh', (v) => v), hiG: g('mgHigh', (v) => v), hiB: g('ybHigh', (v) => v), keep: true }]],
+  softglow: (g) => [['glow', { threshold: g('highlights', (v) => Math.min(95, v * 100)), radius: 35, intensity: g('strength', (v) => v * 0.45), color: g('color', (v, raw) => amColor(raw) || [1, 1, 1, 1]), useColor: true }]],
+  lightglow: (g) => [['glow', { threshold: g('threshold', (v) => v * 100), radius: g('strength', (v) => v * 40), intensity: g('intensity', (v) => v), color: g('color', (v, raw) => amColor(raw) || [1, 1, 1, 1]), useColor: true }]],
+  stretch2: (g) => [['axisStretch', { scale: g('scale', (v) => v), angle: g('angle', (v) => v) }]],
+  squeeze: (g) => [['axisStretch', { scale: 1, squeeze: g('strength', (v) => -v) }]],
+  offset: (g) => [['offset', { x: g('offset', (v) => (v / AMW) * 100), y: g('offset', (v, raw) => ((Number(String(raw).split(',')[1]) || 0) / AMH) * 100) }]],
+  magnifybg: (g) => [['transform', { scale: g('scale', (v) => v * 100) }]],
+  transform: (g) => [['transform', { scale: g('scale', (v) => v * 100), rotation: g('angle', (v) => v) }]],
+  tile: () => [['motionTile', { outW: 300, outH: 300, mirror: true }]],
+  spotcolor2: (g) => [['leaveColor', { color: g('color', (v, raw) => amColor(raw) || [1, 0, 0, 1]), tolerance: g('threshold', (v) => v * 60), softness: g('feather', (v) => v * 60), amount: g('saturation', (v) => (1 - v) * 100) }]],
+  warpblur: (g) => [['turbulentDisplace', { amount: g('intensity', (v) => v * 40), size: 120 }], ['blur', { radius: g('intensity', (v) => v * 6) }]],
+  fractalwarp4: (g) => [['turbulentDisplace', { amount: g('mag', (v) => Math.abs(v) * 900), size: g('scale', (v) => 260 / Math.max(0.3, v || 1)), complexity: 2 }]],
+  stripes: (g) => [['blinds', { completion: g('width', (v) => (1 - v) * 100), direction: g('angle', (v) => v + 90), width: 70, feather: g('smoothing', (v) => v * 100) }]],
+  ridges2: (g) => [['fractalNoise', { mode: 1, turbulent: true, scale: g('scale', (v) => 160 / Math.max(0.2, v || 1)), evolution: g('evolution', (v) => v * 360), contrast: g('intensity', (v) => v * 1.6), opacity: 100 }]],
+  turbulentdisplace3: (g) => [['turbulentDisplace', { amount: g('intensity', (v) => v * 400), size: g('scale', (v) => 300 / Math.max(0.3, v || 1)) }]],
+  circularripple2: (g) => [['ripple', { amplitude: g('strength', (v) => v * 200), wavelength: g('frequency', (v) => 200 / Math.max(0.2, v || 1)), radius: g('radius', (v) => v * AMW) }]],
+  pinchbulge2: (g) => [['bulge', { strength: g('strength', (v) => Math.max(-1, Math.min(1, v))), radius: g('radius', (v) => v * AMH * 0.6) }]],
+  pinchbulgeinside: (g) => [['bulge', { strength: g('strength', (v) => Math.max(-1, Math.min(1, v))), radius: g('radius', (v) => v * AMH * 0.4) }]],
+  swirl4: (g) => [['twirl', { angle: g('strength', (v) => v * 3600), radius: g('radius', (v) => v * AMH) }]],
+  pixelate2: (g) => [['mosaic', { hBlocks: g('size', (v) => Math.max(1, Math.round(AMW / Math.max(1, v)))), vBlocks: g('size', (v) => Math.max(1, Math.round(AMH / Math.max(1, v)))) }]],
+  threshold: (g) => [['threshold', { level: g('threshold', (v) => v * 255) }], ...(/true/.test(g.raw('invert')) ? [['invert', {}]] : [])],
+  posterize: (g) => [['posterize', { levels: g('stepCount', (v) => Math.max(2, Math.round(v))) }]],
+  vignette: (g) => { const tint = Number(g.raw('tint')) || 1; return [['vignette', { amount: g('strength', (v) => v * 100 * Math.min(1, tint)), size: g('scale', (v) => v * 55), feather: g('feather', (v) => v * 70) }]]; },
+  gradientmap: (g) => [['tint', { black: g('color1', (v, raw) => amColor(raw) || [0, 0, 0, 1]), white: g('color2', (v, raw) => amColor(raw) || [1, 1, 1, 1]), amount: 100 }]],
+  hueshift: (g) => [['hueSat', { hue: g('hue', (v) => ((v % 360) + 540) % 360 - 180) }]],
+  colorize: (g) => { const a = String(g.raw('tint') || '0,0.3').split(',').map(Number); const h = ((a[0] || 0) % 360) / 360; const f = (n) => { const k = (n + h * 12) % 12; return 0.5 - 0.5 * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return [['tint', { black: [0.05, 0.03, 0.02, 1], white: [0.75 + f(0) * 0.25, 0.75 + f(8) * 0.25, 0.75 + f(4) * 0.25, 1], amount: Math.min(100, (a[1] ?? 0.3) * 100) }]]; },
+  rgbsep: (g) => [['rgbSplit', { amount: g('strength', (v) => Math.abs(v) * 160), angle: g('angle', (v) => v + 90) }]],
+  rays: (g) => [['lightRays', { intensity: g('strength', (v) => v), threshold: g('threshold', (v) => v * 100), color: g('fillColor', (v, raw) => amColor(raw) || [1, 1, 1, 1]) }]],
+  sharpen: (g) => [['sharpen', { amount: g('strength', (v) => v * 150), radius: g('radius', (v) => v * 2) }]],
+  invert: () => [['invert', {}]],
+  mirror: () => [['mirror', {}]],
+};
+function amEffect2(id, fxEl, t0, dur) {
+  const fn = AM2[id];
+  if (!fn) return null;
+  const props = P(fxEl);
+  const g = (name, f) => {
+    const pr = props[name]; if (!pr) return undefined;
+    const a = amAnim(pr, (v, raw) => f(v[0] ?? 0, raw), t0, dur);
+    return a ? (a.keys ? { keys: a.keys } : a.value) : undefined;
+  };
+  g.raw = (name) => props[name]?.attrs.value ?? '';
+  const out = [];
+  for (const [type, params] of fn(g)) {
+    const def = EFFECT_MAP[type]; if (!def) continue;
+    const fx = { id: uid('fx'), type, enabled: fxEl.attrs.enabled !== 'false' && fxEl.attrs.hidden !== 'true', params: {} };
+    for (const pd of def.params) {
+      let v = params[pd.key];
+      if (v === undefined) v = Array.isArray(pd.default) ? pd.default.slice() : pd.default;
+      fx.params[pd.key] = v && typeof v === 'object' && !Array.isArray(v) && v.keys ? { value: clone(v.keys[0].v), keys: v.keys } : { value: v, keys: [] };
+    }
+    out.push(fx);
+  }
+  return out;
+}
+
 /** Efeitos do AM que viram keyframes na camada (Fade, Spin, Swing, Oscillate, espaçamento/progresso de texto). */
 function amEffectToKeys(id, fxEl, l, st, en, fps) {
   const pr = P(fxEl), val = (n, d = 0) => num(pr[n]?.attrs.value, d), D = en - st;
@@ -378,16 +460,37 @@ function amEffectToKeys(id, fxEl, l, st, en, fps) {
     const r0 = tr.rotation.value || 0, rpm = val('rpm');
     tr.rotation.keys = [{ t: st, v: r0, ease: 'linear' }, { t: en, v: r0 + rpm * 6 * D, ease: 'linear' }];
   } else if (id === 'swing2' || id === 'oscillate3') {
-    const f = Math.max(0.05, val('freq', 1)), ks = [], n = Math.min(400, Math.ceil(D * fps));
-    const a1 = val('a1', -15), a2 = val('a2', 15), mag = val('mag', 20), ang = (val('angle', 0) * Math.PI) / 180, dir = val('direction', 0);
-    const base = tr.position.value.slice(), r0 = tr.rotation.value || 0;
+    if (fxEl.attrs.hidden === 'true') return;
+    // parâmetros animados (amplitude 0→400→0, fase com keyframes…): avalia cada um no tempo
+    const A = (name, def) => { const a = amAnim(pr[name], (v) => v[0] ?? def, st, D); if (!a) return () => def; if (!a.keys) return () => a.value; const pp = { value: a.keys[0].v, keys: a.keys }; return (t) => valueAt(pp, t); };
+    const f = A('freq', 1), a1 = A('a1', -15), a2 = A('a2', 15), mag = A('mag', 20), angD = A('angle', 0), ph = A('phase', 0), dir = val('direction', 0);
+    const n = Math.min(600, Math.ceil(D * fps * 2)), ks = [];
+    const posP = clone(tr.position), rotP = clone(tr.rotation);
+    let cyc = 0, tPrev = st;
     for (let i = 0; i <= n; i++) {
-      const t = st + (i / n) * D, s = Math.sin((t - st) * f * Math.PI * 2 + (val('phase') * Math.PI) / 180);
-      if (id === 'swing2') ks.push({ t: +t.toFixed(4), v: r0 + a1 + (a2 - a1) * (s * 0.5 + 0.5), ease: 'linear' });
-      else ks.push({ t: +t.toFixed(4), v: dir === 2 ? r0 + s * mag : [base[0] + Math.cos(ang) * s * mag * (dir === 1 ? 0 : 1), base[1] + Math.sin(ang) * s * mag], ease: 'linear' });
+      const t = st + (i / n) * D;
+      cyc += Math.max(0, f(t)) * (t - tPrev); tPrev = t; // integra a frequência (frequência animada não "pula")
+      const s = Math.sin((cyc + ph(t)) * Math.PI * 2);
+      if (id === 'swing2') ks.push({ t: +t.toFixed(4), v: valueAt(rotP, t) + a1(t) + (a2(t) - a1(t)) * (s * 0.5 + 0.5), ease: 'linear' });
+      else if (dir === 2) ks.push({ t: +t.toFixed(4), v: valueAt(rotP, t) + s * mag(t), ease: 'linear' });
+      else { const b = valueAt(posP, t), ang = (angD(t) * Math.PI) / 180, m = s * mag(t); ks.push({ t: +t.toFixed(4), v: [b[0] + Math.cos(ang) * m * (dir === 1 ? 0 : 1), b[1] + Math.sin(ang) * m], ease: 'linear' }); }
     }
-    const target = id === 'swing2' || (id === 'oscillate3' && dir === 2) ? tr.rotation : tr.position;
+    const target = id === 'swing2' || dir === 2 ? tr.rotation : tr.position;
     target.keys = ks; target.value = clone(ks[0].v);
+  } else if (id === 'flicker2' || id === 'blink2') {
+    if (fxEl.attrs.hidden === 'true') return;
+    // no AM o Flicker/Blink mexe na OPACIDADE da camada (pisca), quadro a quadro
+    const op0 = tr.opacity.keys?.length ? null : tr.opacity.value ?? 100;
+    const f = Math.max(0.1, val('freq', 10)), mag = Math.min(1, val('mag', 1)), seed = val('seed', 0);
+    const rnd = (k) => { const x = Math.sin(k * 12.9898 + seed * 78.233) * 43758.5453; return x - Math.floor(x); };
+    const ks = [], step = id === 'blink2' ? 1 / (2 * f) : 1 / Math.min(f, fps);
+    for (let t = st, k = 0; t < en + 1e-6; t += step, k++) {
+      const base = op0 ?? valueAt(tr.opacity, t);
+      // calibrado num export real: mag 1 → a camada fica entre 0 e ~40% (média ~20%)
+      const v = id === 'blink2' ? (k % 2 ? 0 : base) : base * (1 - mag * (0.6 + 0.4 * rnd(k + 1)));
+      ks.push({ t: +t.toFixed(4), v: +v.toFixed(2), ease: 'hold' });
+    }
+    if (ks.length) { tr.opacity.keys = ks; tr.opacity.value = ks[0].v; }
   } else if (id === 'textspacing' && l.type === 'text') {
     l.props.letterSpacing = val('letterspacing') * (l.props.fontSize || 40);
     if (pr.linespacing) l.props.lineHeight = Math.max(0.5, 1.15 + val('linespacing'));
@@ -400,6 +503,7 @@ function amEffectToKeys(id, fxEl, l, st, en, fps) {
 function fromAlightMotion(doc, fileName) {
   const scene = find(doc, 'scene');
   const W = num(scene.attrs.width, 1080), H = num(scene.attrs.height, 1920);
+  AMW = W; AMH = H;
   const proj = createProject(W, H);
   proj.name = scene.attrs.title || fileName;
   proj.fps = num(scene.attrs.fps, 30) || 30;
@@ -429,10 +533,19 @@ function fromAlightMotion(doc, fileName) {
       const fill = amColor(kid(c, 'fillColor')?.attrs.value || c.attrs.fillColor);
       let l;
       const s = String(c.attrs.s || '').toLowerCase();
-      if (c.name === 'text') {
+      // "Lift" (ou Magnify Background) numa forma: a forma pega o que está EMBAIXO e aplica os efeitos — é a camada
+      // de ajuste do Alight Motion (os retângulos de 1 quadro com efeitos das edits)
+      const fxIds = kids(c, 'effect').map((e) => String(e.attrs.id || '').replace(/^.*\./, '').toLowerCase());
+      const liftEl = kids(c, 'effect').find((e) => /\.lift$/i.test(e.attrs.id || ''));
+      const isAdj = c.name === 'shape' && c.attrs.fillType !== 'media' && (fxIds.includes('magnifybg') || (liftEl && num(P(liftEl).fill?.attrs.value, 0) < 0.5));
+      if (isAdj) {
+        l = LAYER_FACTORIES.adjustment(proj);
+      } else if (c.name === 'text') {
         l = LAYER_FACTORIES.text(proj);
         l.props.text = txt(c, 'content') || c.attrs.label || 'Texto';
-        l.props.fontSize = num(c.attrs.size, l.props.fontSize);
+        // tamanho do texto do AM em unidades próprias: ~2,9× em px (medido num export 1440×1080: size 18 → 52 px)
+        l.props.fontSize = Math.round(num(c.attrs.size, l.props.fontSize / 2.9) * 2.9 * 10) / 10;
+        l.props.amTextLift = true;
         const fm = /name=([^&]+)/.exec(String(c.attrs.font || '')), fw = /weight=(\d+)/.exec(String(c.attrs.font || ''));
         if (fm) l.props.fontFamily = `"${decodeURIComponent(fm[1].replace(/\+/g, ' '))}", sans-serif`;
         else if (c.attrs.font) l.props.fontFamily = `"${String(c.attrs.font).split('/').pop().replace(/\.(ttf|otf)$/i, '')}", sans-serif`;
@@ -495,19 +608,25 @@ function fromAlightMotion(doc, fileName) {
       if (masky && c.attrs.blending === 'exclude') l.blend = 'xor';
       if (c.attrs.hidden === 'true') l.visible = false;
       const tr = kid(c, 'transform');
-      if (tr) {
+      if (tr && l.type === 'adjustment') setAP(l.transform.opacity, amAnim(kid(tr, 'opacity'), (v) => (v[0] ?? 1) * 100, st, D, span));
+      else if (tr) {
         setAP(l.transform.position, amAnim(kid(tr, 'location'), (v) => [v[0] ?? sw / 2, v[1] ?? sh / 2], st, D, span));
         setAP(l.transform.scale, amAnim(kid(tr, 'scale'), (v) => [(v[0] ?? 1) * 100, (v[1] ?? v[0] ?? 1) * 100], st, D, span));
         setAP(l.transform.rotation, amAnim(kid(tr, 'rotation'), (v) => v[0] || 0, st, D, span));
         setAP(l.transform.opacity, amAnim(kid(tr, 'opacity'), (v) => (v[0] ?? 1) * 100, st, D, span));
         setAP(l.transform.anchor, amAnim(kid(tr, 'pivot'), (v) => [v[0] || 0, v[1] || 0], st, D, span));
       }
+      // no AM a posição do texto fica embaixo da linha (o bloco sobe ~0,45 do tamanho): compensa na âncora
+      if (l.props.amTextLift) { delete l.props.amTextLift; const lift = l.props.fontSize * 0.45; const an = l.transform.anchor; an.value = [an.value[0], an.value[1] + lift]; for (const k of an.keys || []) k.v = [k.v[0], k.v[1] + lift]; }
       if (l.props.amShrink && l.props.amShrink < 1) { const g = 1 / l.props.amShrink, pr = l.transform.scale; pr.value = pr.value.map((x) => x * g); for (const kf of pr.keys || []) kf.v = kf.v.map((x) => x * g); }
-      if (fill && fill[3] < 0.999 && !kid(tr || { kids: [] }, 'opacity') && l.type !== 'shape') l.transform.opacity.value = Math.round(fill[3] * 100);
+      if (fill && fill[3] < 0.999 && !kid(tr || { kids: [] }, 'opacity') && l.type !== 'shape' && l.type !== 'adjustment') l.transform.opacity.value = Math.round(fill[3] * 100);
       for (const fxEl of kids(c, 'effect')) {
         const full = String(fxEl.attrs.id || '');
         const id = full.toLowerCase().replace(/^.*?effects\./, '').replace(/^.*alightcreative\./, ''); // mods (Gold Motion, Alemon…) usam outros prefixos
+        if (id === 'lift') continue; // marcador de camada de ajuste (tratado ao criar a camada)
         if (AM_TO_KEYS.has(id)) { amEffectToKeys(id, fxEl, l, st, en, proj.fps); continue; }
+        const conv = amEffect2(id, fxEl, st, D);
+        if (conv) { l.effects.push(...conv); continue; }
         const ex = AM_EXACT[id] || AM_EXACT[id.replace(/\d+$/, '')];
         if (ex && EFFECT_MAP[ex[0]]) { l.effects.push(amEffect(ex[0], ex[1], fxEl, st, D)); continue; }
         const hit = AM_FALLBACK.find(([re]) => re.test(id));

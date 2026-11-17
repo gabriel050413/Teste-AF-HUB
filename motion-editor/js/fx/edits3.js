@@ -254,4 +254,27 @@ EDITS3_EXTRA.push({
   render: (src, p, env) => env.gl.pass(HEADBOP, { u_tex: src, u_neck: cuv(env, p.neck), u_top: cuv(env, p.top), u_feet: cuv(env, p.feet), u_headR: p.headR * env.rect[2] * (env.W / Math.max(1, env.H || env.W)), u_tilt: (p.tilt * Math.PI) / 180, u_nod: p.nod, u_bob: p.bob, u_lean: (p.lean * Math.PI) / 180, u_band: p.band }),
 });
 
+
+// ---------------------------------------------------------------- Esticar em um eixo (Stretch/Squeeze do Alight Motion)
+const STRETCH = frag(`
+uniform float u_s, u_a, u_sq;
+void main() {
+  vec2 A = vec2(u_size.x / u_size.y, 1.0);
+  vec2 d = (v_uv - 0.5) * A;
+  float c = cos(u_a), s = sin(u_a);
+  vec2 r = vec2(d.x * c + d.y * s, -d.x * s + d.y * c);
+  r.x /= max(0.05, u_s);
+  r.y *= 1.0 + u_sq * (1.0 - abs(r.x) * 2.0);
+  d = vec2(r.x * c - r.y * s, r.x * s + r.y * c);
+  vec2 uv = d / A + 0.5;
+  uv = abs(mod(uv + 1.0, 2.0) - 1.0); // espelha nas bordas (sem buracos)
+  gl_FragColor = texture2D(u_tex, uv);
+}`);
+EDITS3_EXTRA.push({
+  type: 'axisStretch', label: 'Esticar (eixo)', category: 'Distorção', plugin: 'Alight Motion Stretch / Squeeze',
+  description: 'Estica a imagem numa direção (bordas espelhadas). Usado nos flashes de 1 quadro das edits.',
+  params: [num('scale', 'Escala no eixo', 1.4, 0.05, 6, 0.01), num('angle', 'Ângulo', 0, -360, 360, 0.5), num('squeeze', 'Apertar (squeeze)', 0, -1, 1, 0.01)],
+  render: (src, p, env) => env.gl.pass(STRETCH, { u_tex: src, u_s: p.scale, u_a: (p.angle * Math.PI) / 180, u_sq: p.squeeze }),
+});
+
 export default [...EDITS3, ...EDITS3_EXTRA];

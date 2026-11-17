@@ -4,7 +4,7 @@ const TOK = process.env.MF_TOKEN || ''; // token de acesso do aparelho de teste 
 const D = process.env.CALIB_DIR || './';
 const presets = JSON.parse(process.env.PRESETS || '{"wdzik":"/home/user/motion-ref/cc/wdzik.ffx"}');
 const tune = process.env.TUNE ? JSON.parse(process.env.TUNE) : null;
-const b=await chromium.launch(); const pg=await b.newPage();
+const b=await chromium.launch(); const pg=await (await b.newContext({ serviceWorkers: 'block' })).newPage(); // sem SW: a 1ª instalação recarrega a página no meio do teste
 pg.on('pageerror',e=>console.log('ERR',e.message));
 await pg.goto('http://localhost:8795/',{waitUntil:'load'}); await pg.waitForTimeout(2500);
 await pg.evaluate(t=>{localStorage.setItem('motionframe.device','GZVZB57JNT175D52');localStorage.setItem('motionframe.token',t);},TOK);
