@@ -600,7 +600,10 @@ export class Timeline {
         keys = animProps(layer).flatMap(({ path, prop }) => prop.keys.filter((k) => Math.abs(k.t - t0) < 1e-4).map((key) => ({ layerId: layer.id, path, key })));
       }
       const allSel = keys.every((k) => store.isKeySelected(k.key));
-      if (additive) {
+      const stretch = e.altKey; // Alt (ou Shift+Alt) arrastando: estica/encolhe os keyframes selecionados, como no AE
+      if (stretch) {
+        if (!allSel) store.selectedKeys = [...store.selectedKeys, ...keys.filter((k) => !store.isKeySelected(k.key))];
+      } else if (additive) {
         if (allSel) store.selectedKeys = store.selectedKeys.filter((s) => !keys.some((k) => k.key === s.key));
         else store.selectedKeys = [...store.selectedKeys, ...keys.filter((k) => !store.isKeySelected(k.key))];
       } else if (!allSel) {
@@ -610,9 +613,23 @@ export class Timeline {
       target.classList.toggle('sel', store.selectedKeys.some((s) => keys.some((k) => k.key === s.key)));
       const sel = store.selectedKeys;
       const base = sel.map((s) => s.key.t);
+      const tMin = Math.min(...base), tMax = Math.max(...base);
+      // ponto fixo do esticar: o keyframe do lado oposto ao que está sendo arrastado
+      const anchor = Math.abs(t0 - tMin) < Math.abs(t0 - tMax) ? tMax : tMin;
+      const elMap = new Map([...this.rows.querySelectorAll('.kf.sel')].map((el) => [el, parseFloat(el.dataset.t)]));
       row.onpointermove = (ev) => {
         if (Math.abs(ev.clientX - x0) > 3) moved = true;
         if (!moved || !sel.length) return;
+        if (stretch && sel.length > 1 && Math.abs(t0 - anchor) > 1e-4) {
+          const tt = Math.max(0, frame(t0 + (ev.clientX - x0) / this.pps));
+          let k = (tt - anchor) / (t0 - anchor);
+          if (!(k > 0.02)) k = 0.02; // não deixa inverter a ordem nem juntar tudo num ponto
+          const f = (t) => +Math.max(0, anchor + (t - anchor) * k).toFixed(5);
+          sel.forEach((s, i) => { s.key.t = f(base[i]); });
+          for (const [el, t] of elMap) el.style.left = `${this.tToX(f(t))}px`;
+          this.hooks.onPreview?.();
+          return;
+        }
         let d = frame((ev.clientX - x0) / this.pps);
         const minT = Math.min(...base);
         if (minT + d < 0) d = -minT;

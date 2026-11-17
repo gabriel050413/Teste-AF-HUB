@@ -10,6 +10,8 @@ import { modal, toast, pickFiles, storage } from './ui.js';
 import { escapeHtml } from './util.js';
 import { saveFile } from './platform.js';
 import { exportFFX } from './ffx-export-ui.js';
+
+const PRESET_EXT = /\.(ffx|rgx|cube|json|frameify)$/i; // png de prévia dentro de pastas/zip não vira "captura de CC"
 import { scanAex, aexEquivalents, reportsToJSON } from './aex-scan.js';
 import { matchEffect } from './import-map.js';
 import { UTILITY_PLUGINS } from './import-map-pk.js';
@@ -135,7 +137,7 @@ export class Library {
     }
     this.root.innerHTML = `
       <div class="lib-tools">
-        <button class="primary" data-act="import">⤒ Importar .ffx / .rgx / .cube / preset</button>
+        <button class="primary" data-act="import">⤒ Importar presets (arquivos, pasta ou ZIP)</button>
         <button data-act="save-layer">★ Salvar camada como preset</button>
         <button data-act="capture">◐ Capturar CC do After Effects (Looks, Colorista…)</button>
         <button data-act="aex">⤒ Importar plugins (.aex)</button>
@@ -208,10 +210,7 @@ export class Library {
   bind() {
     this.queuePreviews();
     const r = this.root;
-    r.querySelectorAll('[data-act="import"]').forEach((b) => b.addEventListener('click', async () => {
-      const files = await pickFiles('.ffx,.aep,.rgx,.cube,.png,.aex,.json,application/json,application/octet-stream');
-      if (files.length) this.importFiles(files);
-    }));
+    r.querySelectorAll('[data-act="import"]').forEach((b) => b.addEventListener('click', () => this.importMenu()));
     r.querySelectorAll('[data-act="save-layer"]').forEach((b) => b.addEventListener('click', () => this.saveLayer()));
     r.querySelectorAll('[data-act="delall"]').forEach((b) => b.addEventListener('click', () => this.deleteAll()));
     r.querySelector('[data-act="capture"]').addEventListener('click', () => this.captureAE());
@@ -415,7 +414,51 @@ export class Library {
       effects: [{ type: 'lut3d', label: `CC capturada · ${name}`, params: { amount: 100, lut: enc.b64, lutSize: enc.size } }] };
   }
 
-  async importFiles(files) {
+  /** Importar: arquivos soltos, uma PASTA inteira ou um ZIP — pasta/zip viram uma pasta só na biblioteca. */
+  async importMenu() {
+    const how = await modal('Importar presets', `<div class="menu-list">
+        <button data-m="files">📄 Arquivos (.ffx, .rgx, .cube, .json…)</button>
+        <button data-m="folder">📁 Pasta inteira — vira uma pasta na biblioteca, com os presets separados</button>
+        <button data-m="zip">🗜 ZIP — vira uma pasta na biblioteca, com os presets separados</button>
+      </div>`, [{ label: 'Cancelar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => close(b.dataset.m))) });
+    if (how === 'files') { const files = await pickFiles('.ffx,.aep,.rgx,.cube,.png,.aex,.json,.zip,.frameify,application/json,application/octet-stream'); if (files.length) this.importFiles(files); }
+    else if (how === 'folder') {
+      const files = await new Promise((resolve) => { const i = document.createElement('input'); i.type = 'file'; i.webkitdirectory = true; i.multiple = true; i.addEventListener('change', () => resolve([...i.files])); i.click(); });
+      if (!files.length) return;
+      const folder = (files[0].webkitRelativePath || '').split('/')[0] || 'Pasta';
+      await this.importFiles(files.filter((f) => PRESET_EXT.test(f.name)), { folder });
+    } else if (how === 'zip') {
+      const zips = await pickFiles('.zip,application/zip', true);
+      for (const z of zips) await this.importFiles([z]);
+    }
+  }
+
+  /** ZIP → lista de arquivos de preset (com o caminho dentro do zip). */
+  async unzipPresets(zf) {
+    const { readZip } = await import('./zip.js');
+    const z = await readZip(zf);
+    const out = [];
+    for (const n of z.names) {
+      const short = n.split('/').pop();
+      if (!short || n.includes('__MACOSX/') || short.startsWith('.') || !PRESET_EXT.test(short)) continue;
+      const f = new File([await z.get(n, '')], short);
+      f.relPath = n;
+      out.push(f);
+    }
+    return out;
+  }
+
+  async importFiles(files, { folder = null } = {}) {
+    // ZIP: cada zip vira uma pasta (o nome do zip) com os presets dentro, separados
+    const zips = files.filter((f) => /\.zip$/i.test(f.name));
+    if (zips.length) {
+      for (const z of zips) {
+        try { const inner = await this.unzipPresets(z); if (inner.length) await this.importFiles(inner, { folder: z.name.replace(/\.zip$/i, '') }); else toast(`${z.name}: nenhum preset dentro do ZIP.`, 'warn'); }
+        catch (e) { toast(`${z.name}: ${e.message}`, 'error', 5000); }
+      }
+      files = files.filter((f) => !/\.zip$/i.test(f.name));
+      if (!files.length) return;
+    }
     const imported = [];
     const errors = [];
     const aex = [];
@@ -453,10 +496,20 @@ export class Library {
       } catch (e) {
         errors.push(`${f.name}: ${e.message}`);
       }
+      for (const p of imported) if (p._relPath === undefined) p._relPath = f.relPath || f.webkitRelativePath || '';
     }
     if (errors.length) toast(errors.join('\n'), 'error', 6000);
     if (aex.length) await (this.hooks.importAex ? this.hooks.importAex(aex) : this.scanPlugins(aex));
     if (!imported.length) return;
+    if (folder) { // pasta/zip: todos os presets ficam numa pasta só (a categoria), cada um separado
+      const sub = (f) => { const parts = String(f || '').split('/').filter(Boolean); return parts.length > 2 ? parts.slice(1, -1).join(' / ') : ''; };
+      imported.forEach((p, i) => { p.category = folder; const sp = sub(p._relPath); if (sp && !p.name.startsWith(sp)) p.name = `${sp} · ${p.name}`; p.id = p.id || `pk_${Date.now().toString(36)}_${i}`; delete p._relPath; });
+      for (const p of imported) this.addToLibrary(p);
+      this.cat = folder;
+      this.render();
+      toast(`📁 “${folder}”: ${imported.length} preset(s) importado(s) separados.`, 'ok', 5000);
+      return;
+    }
     if (imported.length === 1 && imported[0]._parsed) { await this.showReport(imported[0], true); return; }
     for (const p of imported) this.addToLibrary(p);
     this.cat = 'Todos';
