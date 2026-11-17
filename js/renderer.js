@@ -1097,7 +1097,8 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
       ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       ctx.restore();
     };
-    if (op >= 1 && simpleAdjust(l)) {
+    const blendAdj = l.blend && l.blend !== 'source-over'; // ajuste com modo de mesclagem: o resultado mescla sobre a imagem inteira
+    if (op >= 1 && !blendAdj && simpleAdjust(l)) {
       // caminho rápido: a camada de ajuste lê a composição direto da tela (sem a cópia de tela cheia para o
       // snapshot) e a tela só é limpa depois que a imagem com os efeitos ficou pronta
       renderLayer(ctx, l, t, scale, { snapshot: ctx.canvas, beforeDraw: blank }, proj.fps);
@@ -1110,8 +1111,10 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
     const sx = snapshotCanvas.getContext('2d');
     sx.clearRect(0, 0, W, H);
     sx.drawImage(ctx.canvas, 0, 0);
-    blank();
-    if (op < 1) { ctx.globalAlpha = 1 - op; ctx.drawImage(snapshotCanvas, 0, 0); ctx.globalAlpha = 1; }
+    // opacidade < 100% ou modo de mesclagem: a composição de baixo fica inteira e a camada processada entra por cima
+    // com a opacidade dela (resultado = op × processado + (1 − op) × original, como no AE). Antes a tela era limpa
+    // e o original voltava a (1 − op) e ainda era coberto de novo — o original ficava com (1 − op)² (CC escura/cinza).
+    if (!blendAdj && op >= 1) blank();
     // efeitos de tempo (eco, fatias, motion blur…) numa camada de ajuste precisam do que está ABAIXO dela em outros instantes
     const cache = new Map();
     const snapshotAt = (tt) => {
