@@ -120,7 +120,7 @@ export class Timeline {
     });
   }
 
-  get names() { if (this.namesW) return this.namesW; const L = document.body.dataset.elayout; if (isSimpleUI() && L === 'capcut') return 124; if (isSimpleUI() && L === 'alight') return 70; if (isSimpleUI() && L === 'blurrr') return 54; return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
+  get names() { if (this.namesW) return this.namesW; const L = document.body.dataset.elayout; if (isSimpleUI() && L === 'capcut') return 124; if (isSimpleUI() && L === 'alight') return 70; if (isSimpleUI() && L === 'blurrr') return 54; if (L === 'mograph') return this.scroll.clientWidth < 600 ? 190 : 300; return isSimpleUI() ? (this.scroll.clientWidth < 600 ? 74 : 132) : (this.scroll.clientWidth < 600 ? 116 : 190); }
   tToX(t) { return t * this.pps; } // relativo à área de trilhas
   xToT(clientX) {
     const r = this.scroll.getBoundingClientRect();
@@ -342,6 +342,7 @@ export class Timeline {
           <span class="lbl" style="background:${color}"></span>
           <span class="num">${num}</span>
           <span class="nm">${layer.missing ? '<span title="Mídia offline: não encontrada neste aparelho. Use Substituir mídia." style="color:#f5a623">⚠ </span>' : ''}${escapeHtml(layer.name)}</span>
+          ${this.mograph ? this.mgCols(layer) : ''}
         </div>
         <div class="tl-track" style="width:${trackW}px">
           <div class="clip" data-act="clip" style="left:${left}px;width:${width}px;--c:${color};${thumb ? `background-image:url('${thumb}')` : ''}">
@@ -367,6 +368,40 @@ export class Timeline {
       if (!props.length) out += `<div class="tl-row prop" data-layer="${layer.id}"><div class="tl-name sub"><span class="nm muted">Sem keyframes — use ◆ nos controles</span></div><div class="tl-track" style="width:${trackW}px"></div></div>`;
     }
     return out;
+  }
+
+  get mograph() { return document.body.dataset.elayout === 'mograph'; }
+  /** Colunas do layout Mograph: pick-whip (@ — arraste até o pai), nome do pai, expressão (=) e 3D. */
+  mgCols(layer) {
+    const par = layer.parent ? this.store.layers.find((o) => o.id === layer.parent) : null;
+    const hasExpr = Object.values(layer.transform || {}).some((p) => p?.expr && p.exprOn !== false) || !!layer.props?.textExpr || (layer.props?.animators || []).some((a) => (a.selectors || []).some((x) => x.src));
+    return `<span class="mgc"><button class="mg-whip" data-act="whip" title="Pick-whip: arraste até a camada pai" aria-label="Pick-whip">@</button><button class="mg-par ${par ? 'on' : ''}" data-act="parent" title="Pai (parent)">${par ? escapeHtml(par.name) : 'Nenhum'}</button>${hasExpr ? '<i class="mg-expr" title="Tem expressão">=</i>' : ''}${layer.threeD ? '<i class="mg-3d" title="Camada 3D">3D</i>' : ''}</span>`;
+  }
+
+  /** Arrastar o @ até outra camada (pick-whip do AE). Linha elástica até o dedo; soltar numa linha liga o pai. */
+  whipDrag(e, layer) {
+    e.preventDefault(); e.stopPropagation();
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'mg-whipline');
+    Object.assign(svg.style, { position: 'fixed', inset: '0', width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 9999 });
+    const x0 = e.clientX, y0 = e.clientY;
+    svg.innerHTML = `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0}" stroke="#c3a8ff" stroke-width="2" stroke-dasharray="5 4"/><circle cx="${x0}" cy="${y0}" r="5" fill="#8b5cff"/>`;
+    document.body.appendChild(svg);
+    const line = svg.querySelector('line');
+    let hover = null;
+    const rowAt = (ev) => document.elementsFromPoint(ev.clientX, ev.clientY).map((el) => el.closest?.('.tl-row.layer')).find(Boolean);
+    const move = (ev) => {
+      line.setAttribute('x2', ev.clientX); line.setAttribute('y2', ev.clientY);
+      const r = rowAt(ev); if (hover && hover !== r) hover.classList.remove('whip-hover');
+      hover = r && r.dataset.layer !== layer.id ? r : null; hover?.classList.add('whip-hover');
+    };
+    const up = (ev) => {
+      removeEventListener('pointermove', move); removeEventListener('pointerup', up); svg.remove(); hover?.classList.remove('whip-hover');
+      const r = rowAt(ev);
+      if (!r || r.dataset.layer === layer.id) { if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) this.hooks.cmd?.('parent-pick'); return; }
+      this.hooks.setParent?.(layer, this.store.layers.find((o) => o.id === r.dataset.layer) || null);
+    };
+    addEventListener('pointermove', move); addEventListener('pointerup', up);
   }
 
   propsOf(layer) {
@@ -551,6 +586,8 @@ export class Timeline {
     const additive = e.shiftKey || e.ctrlKey || e.metaKey || !!this.hooks.multiSelect?.();
     if (act === 'clip' && layer.type === 'text' && !additive && this.hooks.textTap?.(layer)) { e.preventDefault(); return; }
 
+    if (act === 'whip') { if (!store.isSelected(layer.id)) store.select(layer.id); this.whipDrag(e, layer); return; }
+    if (act === 'parent') { e.stopPropagation(); if (!store.isSelected(layer.id)) store.select(layer.id); setTimeout(() => this.hooks.cmd?.('parent-pick'), 0); return; }
     if (act === 'expand' || act === 'eye' || act === 'name') {
       // um toque na coluna de nomes (sem arrastar) seleciona/abre — arrastar continua rolando
       const x0 = e.clientX, y0 = e.clientY;

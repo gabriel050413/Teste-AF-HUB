@@ -1,4 +1,4 @@
-// Layouts e temas da interface: 5 prontos (Nova, CapCut, Blurrr, Motion, After Effects) + interfaces geradas pela IA (custam pontos).
+// Layouts e temas da interface: prontos (Nova, CapCut, Blurrr, Motion, Mograph, After Effects) + interfaces geradas pela IA (custam pontos).
 import { getSettings, setSettings } from './projects.js';
 import { modal, toast } from './ui.js';
 import { escapeHtml as esc } from './util.js';
@@ -14,6 +14,7 @@ export const BUILTIN = {
   capcut: { name: 'CapCut', uiMode: 'simple', rows: 'big', bg: '#000000', panel: '#111111', panel2: '#1c1c1c', line: '#262626', text: '#ffffff', muted: '#9a9a9a', accent: '#35d0e3', accent2: '#7ee6f1', radius: 8, font: 'system', layout: 'capcut' },
   blurrr: { name: 'Blurrr', uiMode: 'simple', rows: 'normal', bg: '#ffffff', panel: '#f4f4f4', panel2: '#ebebeb', line: '#e0e0e0', text: '#121212', muted: '#8a8a8a', accent: '#cdee4f', accent2: '#a9cf22', radius: 14, font: 'Inter', layout: 'blurrr' },
   alight: { name: 'Alight Motion', uiMode: 'simple', rows: 'compact', bg: '#1b1b1d', panel: '#242427', panel2: '#2d2d31', line: '#38383d', text: '#f1f1f3', muted: '#9a9aa0', accent: '#5b8cff', accent2: '#9db8ff', radius: 10, font: 'Inter', layout: 'alight' },
+  mograph: { name: 'Mograph', uiMode: 'ae', rows: 'compact', bg: '#0d0c13', panel: '#15141d', panel2: '#1e1c29', line: '#2b2839', text: '#ecebf5', muted: '#9a97ae', accent: '#8b5cff', accent2: '#c3a8ff', radius: 8, font: 'Inter', layout: 'mograph' },
   ae: { name: 'After Effects', uiMode: 'ae', rows: 'compact', bg: '#1d1d1d', panel: '#232323', panel2: '#2b2b2b', line: '#3b3b3b', text: '#d6d6d6', muted: '#8f8f8f', accent: '#2d8ceb', accent2: '#3fc1ff', radius: 3, font: 'Inter', layout: 'ae' },
 };
 
@@ -52,7 +53,7 @@ export function setLayout(theme, onChange) {
 const savedAI = () => { try { return JSON.parse(localStorage.getItem('motionframe.ui.ai') || '[]'); } catch { return []; } };
 const saveAI = (l) => { try { localStorage.setItem('motionframe.ui.ai', JSON.stringify(l.slice(0, 20))); } catch { /* ok */ } };
 const swatch = (t) => {
-  const r = Math.min(6, (t.radius || 8) / 3), ae = t.layout === 'ae';
+  const r = Math.min(6, (t.radius || 8) / 3), ae = t.layout === 'ae' || t.layout === 'mograph';
   return `<svg class="lay-wire" viewBox="0 0 64 44" aria-hidden="true"><rect x="0.5" y="0.5" width="63" height="43" rx="${r + 2}" fill="${t.bg}" stroke="${t.line}"/>
     ${ae ? `<rect x="4" y="4" width="12" height="22" rx="${r / 2}" fill="${t.panel}"/><rect x="18" y="4" width="28" height="22" rx="${r / 2}" fill="#000" stroke="${t.line}" stroke-width=".6"/><rect x="48" y="4" width="12" height="22" rx="${r / 2}" fill="${t.panel}"/>`
     : `<rect x="16" y="4" width="32" height="22" rx="${r / 2}" fill="#000" stroke="${t.line}" stroke-width=".6"/><circle cx="32" cy="15" r="3.4" fill="${t.accent}"/>`}
@@ -97,7 +98,7 @@ export async function interfaceDialog(cloud, onChange) {
   return interfaceDialog(cloud, onChange);
 }
 
-const DESC = { studio: 'O visual padrão do MotionFrame', nova: 'Cartões de edição e barra Adicionar · IA · Biblioteca', capcut: 'Exportar no topo, Editar · Áudio · Texto · Efeitos embaixo', blurrr: 'Claro, com blocos grandes de Vídeo · Música · Efeitos', alight: 'Camadas e keyframes, como o Alight Motion', ae: 'Menus e painéis do After Effects' };
+const DESC = { studio: 'O visual padrão do MotionFrame', nova: 'Cartões de edição e barra Adicionar · IA · Biblioteca', capcut: 'Exportar no topo, Editar · Áudio · Texto · Efeitos embaixo', blurrr: 'Claro, com blocos grandes de Vídeo · Música · Efeitos', alight: 'Camadas e keyframes, como o Alight Motion', mograph: 'Motion design: parent com pick-whip, null pai, curvas, expressões e caneta', ae: 'Menus e painéis do After Effects' };
 const NOTE = { ae: 'Precisa de tela grande' };
 
 /** Nome do layout atual (para o botão da barra do editor). */

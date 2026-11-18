@@ -64,6 +64,7 @@ const P = {
   download: '<path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 20h14"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>',
   link: '<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>',
+  code: '<path d="M9 5c-2 0-2.5 1.5-2.5 3.5S5 12 4 12c1 0 2.5.5 2.5 3.5S7 19 9 19M15 5c2 0 2.5 1.5 2.5 3.5S19 12 20 12c-1 0-2.5.5-2.5 3.5S17 19 15 19"/>',
   font: '<path d="M4 19l6-14h1l6 14"/><path d="M6.5 14h8"/><path d="M17 19h4"/>',
   keyboard: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7 14.5h10"/>',
   xml: '<path d="M8 7l-5 5 5 5M16 7l5 5-5 5"/><path d="M13.5 5l-3 14"/>',
