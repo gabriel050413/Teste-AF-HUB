@@ -118,6 +118,8 @@ function lerp(a, b, f) {
 
 // contexto das expressões (fps e tamanho da composição) — o renderizador atualiza a cada quadro
 export const exprContext = { fps: 30, W: 1080, H: 1920 };
+/** Texto de origem calculado pela expressão (sourceText) da camada no quadro atual. */
+export const liveText = new WeakMap();
 
 /** Valor no tempo t; com expressão (p.expr), o resultado da expressão (wiggle, loopOut…). */
 export function valueAt(p, t) {

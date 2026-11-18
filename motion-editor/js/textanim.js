@@ -1,7 +1,8 @@
 // Animadores de texto do After Effects (Text Animators): cada animador tem propriedades (opacidade, posição, escala,
 // rotação, desfoque, tracking) e seletores (Range, Wiggly) que dizem quanto de cada caractere é afetado (0..1).
 // O texto passa a ser desenhado caractere a caractere quando a camada tem animadores.
-import { valueAt } from './anim.js';
+import { valueAt, exprContext } from './anim.js';
+import { evalSelectorExpr } from './expr.js';
 
 const v = (p, t, d) => (p == null ? d : valueAt(p, t));
 
@@ -31,6 +32,10 @@ function shapeAmount(shape, a, b, c0, c1, smooth) {
     case 4: { if (mid < a || mid > b) return 0; const x = (mid - a) / (b - a); return 1 - Math.abs(x * 2 - 1); } // triângulo
     case 5: { if (mid < a || mid > b) return 0; const x = (mid - a) / (b - a) * 2 - 1; return Math.sqrt(Math.max(0, 1 - x * x)); } // redondo
     case 6: { if (mid < a || mid > b) return 0; const x = (mid - a) / (b - a); return 0.5 - 0.5 * Math.cos(x * Math.PI * 2); } // suave
+    // rampas suaves de mograph (cada unidade tem a própria curva, como Ease High/Low 100 % no Range Selector do AE)
+    case 7: { if (mid <= a) return 0; if (mid >= b) return 1; const x = (mid - a) / (b - a); return x * x * x * (x * (x * 6 - 15) + 10); } // sobe suave
+    case 8: { if (mid <= a) return 1; if (mid >= b) return 0; const x = (mid - a) / (b - a); return 1 - x * x * x * (x * (x * 6 - 15) + 10); } // desce suave
+    case 9: { if (mid <= a) return 0; if (mid >= b) return 1; const r = 1 - (mid - a) / (b - a), c1 = 1.70158, c3 = c1 + 1; return 1 - (1 + c3 * (r - 1) ** 3 + c1 * (r - 1) ** 2); } // com mola (passa do ponto)
     default: { // quadrado: cobertura da unidade dentro da faixa (suavizada)
       const cov = Math.max(0, Math.min(c1, b) - Math.max(c0, a)) / w;
       return smooth > 0 ? cov : cov >= 0.5 ? 1 : 0;
@@ -44,6 +49,11 @@ function selectorAmounts(an, chars, t, t0 = 0) {
   for (const s of an.selectors || []) {
     const { key, n } = unitsOf(chars, s.based || 1);
     let order = Array.from({ length: n }, (_, i) => i);
+    if (s.center) { // do centro para fora (ou de fora para o centro)
+      const c = (n - 1) / 2;
+      order = order.map((i) => [Math.abs(i - c) * (s.center === 2 ? -1 : 1), i]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+      const inv = new Array(n); order.forEach((u, i) => { inv[u] = i; }); order = inv;
+    }
     if (s.randomize) {
       const seed = s.seed || 0;
       order = order.map((i) => [hash(i * 13.7 + seed * 3.1), i]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
@@ -64,6 +74,10 @@ function selectorAmounts(an, chars, t, t0 = 0) {
         if (ti < 0) return 1;
         return (s.amp * Math.cos(s.freq * ti * 2 * Math.PI)) / Math.exp(s.decay * ti) / 100;
       });
+    } else if (s.type === 'expr' && s.src) {
+      // Seletor de expressão do AE: a expressão roda para cada unidade (textIndex/textTotal/selectorValue)
+      const r = evalSelectorExpr(s.src, n, t, { inPoint: t0, outPoint: 1e9, name: '', props: {}, transform: {}, effects: [] }, exprContext);
+      vals = chars.map((c) => { const u = c[key]; return u == null || !r ? 0 : (r[order[u] ?? u] ?? 0) * amt; });
     } else if (s.type === 'expr') {
       vals = chars.map(() => 0); // seletor de expressão sem parâmetros conhecidos: não é executado (segurança) → sem efeito
     } else {

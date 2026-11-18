@@ -13,6 +13,7 @@ import { prepare, prepareEpoch, exactFramesReady, pauseAll, setMediaListener, vi
 import { loadAudio, playAudio, stopAudio, detectBeats, pruneAudio } from './audio.js';
 import { valueAt, setValue, setKey, anim } from './anim.js';
 import { openFlowMograph } from './flow-mograph.js';
+import { openExprReader } from './expr-reader.js';
 import { createPen, syncPen, penPointer, penUndo, drawPen } from './pen-tracer.js';
 import { setThreeD } from './three-d.js';
 import { openSceneSetup } from './e3d-scene.js';
@@ -1194,7 +1195,7 @@ function simpleItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'],
+      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
       ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar']];
@@ -1257,7 +1258,7 @@ function advancedItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
+      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
       ['up', '▲', 'Subir'], ['down', '▼', 'Descer'],
@@ -1965,6 +1966,7 @@ const commands = {
   'time-reverse': () => timeReverse(store.layer()),
   morph: () => morphTransition(),
   'flow-mograph': () => openFlowMograph({ store, modal, toast }),
+  'expr-reader': () => openExprReader({ store, modal, toast, pickFiles }),
   'track-matte': async () => {
     const l = store.layer(); if (!l) return toast('Selecione a camada que vai aparecer DENTRO da máscara.', 'warn');
     const L = store.layers, m = L[L.indexOf(l) - 1];

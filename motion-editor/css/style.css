@@ -1920,3 +1920,16 @@ body[data-pc] .crs-coach{left:auto;right:18px;transform:none}
 .fm-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .fm-btns button { font-size: 12px; }
 .aia-grid.dark .aia-add{background:repeating-conic-gradient(#1b1b22 0 25%,#26262f 0 50%) 0 0/16px 16px}
+/* Leitor de expressões */
+.xr { display: flex; flex-direction: column; gap: 8px; }
+.xr-cats { flex-wrap: nowrap; overflow-x: auto; }
+.xr-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; margin-top: 6px; }
+.xr-it { display: flex; flex-direction: column; align-items: flex-start; text-align: left; gap: 2px; padding: 7px 9px; white-space: normal; line-height: 1.2; }
+.xr-it b { font-size: 12.5px; }
+.xr-it span { font-size: 11px; opacity: .65; }
+.xr-code { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; min-height: 120px; }
+.xr-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 12.5px; }
+.xr-ok { color: #3ddc84; font-weight: 600; } .xr-bad { color: #ff6b6b; font-weight: 600; }
+.xr-explain { margin: 0; padding-left: 18px; font-size: 12.5px; opacity: .9; }
+.xr-test table { font-size: 12px; font-family: ui-monospace, Menlo, monospace; border-collapse: collapse; }
+.xr-test td { padding: 1px 10px 1px 0; }
