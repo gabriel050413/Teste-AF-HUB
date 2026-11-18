@@ -295,3 +295,53 @@ function shiftAnimTimes(an, t0) {
   const sh = (p) => (p && p.keys ? { ...p, keys: p.keys.map((k) => ({ ...k, t: +(k.t + t0).toFixed(4) })) } : p);
   return { ...an, props: Object.fromEntries(Object.entries(an.props).map(([k, v]) => [k, sh(v)])), selectors: (an.selectors || []).map((s) => Object.fromEntries(Object.entries(s).map(([k, v]) => [k, sh(v)]))) };
 }
+
+// ---------------------------------------------------------------- Mograph suave (texto)
+// Como os textos dos edits de mograph: cada letra/palavra/linha com a própria curva suave (rampa com ease, janela
+// andando pelo texto), sem efeitos pesados — só opacidade, posição, escala, rotação e um desfoque leve.
+// Algumas usam o leitor de expressões (Texto de origem e seletor de expressão), como os rigs do After.
+const CV = (t0, v0, t1, v1, curve = [0.65, 0, 0.35, 1]) => ({ value: v0, keys: [{ t: +t0.toFixed(4), v: v0, ease: 'curve', curve }, { t: +t1.toFixed(4), v: v1, ease: 'linear' }] });
+const WIN = 45; // largura da janela (%) — quantas unidades estão se mexendo ao mesmo tempo
+// [nome, base (1 letra, 3 palavra, 4 linha), props(fs), opções]
+const SMOOTH = [
+  ['Fade up suave', 1, (fs) => ({ position: [0, fs * 0.38], opacity: 0 })],
+  ['Fade up por palavra', 3, (fs) => ({ position: [0, fs * 0.5], opacity: 0 })],
+  ['Linha sobe suave', 4, (fs) => ({ position: [0, fs * 0.7], opacity: 0 })],
+  ['Escala suave (60 %)', 1, () => ({ scale: [60, 60], opacity: 0 })],
+  ['Zoom out suave', 1, () => ({ scale: [170, 170], opacity: 0 })],
+  ['Deslizar da esquerda', 1, (fs) => ({ position: [-fs * 0.7, 0], opacity: 0 })],
+  ['Deslizar da direita', 1, (fs) => ({ position: [fs * 0.7, 0], opacity: 0 })],
+  ['Desfoque suave', 1, () => ({ blur: [9, 9], opacity: 0 })],
+  ['Desfoque por palavra', 3, (fs) => ({ blur: [10, 10], position: [0, fs * 0.2], scale: [112, 112], opacity: 0 })],
+  ['Cair suave', 1, (fs) => ({ position: [0, -fs * 0.55], opacity: 0 })],
+  ['Girar suave', 1, (fs) => ({ rotation: -38, position: [0, fs * 0.25], opacity: 0 })],
+  ['Flip vertical', 1, () => ({ scale: [100, 0], opacity: 0 })],
+  ['Flip horizontal', 1, () => ({ scale: [0, 100], opacity: 0 })],
+  ['Pop com mola', 1, () => ({ scale: [0, 0] }), { shape: 9 }],
+  ['Palavra pop com mola', 3, () => ({ scale: [0, 0] }), { shape: 9 }],
+  ['Palavra sobe com mola', 3, (fs) => ({ position: [0, fs * 0.6], opacity: 0 }), { shape: 9 }],
+  ['Máquina de escrever suave', 1, () => ({ opacity: 0 }), { win: 8 }],
+  ['Aleatório suave', 1, () => ({ opacity: 0, blur: [5, 5] }), { randomize: true }],
+  ['Do centro para fora', 1, () => ({ scale: [0, 0], opacity: 0 }), { center: 1 }],
+  ['Das pontas para o centro', 1, (fs) => ({ position: [0, fs * 0.4], opacity: 0 }), { center: 2 }],
+];
+export const MO_SMOOTH = SMOOTH.map(([name, based, pr, o = {}]) => [name, based, (d, fs, exit = false) => {
+  const props = Object.fromEntries(Object.entries(pr(fs)).map(([k, v]) => [k, A(v)]));
+  const w = o.win ?? WIN;
+  // a janela anda de −w até 100: as unidades à direita dela ainda estão “fora”, as da esquerda já pousaram
+  const shape = exit ? (o.shape === 9 ? 8 : 8) : (o.shape || 7);
+  const curve = exit ? [0.55, 0, 0.75, 0.2] : o.shape === 9 ? [0.3, 0, 0.3, 1] : [0.33, 0, 0.2, 1];
+  return [{ props, selectors: [{ type: 'range', based, shape, smooth: 100, start: A(0), end: A(w), offset: CV(0, -w, d, 100, curve), randomize: !!o.randomize, seed: 11, center: o.center || 0 }] }];
+}]);
+
+// textos com expressão (Texto de origem / seletor de expressão) — [nome, (d, fs) => { animators, texpr }]
+export const MO_TEXT_EXPR = [
+  ['Máquina de escrever + cursor', (d) => ({ animators: [], texpr: `dur = ${d.toFixed(2)};\nn = Math.floor(linear(time, inPoint, inPoint + dur, 0, value.length));\ncur = (n < value.length || Math.floor(time * 2) % 2 == 0) ? "|" : " ";\nvalue.substr(0, n) + cur` })],
+  ['Contador 0 → 1000', (d) => ({ animators: [], texpr: `Math.round(ease(time, inPoint, inPoint + ${d.toFixed(2)}, 0, 1000))`, text: '1000' })],
+  ['Uma palavra por vez', (d) => ({ animators: [{ props: { scale: A([70, 70]), opacity: A(0) }, selectors: [{ type: 'expr', based: 1, mode: 1, src: `p = ((time - inPoint) % ${(d / 3).toFixed(3)}) / ${(d / 3).toFixed(3)};\nease(p, 0, 0.35, 100, 0)` }] }], texpr: `w = value.split(" ");\ni = Math.min(w.length - 1, Math.floor((time - inPoint) / ${(d / 3).toFixed(3)}));\nw[Math.max(0, i)]` })],
+  ['Decodificar (expressão)', (d) => ({ animators: [], texpr: `chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&";\nd = linear(time, inPoint, inPoint + ${d.toFixed(2)}, 0, value.length);\nseedRandom(Math.floor(time * 20), true);\no = "";\nfor (i = 0; i < value.length; i++) { c = value.charAt(i); o += (i < d || c == " ") ? c : chars.charAt(Math.floor(random(chars.length))); }\no` })],
+  ['Bounce por letra (expressão)', (d, fs) => ({ animators: [{ props: { position: A([0, -fs * 0.9]), opacity: A(0) }, selectors: [{ type: 'expr', based: 1, mode: 1, src: `delay = ${(d / 14).toFixed(3)}; t = (time - inPoint) - delay * textIndex;\nif (t >= 0) { freq = 2.2; decay = 6; s = 100 * Math.cos(freq * t * 2 * Math.PI) / Math.exp(decay * t); [s, s, s]; } else { value; }` }] }] })],
+  ['Cascata (expressão)', (d, fs) => ({ animators: [{ props: { position: A([0, fs * 0.5]), rotation: A(12), opacity: A(0) }, selectors: [{ type: 'expr', based: 1, mode: 1, src: `t = (time - inPoint) - textIndex * ${(d / 18).toFixed(3)};\nease(t, 0, ${(d * 0.45).toFixed(3)}, 100, 0)` }] }] })],
+  ['Onda contínua (expressão)', (d, fs) => ({ animators: [{ props: { position: A([0, fs * 0.16]) }, selectors: [{ type: 'expr', based: 1, mode: 1, src: 'Math.sin(time * 4 + textIndex * 0.6) * 100' }] }] })],
+  ['Do centro (expressão)', (d) => ({ animators: [{ props: { scale: A([0, 0]), opacity: A(0) }, selectors: [{ type: 'expr', based: 1, mode: 1, src: `c = (textTotal + 1) / 2; k = Math.abs(textIndex - c) / c;\nt = (time - inPoint) - k * ${(d * 0.5).toFixed(3)};\nease(t, 0, ${(d * 0.45).toFixed(3)}, 100, 0)` }] }] })],
+];

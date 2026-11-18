@@ -1,7 +1,8 @@
 // Composição dos quadros: conteúdo das camadas (Canvas 2D) → efeitos (WebGL) → transformações,
 // motion blur, echo e camadas de ajuste.
 import { releaseCanvas, flushReleased } from './canvas-free.js';
-import { valueAt, exprContext } from './anim.js';
+import { valueAt, exprContext, liveText } from './anim.js';
+import { evalTextExpr } from './expr.js';
 import { drawAnimatedText, animatorPad } from './textanim.js';
 import { EFFECT_MAP, makeCanvas } from './effects.js';
 import { getGL } from './gl.js';
@@ -67,7 +68,7 @@ export function contentSize(layer, proj = project) {
     const ctx = textCtx();
     ctx.font = fontOf(p);
     if ('letterSpacing' in ctx) ctx.letterSpacing = `${p.letterSpacing || 0}px`;
-    const lines = String(p.text).split('\n');
+    const lines = String(liveText.get(layer) ?? p.text).split('\n');
     const w = Math.max(1, ...lines.map((s) => ctx.measureText(s).width)) + (p.strokeWidth || 0) * 2 + 8;
     const h = lines.length * p.fontSize * p.lineHeight + (p.strokeWidth || 0) * 2 + 8;
     if (p.bgOn) { const pad = p.bgPad ?? p.fontSize * 0.22; return { w: w + pad * 2, h: h + pad * 2 }; }
@@ -122,7 +123,7 @@ function drawTextBoxes(ctx, p, lines, x, h, lh, pad) {
 
 function drawContent(ctx, layer, w, h, extra) {
   let p = layer.props;
-  if (layer.type === 'text') { const nt = numCounterText(layer, extra?.lt ?? 0); if (nt != null) p = { ...p, text: nt }; }
+  if (layer.type === 'text') { const nt = numCounterText(layer, extra?.lt ?? 0); if (nt != null) p = { ...p, text: nt }; else if (liveText.has(layer)) p = { ...p, text: liveText.get(layer) }; }
   switch (layer.type) {
     case 'text': {
       if (p.fontShiftY) { ctx.save(); ctx.translate(0, p.fontShiftY * p.fontSize); } // Inter assenta ~0,1 em abaixo da SF Pro (medido no render do After)
@@ -245,7 +246,7 @@ export function layerTransform(layer, t) {
 function aeTextAnchor(layer, a) {
   if (layer.type !== 'text' || !layer.props.aeBaseline) return a;
   const p = layer.props, { w } = contentSize(layer);
-  const lines = String(p.text).split('\n').length, lh = p.fontSize * p.lineHeight;
+  const lines = String(liveText.get(layer) ?? p.text).split('\n').length, lh = p.fontSize * p.lineHeight;
   const ax = p.align === 'left' ? -(w / 2 - 4) : p.align === 'right' ? w / 2 - 4 : 0;
   return [a[0] + ax, a[1] - ((lines - 1) / 2) * lh + p.fontSize * 0.33];
 }
@@ -1074,6 +1075,60 @@ function simpleAdjust(l) {
   return !l.threeD && !l.effects.some((fx) => fx.enabled && (['morph', 'echo', 'motionBlur', 'timeSlice', 'sTimeSlice', 'bccTemporalBlur', 'wideTime'].includes(fx.type) || EFFECT_MAP[fx.type]?.channelTime));
 }
 
+// ---------------------------------------------------------------- expressões: acesso a camadas, efeitos e texto
+// (thisComp.layer("Nome"), effect("Slider Control")("Slider"), thisLayer, text.sourceText…)
+let ownerMap = new WeakMap(), ownerFrame = -1;
+function buildOwners() {
+  ownerMap = new WeakMap(); ownerFrame = frameNo;
+  const walk = (o, L, d = 0) => { if (!o || typeof o !== 'object' || d > 6) return; if ('value' in o && 'keys' in o) { ownerMap.set(o, L); return; } for (const v of Object.values(o)) walk(v, L, d + 1); };
+  const add = (ls) => { for (const L of ls || []) { walk(L.transform, L); for (const fx of L.effects || []) walk(fx.params, L); walk(L.props, L); if (L.type === 'group') add(L.props.layers); } };
+  add(project?.layers);
+}
+const listOf = (L) => { const find = (ls) => { if (!ls) return null; if (ls.includes(L)) return ls; for (const x of ls) { const r = x.type === 'group' && find(x.props.layers); if (r) return r; } return null; }; return find(project?.layers) || project?.layers || []; };
+const normName = (s) => String(s ?? '').toLowerCase().replace(/[\s_%()]+/g, '');
+exprContext.host = {
+  valueAt: (p, t) => valueAt(p, t),
+  layerOf: (p) => { let L = ownerMap.get(p); if (!L && ownerFrame !== frameNo) { buildOwners(); L = ownerMap.get(p); } return L || null; },
+  findLayer: (ref) => {
+    const all = project?.layers || [];
+    if (typeof ref === 'number') return all[(ref | 0) - 1] || null;
+    let hit = null; const find = (ls) => { for (const x of ls || []) { if (hit) return; if (x.name === ref) { hit = x; return; } if (x.type === 'group') find(x.props.layers); } };
+    find(all); return hit;
+  },
+  layerById: (id) => (id ? layerIndex.get(id) || null : null),
+  layerIndex: (L) => (L ? listOf(L).indexOf(L) + 1 : 1),
+  layerSize: (L) => { const { w, h } = contentSize(L); return [w, h]; },
+  numLayers: () => project?.layers?.length || 0,
+  get duration() { return project?.duration ?? 10; },
+  get compName() { return project?.name || 'Comp'; },
+  findEffect: (L, ref) => {
+    const fxs = (L?.effects || []);
+    if (typeof ref === 'number') return fxs[(ref | 0) - 1] || null;
+    const n = normName(ref);
+    return fxs.find((f) => normName(f.name) === n) || fxs.find((f) => normName(EFFECT_MAP[f.type]?.label) === n) || fxs.find((f) => normName(f.type) === n) || fxs.find((f) => normName(f.matchName) === n) || null;
+  },
+  findParam: (fx, ref) => {
+    const defs = EFFECT_MAP[fx.type]?.params || [];
+    if (typeof ref === 'number') { const d = defs.filter((x) => x.key !== 'fxOpacity')[(ref | 0) - 1]; return d ? fx.params[d.key] : undefined; }
+    if (ref in (fx.params || {})) return fx.params[ref];
+    const n = normName(ref);
+    const d = defs.find((x) => normName(x.label) === n || normName(x.key) === n) || defs.find((x) => normName(x.label).startsWith(n));
+    if (d) return fx.params[d.key];
+    const k = Object.keys(fx.params || {}).find((x) => normName(x) === n);
+    return k ? fx.params[k] : undefined;
+  },
+  textOf: (L) => String(liveText.get(L) ?? L?.props?.text ?? ''),
+};
+/** Texto de origem com expressão (props.textExpr): calculado uma vez por quadro, antes de desenhar. */
+function updateLiveText(layers, t) {
+  for (const L of layers || []) {
+    if (L.type === 'group') updateLiveText(L.props.layers, t);
+    if (L.type !== 'text') continue;
+    if (L.props.textExpr && L.props.textExprOn !== false) liveText.set(L, evalTextExpr(L.props.textExpr, L, t, exprContext));
+    else liveText.delete(L);
+  }
+}
+
 export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
   flushReleased();
   project = proj;
@@ -1088,6 +1143,7 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
   ctx.fillStyle = proj.background;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   indexLayers(proj.layers);
+  updateLiveText(proj.layers, t);
   drawLayerList(ctx, proj.layers, t, scale, proj.fps, (l, list, idx) => {
     const op = layerTransform(l, t).opacity;
     const blank = () => {

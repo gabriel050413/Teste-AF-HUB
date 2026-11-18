@@ -367,7 +367,7 @@ function convTextAnimators(list, t0) {
         const base = { type: 'expr', mode: fixed('ADBE Text Selector Mode', 3), based: fixed('ADBE Text Range Type2', 1) };
         const delay = pick('delay'), freq = pick('freq'), amp = pick('amplitude'), decay = pick('decay');
         if (delay != null && freq != null && amp != null && decay != null && /Math\.exp\(/.test(ex)) selectors.push({ ...base, delay, freq, amp, decay, t0ae: t0, k: AE_TIME_SCALE });
-        else selectors.push(base);
+        else selectors.push(ex && exprWorks(ex, [100, 100, 100]) ? { ...base, src: ex } : base); // o leitor de expressões roda o resto
       } else {
         selectors.push({ type: 'range', start: num('ADBE Text Percent Start', 0), end: num('ADBE Text Percent End', 100), offset: num('ADBE Text Percent Offset', 0),
           amount: num('ADBE Text Selector Max Amount', 100), shape: fixed('ADBE Text Range Shape', 1), smooth: num('ADBE Text Selector Smoothness', 100),

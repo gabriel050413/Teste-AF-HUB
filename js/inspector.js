@@ -5,7 +5,8 @@ import { reparent } from './renderer.js';
 import { resolveProp } from './state.js';
 import { getEffectDef } from './effects.js';
 import { escapeHtml, hexToRgba, rgbaToHex, deepClone, uid } from './util.js';
-import { toast, modal } from './ui.js';
+import { toast, modal, pickFiles } from './ui.js';
+import { openExprReader } from './expr-reader.js';
 import { pickFont, ensureFont } from './fonts.js';
 import { exportFFX } from './ffx-export-ui.js';
 import { exprError, EXPR_PRESETS } from './expr.js';
@@ -437,7 +438,7 @@ export class Inspector {
     return `<div class="prop-row" data-path="${path}" data-kind="${d.kind}">
       <span class="plabel" data-pact="scrub">${escapeHtml(d.label)}</span>
       <span class="pinputs">${inputs}</span>
-      ${d.kind === 'text' ? '' : `<span class="kfnav"><button data-pact="prev" aria-label="Keyframe anterior">‹</button><button data-pact="key" class="kbtn" aria-label="Keyframe">◆</button><button data-pact="next" aria-label="Próximo keyframe">›</button><button data-pact="expr" class="exprbtn" aria-label="Expressão" title="Expressão (wiggle, loopOut…)">=</button></span>`}
+      ${d.kind === 'text' ? `<span class="kfnav"><button data-pact="texpr" class="exprbtn" aria-label="Expressão do texto" title="Expressão do texto (sourceText: máquina de escrever, contador…)">=</button></span>` : `<span class="kfnav"><button data-pact="prev" aria-label="Keyframe anterior">‹</button><button data-pact="key" class="kbtn" aria-label="Keyframe">◆</button><button data-pact="next" aria-label="Próximo keyframe">›</button><button data-pact="expr" class="exprbtn" aria-label="Expressão" title="Expressão (wiggle, loopOut…)">=</button></span>`}
     </div>`;
   }
 
@@ -642,6 +643,12 @@ export class Inspector {
     row.querySelectorAll('[data-pact]').forEach((el) => {
       const act = el.dataset.pact;
       if (act === 'link') return;
+      if (act === 'texpr') {
+        const on = !!layer.props?.textExpr && layer.props.textExprOn !== false;
+        el.classList.toggle('on', on); row.classList.toggle('has-expr', on);
+        el.addEventListener('click', () => openExprReader({ store, modal, toast, pickFiles, initial: layer.props.textExpr || '', target: 'text' }));
+        return;
+      }
       if (act === 'scrub') {
         if (!['number', 'angle', 'point'].includes(kind)) return;
         el.addEventListener('pointerdown', (e) => {

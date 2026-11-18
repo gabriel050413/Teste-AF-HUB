@@ -27,11 +27,12 @@ import backgrounds from './fx/backgrounds.js';
 import edits2 from './fx/edits2.js';
 import edits3 from './fx/edits3.js';
 import morphFx from './fx/morph.js';
+import controlsFx from './fx/controls.js';
 import audioFx from './fx/audio-fx.js';
 import burnFx from './fx/burn.js';
 import aeColor from './fx/ae-color.js';
 
-export const EFFECTS = [...blurLight, ...color, ...aeColor, ...extra, ...distort, ...stylize, ...motion, ...shatter, ...ai, ...more, ...topaz, ...plugins2, ...plugins3, ...plugins4, ...element3d, ...lut, ...plugins5, ...plugins6, ...plugins7, ...plugins8, ...plugins9, ...plugins10, ...plugins10x(), ...looksTools, ...backgrounds, ...edits2, ...edits3, ...morphFx, ...audioFx, ...burnFx, ...numbersFx];
+export const EFFECTS = [...blurLight, ...color, ...aeColor, ...extra, ...distort, ...stylize, ...motion, ...shatter, ...ai, ...more, ...topaz, ...plugins2, ...plugins3, ...plugins4, ...element3d, ...lut, ...plugins5, ...plugins6, ...plugins7, ...plugins8, ...plugins9, ...plugins10, ...plugins10x(), ...looksTools, ...backgrounds, ...edits2, ...edits3, ...morphFx, ...controlsFx, ...audioFx, ...burnFx, ...numbersFx];
 // Como no After Effects: escalas, amplitudes, deslocamentos, rotações e distorções aceitam valores negativos
 // (ex.: escala −100 espelha, amplitude negativa inverte o sentido). O controle deslizante vai de −máx a +máx.
 const SIGNED = /^(scale|scale[XYWH]|ampX|ampY|amp|amplitude|rotation|rot|zoom|drift|offset[XY]?|shift[XY]?|twist|bulge|distort|skew|stretch|speed|spin|swirl|lensDistort|curvature|wave|phase|evolution)$/;
@@ -45,7 +46,7 @@ for (const e of EFFECTS) {
   }
 }
 export const EFFECT_MAP = Object.fromEntries(EFFECTS.map((e) => [e.type, e]));
-export const CATEGORIES = ['Luz e brilho', 'Movimento', 'Tempo', 'Desfoque', 'Estilizar', 'Distorção', 'Cor', '3D', 'Transições', 'Fundos animados', 'Looks · Subject', 'Looks · Matte', 'Looks · Lens', 'Looks · Camera', 'Looks · Post'];
+export const CATEGORIES = ['Luz e brilho', 'Movimento', 'Tempo', 'Desfoque', 'Estilizar', 'Distorção', 'Cor', '3D', 'Transições', 'Fundos animados', 'Controles de expressão', 'Looks · Subject', 'Looks · Matte', 'Looks · Lens', 'Looks · Camera', 'Looks · Post'];
 
 /** Efeito para parâmetros importados que não têm renderização equivalente. */
 export const GENERIC_EFFECT = { type: 'generic', label: 'Controles importados', category: 'Importado', params: [] };

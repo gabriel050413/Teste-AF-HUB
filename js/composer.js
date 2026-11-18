@@ -2,16 +2,15 @@
 // entre clipes, animações de texto, elementos (formas) e impactos — com prévia animada, busca, favoritos e duração.
 // Abre também pelos plugins "de painel" importados (.aex de Animation Composer, AEJuice Pack Manager, Motion Bro…).
 import { LAYER_FACTORIES, createProject } from './state.js';
-import { applyPreset, BUILTIN_PRESETS, stretchPreset, createEffectInstance } from './presets.js';
+import { applyPreset, createEffectInstance } from './presets.js';
 import { EFFECTS } from './effects.js';
 import { renderFrame } from './renderer.js';
 import { toast, storage } from './ui.js';
 import { escapeHtml } from './util.js';
-import { MO_TEXT, MO_INOUT, MO_ELEMENTS, MO_LOGO, shiftShapeKeys, TEXT_UNITS } from './mograph.js';
-import { STYLE_ELEMENTS, STYLE_INS, JUGG_TR } from './edit-styles.js';
+import { MO_TEXT, MO_INOUT, MO_ELEMENTS, MO_LOGO, shiftShapeKeys, TEXT_UNITS, MO_SMOOTH, MO_TEXT_EXPR } from './mograph.js';
 
 const FAV_KEY = 'motionframe.composerFavs';
-const CATS = ['Edit jugg', 'Mograph TikTok', 'Futebol', 'Mixtape', 'Mangá', 'Marketing', 'Motion design', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Fundos animados', 'Mograph texto', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Impacto'];
+const CATS = ['Mograph suave', 'Texto com expressão', 'Mograph texto', 'Texto por letra', 'Texto por palavra', 'Texto por linha', 'Motion design', 'Mograph formas', 'Logo reveal', 'Entradas', 'Saídas', 'Transições', 'Texto', 'Elementos', 'Fundos animados'];
 
 // ---------------------------------------------------------------- definições (tempo normalizado 0..1)
 // tr: { prop: [mode, [[u, valor, ease], ...]] }   fx: [[tipo, { param: [[u, valor, ease]] | constante }]]
@@ -28,14 +27,9 @@ const ENTRADAS = (W, H) => [
   ['Esticar', { scale: ['abs', [[0, [0, 100], 'easeOut'], [0.7, [108, 96], 'easeInOut'], [1, [100, 100]]]] }],
   ['Cair com quique', { position: ['rel', [[0, [0, -H * 0.6], 'easeIn'], [0.6, [0, 0], 'easeOut'], [0.8, [0, -H * 0.05], 'easeIn'], [1, [0, 0]]]] }],
   ['Balançar', { rotation: ['abs', [[0, -25, 'easeInOut'], [0.4, 14, 'easeInOut'], [0.7, -6, 'easeInOut'], [1, 0]]], opacity: ['abs', [[0, 0], [0.25, 100]]] }],
-  ['Desfoque', { opacity: ['abs', [[0, 0], [0.6, 100]]] }, [['blur', { radius: [[0, 80, 'easeOut'], [1, 0]] }]]],
-  ['Zoom blur', { scale: ['abs', [[0, [135, 135], 'easeOut'], [1, [100, 100]]]] }, [['radialBlur', { amount: [[0, 70, 'easeOut'], [1, 0]] }]]],
-  ['Glitch', {}, [['rgbSplit', { amount: [[0, 70, 'easeOut'], [1, 0]] }], ['glitch', { amount: [[0, 80, 'easeOut'], [1, 0]] }]]],
-  ['Flash', {}, [['exposure', { exposure: [[0, 3.5, 'easeOut'], [1, 0]] }]]],
   ['Revelar (wipe)', {}, [['pkWipe', { mode: 1, soft: 6, pct: [[0, 100, 'easeOut'], [1, 0]] }]]],
   ['Íris (círculo)', {}, [['pkWipe', { mode: 3, invert: true, soft: 4, pct: [[0, 100, 'easeOut'], [1, 0]] }]]],
   ['Relógio', {}, [['pkWipe', { mode: 2, soft: 3, pct: [[0, 100, 'easeInOut'], [1, 0]] }]]],
-  ['Pixels (dissolver)', {}, [['pkWipe', { mode: 16, soft: 30, pct: [[0, 100, 'linear'], [1, 0]] }]]],
 ];
 
 // transições: [nome, parte da saída (clipe A), parte da entrada (clipe B)]
@@ -44,16 +38,9 @@ const TRANSICOES = (W) => [
   ['Whip pan ←', [{ position: ['rel', [[0, [0, 0], 'easeIn'], [1, [-W, 0]]]] }, [['dirBlur', { angle: 90, length: [[0, 0, 'easeIn'], [1, 160]] }]]], [{ position: ['rel', [[0, [W, 0], 'easeOut'], [1, [0, 0]]]] }, [['dirBlur', { angle: 90, length: [[0, 160, 'easeOut'], [1, 0]] }]]]],
   ['Whip pan →', [{ position: ['rel', [[0, [0, 0], 'easeIn'], [1, [W, 0]]]] }, [['dirBlur', { angle: 90, length: [[0, 0, 'easeIn'], [1, 160]] }]]], [{ position: ['rel', [[0, [-W, 0], 'easeOut'], [1, [0, 0]]]] }, [['dirBlur', { angle: 90, length: [[0, 160, 'easeOut'], [1, 0]] }]]]],
   ['Giro', [{ rotation: ['abs', [[0, 0, 'easeIn'], [1, 180]]], scale: ['abs', [[0, [100, 100], 'easeIn'], [1, [160, 160]]]] }, [['radialBlur', { mode: 2, amount: [[0, 0, 'easeIn'], [1, 60]] }]]], [{ rotation: ['abs', [[0, -180, 'easeOut'], [1, 0]]], scale: ['abs', [[0, [160, 160], 'easeOut'], [1, [100, 100]]]] }, [['radialBlur', { mode: 2, amount: [[0, 60, 'easeOut'], [1, 0]] }]]]],
-  ['Flash branco', [{}, [['exposure', { exposure: [[0, 0, 'easeIn'], [1, 4]] }]]], [{}, [['exposure', { exposure: [[0, 4, 'easeOut'], [1, 0]] }]]]],
-  ['Glitch', [{}, [['rgbSplit', { amount: [[0, 0, 'easeIn'], [1, 90]] }], ['glitch', { amount: [[0, 0, 'easeIn'], [1, 100]] }]]], [{}, [['rgbSplit', { amount: [[0, 90, 'easeOut'], [1, 0]] }], ['glitch', { amount: [[0, 100, 'easeOut'], [1, 0]] }]]]],
-  ['Desfoque', [{}, [['blur', { radius: [[0, 0, 'easeIn'], [1, 90]] }]]], [{}, [['blur', { radius: [[0, 90, 'easeOut'], [1, 0]] }]]]],
   ['Wipe linear', [{}, [['pkWipe', { mode: 1, soft: 3, pct: [[0, 0, 'easeInOut'], [1, 100]] }]]], null],
-  ['Estrela', [{}, [['pkWipe', { mode: 5, soft: 2, pct: [[0, 0, 'easeInOut'], [1, 100]] }]]], null],
   ['Íris', [{}, [['pkWipe', { mode: 3, soft: 2, pct: [[0, 0, 'easeInOut'], [1, 100]] }]]], null],
   ['Relógio', [{}, [['pkWipe', { mode: 2, soft: 2, pct: [[0, 0, 'linear'], [1, 100]] }]]], null],
-  ['Xadrez', [{}, [['pkWipe', { mode: 7, soft: 1, freq: 6, pct: [[0, 0, 'linear'], [1, 100]] }]]], null],
-  ['Bolhas', [{}, [['pkWipe', { mode: 14, soft: 8, pct: [[0, 0, 'linear'], [1, 100]] }]]], null],
-  ['Luz (wipe com brilho)', [{}, [['pkWipe', { mode: 14, soft: 15, glow: 3, pct: [[0, 0, 'linear'], [1, 100]] }]]], null],
   ['Dissolver', [{ opacity: ['abs', [[0, 100, 'linear'], [1, 0]]] }, []], null],
 ];
 
@@ -101,17 +88,21 @@ function toPreset(name, tr, fx, d, out = false) {
 
 export function composerItems(W = 1080, H = 1920) {
   const items = [];
+  for (const [name, , fn] of MO_SMOOTH) {
+    items.push({ id: `ms:${name}`, cat: 'Mograph suave', name: `▶ ${name}`, kind: 'text', dur: 1.1, mk: (d, fs = 100) => fn(d, fs) });
+    items.push({ id: `mso:${name}`, cat: 'Mograph suave', name: `◀ ${name} (saída)`, kind: 'text', exit: true, dur: 0.8, mk: (d, fs = 100) => fn(d, fs, true) });
+  }
+  for (const [name, fn] of MO_TEXT_EXPR) items.push({ id: `mx:${name}`, cat: 'Texto com expressão', name, kind: 'text', dur: 1.4, mk: (d, fs = 100) => fn(d, fs).animators, texpr: (d, fs = 100) => fn(d, fs) });
   for (const [name, tr, fx] of ENTRADAS(W, H)) {
     items.push({ id: `in:${name}`, cat: 'Entradas', name, kind: 'in', dur: 0.6, make: (d) => toPreset(name, tr, fx, d) });
     items.push({ id: `out:${name}`, cat: 'Saídas', name, kind: 'out', dur: 0.6, make: (d) => toPreset(name, tr, fx, d, true) });
   }
   for (const [name, a, b] of TRANSICOES(W)) items.push({ id: `tr:${name}`, cat: 'Transições', name, kind: 'trans', dur: 0.5, make: (d) => ({ a: { ...toPreset(name, a[0], a[1], d / (b ? 2 : 1)), anchor: 'end' }, b: b ? toPreset(name, b[0], b[1], d / 2) : null }) });
-  for (const p of BUILTIN_PRESETS.filter((x) => x.category === 'Transições')) items.push({ id: `trb:${p.name}`, cat: 'Transições', name: p.name, kind: 'fx', dur: p.duration || 0.5, make: (d) => stretchPreset(p, d / (p.duration || d)) });
   for (const [name, mk] of TEXTOS(100)) items.push({ id: `tx:${name}`, cat: 'Texto', name, kind: 'text', dur: 1, mk });
   // pacote de motion design (mograph.js)
-  for (const [name, tr, fx] of MO_INOUT(W, H)) {
-    items.push({ id: `mdin:${name}`, cat: 'Motion design', name: `▶ ${name}`, kind: 'in', dur: 0.7, make: (d) => toPreset(name, tr, fx, d) });
-    items.push({ id: `mdout:${name}`, cat: 'Motion design', name: `◀ ${name} (saída)`, kind: 'out', dur: 0.6, make: (d) => toPreset(name, tr, fx, d, true) });
+  for (const [name, tr] of MO_INOUT(W, H)) { // sem os efeitos pesados (motion blur/desfoque): só a animação
+    items.push({ id: `mdin:${name}`, cat: 'Motion design', name: `▶ ${name}`, kind: 'in', dur: 0.7, make: (d) => toPreset(name, tr, [], d) });
+    items.push({ id: `mdout:${name}`, cat: 'Motion design', name: `◀ ${name} (saída)`, kind: 'out', dur: 0.6, make: (d) => toPreset(name, tr, [], d, true) });
   }
   for (const [name, based, fn] of TEXT_UNITS) {
     const cat = based === 4 ? 'Texto por linha' : based === 3 ? 'Texto por palavra' : 'Texto por letra';
@@ -124,18 +115,10 @@ export function composerItems(W = 1080, H = 1920) {
     l.effects.push(createEffectInstance(d.type, { mode: 3 }));
     return l;
   } });
-  for (const [name, fn] of MO_TEXT) items.push({ id: `mt:${name}`, cat: 'Mograph texto', name, kind: 'text', dur: 1, mk: (d, fs = 100) => fn(d, fs) });
+  for (const [name, fn] of MO_TEXT.filter(([n]) => !/Glitch/.test(n))) items.push({ id: `mt:${name}`, cat: 'Mograph texto', name, kind: 'text', dur: 1, mk: (d, fs = 100) => fn(d, fs) });
   for (const [name, mk] of MO_ELEMENTS) items.push({ id: `me:${name}`, cat: 'Mograph formas', name, kind: 'element', dur: 1, mk });
-  for (const [name, tr, fx] of MO_LOGO(W)) items.push({ id: `lg:${name}`, cat: 'Logo reveal', name, kind: 'in', dur: 1.2, make: (d) => toPreset(name, tr, fx, d) });
-  // pacotes de estilos de edit (edit-styles.js): elementos prontos, entradas/saídas e transições
-  for (const [cat, name, mk, d0] of STYLE_ELEMENTS) items.push({ id: `st:${name}`, cat, name, kind: 'element', dur: d0 || 1.5, mk });
-  for (const [cat, name, tr, fx] of STYLE_INS(W, H)) {
-    items.push({ id: `sti:${name}`, cat, name: `▶ ${name}`, kind: 'in', dur: 0.5, make: (d) => toPreset(name, tr, fx, d) });
-    items.push({ id: `sto:${name}`, cat, name: `◀ ${name} (saída)`, kind: 'out', dur: 0.5, make: (d) => toPreset(name, tr, fx, d, true) });
-  }
-  for (const [name, a, b] of JUGG_TR(W)) items.push({ id: `str:${name}`, cat: 'Edit jugg', name: `⇄ ${name}`, kind: 'trans', dur: 0.5, make: (d) => ({ a: { ...toPreset(name, a[0], a[1], d / 2), anchor: 'end' }, b: toPreset(name, b[0], b[1], d / 2) }) });
+  for (const [name, tr, fx] of MO_LOGO(W).filter(([n]) => !/Glitch|Flash/.test(n))) items.push({ id: `lg:${name}`, cat: 'Logo reveal', name, kind: 'in', dur: 1.2, make: (d) => toPreset(name, tr, fx, d) });
   for (const [name, mk] of ELEMENTOS) items.push({ id: `el:${name}`, cat: 'Elementos', name, kind: 'element', dur: 0.8, mk });
-  for (const p of BUILTIN_PRESETS.filter((x) => /Shakes|Glows|Velocity/.test(x.category))) items.push({ id: `fx:${p.name}`, cat: 'Impacto', name: p.name, kind: 'fx', dur: p.duration || 0.6, native: true, make: (d) => (p.duration ? stretchPreset(p, d / p.duration) : p) });
   return items;
 }
 
@@ -164,6 +147,7 @@ export function applyComposerItem(item0, dur, store) {
     if (!layer || layer.type !== 'text') { layer = LAYER_FACTORIES.text(P); layer.inPoint = t; layer.outPoint = Math.min(P.duration, t + Math.max(3, dur + 1)); store.addLayer(layer); }
     const anims = item.mk(dur * 1, layer.props.fontSize || 100).map((an) => shiftAnim(an, item.exit ? Math.max(layer.inPoint, layer.outPoint - dur) : layer.inPoint));
     layer.props.animators = [...(layer.props.animators || []), ...anims];
+    if (item.texpr) { const x = item.texpr(dur, layer.props.fontSize || 100); if (x.texpr) { layer.props.textExpr = x.texpr; layer.props.textExprOn = true; } if (x.text && /^Seu texto|^Texto$/i.test(layer.props.text)) layer.props.text = x.text; }
     store.commit('structure');
     return `Animação de texto “${item.name}” aplicada em “${layer.name}”.`;
   }
@@ -214,7 +198,9 @@ function previewProject(item, dur) {
   }
   if (item.kind === 'text') {
     const tx = LAYER_FACTORIES.text(P); tx.props.text = 'MOTION'; tx.props.fontSize = 56; tx.inPoint = 0; tx.outPoint = P.duration;
-    tx.props.animators = item.mk(dur, 56).map((an) => shiftAnim(an, s0)); P.layers = [tx, bg]; return P;
+    tx.props.animators = item.mk(dur, 56).map((an) => shiftAnim(an, s0)); P.layers = [tx, bg];
+    if (item.texpr) { const x = item.texpr(dur, 56); tx.inPoint = s0; if (x.texpr) tx.props.textExpr = x.texpr; tx.props.text = x.text || (/palavra/i.test(item.name) ? 'MOVE YOUR BODY' : 'MOTION'); }
+    return P;
   }
   if (item.kind === 'trans') {
     const A1 = card('#3d6cff', 'A'), B1 = card('#ff7a3d', 'B');
@@ -236,7 +222,7 @@ function previewProject(item, dur) {
 export class ComposerPanel {
   constructor(root, store, hooks = {}) {
     this.root = root; this.store = store; this.hooks = hooks;
-    this.cat = 'Mograph TikTok'; this.q = ''; this.sel = null; this.dur = null;
+    this.cat = 'Mograph suave'; this.q = ''; this.sel = null; this.dur = null;
     this.favs = new Set(storage.get(FAV_KEY, []));
     this.items = composerItems();
     this.raf = 0; this.thumbs = new Map(); this.ready = false; // monta na primeira vez que o painel abre
