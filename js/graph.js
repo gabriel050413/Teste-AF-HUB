@@ -66,6 +66,28 @@ export function invertSelected(store) {
   return list.length;
 }
 
+/**
+ * Aplica uma curva (cúbica [x1,y1,x2,y2]) ou uma curva nomeada ('elastic', 'bounce'…) aos trechos dos keyframes
+ * selecionados. Sem keyframes selecionados e com allIfNone: todos os trechos da camada selecionada. Devolve quantos.
+ */
+export function applyCurveSelected(store, c, { allIfNone = true } = {}) {
+  let list = editable(store);
+  if (!list.length && allIfNone) {
+    const layer = store.layer?.();
+    const props = [];
+    const walk = (o, d = 0) => { if (!o || typeof o !== 'object' || d > 8) return; if (Array.isArray(o.keys) && o.keys.length && typeof o.keys[0]?.t === 'number') { props.push(o); return; } for (const v of Object.values(o)) walk(v, d + 1); };
+    if (layer) { walk(layer.transform); walk(layer.effects); walk(layer.props); }
+    list = props.flatMap((prop) => prop.keys.slice(0, -1).map((key, i) => ({ key, next: prop.keys[i + 1], prop })));
+  }
+  for (const s of list) {
+    delete s.key.bz; delete s.key.outInf; if (s.next) delete s.next.inInf;
+    if (typeof c === 'string') { s.key.ease = c; delete s.key.curve; } else { s.key.ease = 'curve'; s.key.curve = c.map((v) => +(+v).toFixed(4)); }
+  }
+  return list.length;
+}
+/** Curva do primeiro trecho selecionado (para "ler do keyframe"). */
+export function selectedCurve(store) { const s = editable(store)[0]; return s ? curveOf(s.key, s.next) : null; }
+
 function curveHtml(store) {
   const list = editable(store);
   if (!list.length) {

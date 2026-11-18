@@ -3,6 +3,8 @@
   "iphone": "iPhone / iOS",
   "retro": "Retrô / Y2K",
   "mograph": "Mograph (rabiscos e caixas)",
+  "motion": "Motion design (formas)",
+  "hud": "HUD / câmera / social",
   "manga": "Mangá"
  },
  "license": "Desenhos originais do MotionFrame — livres para usar em edits (uso pessoal e comercial).",
@@ -335,6 +337,251 @@
    "name": "Moldura de quadrinho (3 quadros)",
    "svg": "assets/ai/manga/panel-frame.svg",
    "ai": "assets/ai/manga/panel-frame.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "gradient-blob",
+   "name": "Blob gradiente (líquido)",
+   "svg": "assets/ai/motion/gradient-blob.svg",
+   "ai": "assets/ai/motion/gradient-blob.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "blob-duo",
+   "name": "Blobs duplos",
+   "svg": "assets/ai/motion/blob-duo.svg",
+   "ai": "assets/ai/motion/blob-duo.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "ring",
+   "name": "Anel (círculo vazado)",
+   "svg": "assets/ai/motion/ring.svg",
+   "ai": "assets/ai/motion/ring.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "rings",
+   "name": "Anéis concêntricos",
+   "svg": "assets/ai/motion/rings.svg",
+   "ai": "assets/ai/motion/rings.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "dot-grid",
+   "name": "Grade de pontos",
+   "svg": "assets/ai/motion/dot-grid.svg",
+   "ai": "assets/ai/motion/dot-grid.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "halftone",
+   "name": "Meio-tom (gradiente de pontos)",
+   "svg": "assets/ai/motion/halftone.svg",
+   "ai": "assets/ai/motion/halftone.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "plus-grid",
+   "name": "Cruzes (+) espalhadas",
+   "svg": "assets/ai/motion/plus-grid.svg",
+   "ai": "assets/ai/motion/plus-grid.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "sparkle",
+   "name": "Brilho 4 pontas",
+   "svg": "assets/ai/motion/sparkle.svg",
+   "ai": "assets/ai/motion/sparkle.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "sparkles",
+   "name": "Brilhos (trio)",
+   "svg": "assets/ai/motion/sparkles.svg",
+   "ai": "assets/ai/motion/sparkles.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "zigzag",
+   "name": "Zigue-zague",
+   "svg": "assets/ai/motion/zigzag.svg",
+   "ai": "assets/ai/motion/zigzag.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "wave-line",
+   "name": "Linha ondulada suave",
+   "svg": "assets/ai/motion/wave-line.svg",
+   "ai": "assets/ai/motion/wave-line.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "spiral",
+   "name": "Espiral",
+   "svg": "assets/ai/motion/spiral.svg",
+   "ai": "assets/ai/motion/spiral.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "pill",
+   "name": "Pílula arredondada",
+   "svg": "assets/ai/motion/pill.svg",
+   "ai": "assets/ai/motion/pill.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "squircle",
+   "name": "Quadrado arredondado (squircle)",
+   "svg": "assets/ai/motion/squircle.svg",
+   "ai": "assets/ai/motion/squircle.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "triangle-outline",
+   "name": "Triângulo contorno",
+   "svg": "assets/ai/motion/triangle-outline.svg",
+   "ai": "assets/ai/motion/triangle-outline.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "brackets",
+   "name": "Colchetes [ ] de destaque",
+   "svg": "assets/ai/motion/brackets.svg",
+   "ai": "assets/ai/motion/brackets.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "circle-arrows",
+   "name": "Setas em círculo (loop)",
+   "svg": "assets/ai/motion/circle-arrows.svg",
+   "ai": "assets/ai/motion/circle-arrows.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "checker",
+   "name": "Xadrez (faixa)",
+   "svg": "assets/ai/motion/checker.svg",
+   "ai": "assets/ai/motion/checker.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "grid-perspective",
+   "name": "Grade em perspectiva (chão 3D)",
+   "svg": "assets/ai/motion/grid-perspective.svg",
+   "ai": "assets/ai/motion/grid-perspective.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "sticker-star",
+   "name": "Selo estrela (sticker)",
+   "svg": "assets/ai/motion/sticker-star.svg",
+   "ai": "assets/ai/motion/sticker-star.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "ticker",
+   "name": "Faixa de letreiro (marquee)",
+   "svg": "assets/ai/motion/ticker.svg",
+   "ai": "assets/ai/motion/ticker.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "lower-third",
+   "name": "Lower third (nome + cargo)",
+   "svg": "assets/ai/motion/lower-third.svg",
+   "ai": "assets/ai/motion/lower-third.ai"
+  },
+  {
+   "pack": "motion",
+   "id": "number-badge",
+   "name": "Contador (01)",
+   "svg": "assets/ai/motion/number-badge.svg",
+   "ai": "assets/ai/motion/number-badge.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "rec-frame",
+   "name": "Moldura REC (câmera)",
+   "svg": "assets/ai/hud/rec-frame.svg",
+   "ai": "assets/ai/hud/rec-frame.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "viewfinder",
+   "name": "Mira / foco",
+   "svg": "assets/ai/hud/viewfinder.svg",
+   "ai": "assets/ai/hud/viewfinder.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "crosshair",
+   "name": "Alvo (crosshair)",
+   "svg": "assets/ai/hud/crosshair.svg",
+   "ai": "assets/ai/hud/crosshair.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "progress",
+   "name": "Barra de progresso",
+   "svg": "assets/ai/hud/progress.svg",
+   "ai": "assets/ai/hud/progress.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "spinner",
+   "name": "Carregando (spinner)",
+   "svg": "assets/ai/hud/spinner.svg",
+   "ai": "assets/ai/hud/spinner.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "play-button",
+   "name": "Botão play",
+   "svg": "assets/ai/hud/play-button.svg",
+   "ai": "assets/ai/hud/play-button.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "like-burst",
+   "name": "Curtir (coração + estouro)",
+   "svg": "assets/ai/hud/like-burst.svg",
+   "ai": "assets/ai/hud/like-burst.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "comment",
+   "name": "Balão de comentário",
+   "svg": "assets/ai/hud/comment.svg",
+   "ai": "assets/ai/hud/comment.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "follow-pill",
+   "name": "Botão “Seguir” (pílula)",
+   "svg": "assets/ai/hud/follow-pill.svg",
+   "ai": "assets/ai/hud/follow-pill.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "battery-low",
+   "name": "Bateria fraca",
+   "svg": "assets/ai/hud/battery-low.svg",
+   "ai": "assets/ai/hud/battery-low.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "cursor-hand",
+   "name": "Cursor mão (clique)",
+   "svg": "assets/ai/hud/cursor-hand.svg",
+   "ai": "assets/ai/hud/cursor-hand.ai"
+  },
+  {
+   "pack": "hud",
+   "id": "timecode",
+   "name": "Timecode",
+   "svg": "assets/ai/hud/timecode.svg",
+   "ai": "assets/ai/hud/timecode.ai"
   }
  ]
 }

@@ -602,7 +602,7 @@ function renderLayerImage(layer, t, scale0, extra) {
   const rect = [pad / tex.w, pad / tex.h, (w * scale) / tex.w, (h * scale) / tex.h];
   gl.env = { u_time: lt, u_scale: scale, u_rect: rect };
   gl.lowp = !renderOpts.final && !renderOpts.hq; // prévia tocando/rascunho/pré-renderização: texturas de 8 bits (2× mais leve)
-  const env = { gl, t: lt, compT: t, project, scale, pad, w, h, W: tex.w, H: tex.h, rect, layer, fps, srcCanvas: canvas, final: renderOpts.final, srcW: vf?.a ? vf.a.videoWidth || vf.a.width : layer.type === 'image' ? getImage(layer.props.src)?.naturalWidth : 0 };
+  const env = { gl, t: lt, compT: t, project, scale, pad, w, h, W: tex.w, H: tex.h, rect, layer, fps, srcCanvas: canvas, final: renderOpts.final, below: extra?.below, srcW: vf?.a ? vf.a.videoWidth || vf.a.width : layer.type === 'image' ? getImage(layer.props.src)?.naturalWidth : 0 };
   const tex0 = tex;
   for (const { def, p, prev, fx } of evaluated) {
     try {
@@ -1071,7 +1071,7 @@ function drawListItem(ctx, layers, i, t, scale, fps, onAdjust) {
 
 /** Camada de ajuste sem efeitos que desenham a camada várias vezes (eco, motion blur, fatias/tempo): pode ler a tela direto. */
 function simpleAdjust(l) {
-  return !l.threeD && !l.effects.some((fx) => fx.enabled && (['echo', 'motionBlur', 'timeSlice', 'sTimeSlice', 'bccTemporalBlur', 'wideTime'].includes(fx.type) || EFFECT_MAP[fx.type]?.channelTime));
+  return !l.threeD && !l.effects.some((fx) => fx.enabled && (['morph', 'echo', 'motionBlur', 'timeSlice', 'sTimeSlice', 'bccTemporalBlur', 'wideTime'].includes(fx.type) || EFFECT_MAP[fx.type]?.channelTime));
 }
 
 export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
@@ -1124,8 +1124,19 @@ export function renderFrame(ctx, proj, t, scale = 1, opts = {}) {
       drawLayerList(cx, list.slice(idx + 1), Math.max(0, tt), scale, proj.fps);
       cache.set(tt, c); return c;
     };
-    renderLayer(ctx, l, t, scale, { snapshot: snapshotCanvas, snapshotAt, baseT: t }, proj.fps);
+    // Morph (mistura inteligente): desenha só algumas camadas de baixo (A, B) ou todas menos elas (o fundo)
+    const subs = [];
+    const below = (tt, sel = {}) => {
+      const c = makeCanvas(W, H); const cx = c.getContext('2d');
+      const rest = list.slice(idx + 1);
+      const sub = sel.only ? rest.filter((x) => sel.only.includes(x.id)) : rest.filter((x) => !(sel.except || []).includes(x.id));
+      if (!sel.only) { cx.fillStyle = proj.background; cx.fillRect(0, 0, W, H); }
+      drawLayerList(cx, sub, Math.max(0, tt), scale, proj.fps);
+      subs.push(c); return c;
+    };
+    renderLayer(ctx, l, t, scale, { snapshot: snapshotCanvas, snapshotAt, baseT: t, below }, proj.fps);
     for (const c of cache.values()) releaseCanvas(c);
+    for (const c of subs) releaseCanvas(c);
   });
   ctx.restore();
   trimCanvases();

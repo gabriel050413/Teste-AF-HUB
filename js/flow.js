@@ -3,7 +3,7 @@
 // com refinamento sub-pixel, e gera o quadro intermediário deformando A e B ao longo do movimento.
 import { PRELUDE } from './gl.js';
 
-const FLOW_GLSL = `
+export const FLOW_GLSL = `
 vec2 decodeFlow(vec4 c) {
   vec2 hi = vec2(c.r, c.b) * 255.0, lo = vec2(c.g, c.a) * 255.0;
   return (hi * 256.0 + lo) / 65535.0 * 256.0 - 128.0;
