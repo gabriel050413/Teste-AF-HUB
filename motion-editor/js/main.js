@@ -12,6 +12,8 @@ import { startRenderWorker, workerEligible } from './render-client.js';
 import { prepare, prepareEpoch, exactFramesReady, pauseAll, setMediaListener, videoThumb, ensureCaches, setCacheListener, cacheStatus, cacheVersion, detectFps, mediaReady, framesDrawable, liveVideoAt } from './media.js';
 import { loadAudio, playAudio, stopAudio, detectBeats, pruneAudio } from './audio.js';
 import { valueAt, setValue, setKey, anim } from './anim.js';
+import { openFlowMograph } from './flow-mograph.js';
+import { createPen, syncPen, penPointer, penUndo, drawPen } from './pen-tracer.js';
 import { setThreeD } from './three-d.js';
 import { openSceneSetup } from './e3d-scene.js';
 import { setModelListener } from './model3d.js';
@@ -294,6 +296,7 @@ function drawOverlay() {
   octx.clearRect(0, 0, overlay.width, overlay.height);
   trackerPanel.drawOverlay(octx, k, window.devicePixelRatio || 1);
   drawRotoOverlay(octx, k);
+  drawPenOverlay(octx, k);
   const layer = store.layer();
   // prévia limpa: a caixa só aparece enquanto você arrasta/redimensiona a camada
   if (!gesture?.moved) return;
@@ -464,6 +467,7 @@ overlay.addEventListener('pointerdown', (e) => {
   const r = overlay.getBoundingClientRect();
   const toComp = (ev) => [((ev.clientX - r.left) / r.width) * store.project.width, ((ev.clientY - r.top) / r.height) * store.project.height];
   if (trackPick) { const cb = trackPick; trackPick = null; cb(toComp(e)); return; }
+  if (penMode) { penDown(toComp(e), e.pointerId, toComp); return; }
   if (drawMode) { drawPointer('down', toComp(e), e.pointerId, toComp); return; }
   if (rotoMode) { rotoPointer('down', toComp(e), e, toComp); return; }
   // tracker aberto: arrastar a caixa do Track Point / cantos das regiões (como no AE)
@@ -485,6 +489,7 @@ overlay.addEventListener('pointerdown', (e) => {
 });
 overlay.addEventListener('pointermove', (e) => {
   if (trackDrag && e.pointerId === trackDrag.id) { trackerPanel.drag(trackDrag, ...trackDrag.toComp(e)); drawOverlay(); return; }
+  if (penMode?.ptr === e.pointerId) { penMove(penMode.toComp(e)); return; }
   if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('move', drawMode.stroke.toComp(e)); return; }
   if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('move', rotoMode.stroke.toComp(e), e); return; }
   if (!gesture || !pointers.has(e.pointerId)) return;
@@ -514,7 +519,7 @@ const endPointer = (e) => {
     dirty = true;
   }
 };
-overlay.addEventListener('pointerup', (e) => { if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
+overlay.addEventListener('pointerup', (e) => { if (penMode?.ptr === e.pointerId) { penUp(); return; } if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
 overlay.addEventListener('pointercancel', endPointer);
 
 // ---- editar texto com toque duplo (na prévia ou no clipe da timeline), como em todos os editores
@@ -604,6 +609,50 @@ function endRoto() {
   rotoMode = null; document.querySelector('.roto-bar')?.remove(); drawOverlay();
   openSheet('effects');
   toast('Recorte pronto ✓ Ajuste a borda em Efeitos › Roto Brush (Suavizar, Encolher). Pinte em outro quadro se o objeto mudar muito.', 'ok', 4500);
+}
+
+// ---- Lápis Tracer: pontos + curvas entre as pontas, o traço sai animado se desenhando
+let penMode = null; // { pen, ptr, toComp }
+const penLocal = (pt) => { const L = penMode.pen.layer, [cx, cy] = valueAt(L.transform.position, store.time); return [pt[0] - cx, pt[1] - cy]; };
+function startPen() {
+  setPlaying(false); closeSheet();
+  const l = LAYER_FACTORIES.shape(store.project, []);
+  l.name = 'Traço (Lápis Tracer)'; l.inPoint = store.time; l.outPoint = store.project.duration;
+  store.addLayer(l);
+  penMode = { pen: createPen(l), ptr: null, toComp: null };
+  penMode.t0 = store.time;
+  document.querySelector('.draw-bar')?.remove();
+  document.getElementById('stage').insertAdjacentHTML('beforeend', `<div class="draw-bar pen-bar"><span>Toque = ponto · arraste = curva · ◆ = curvar trecho</span>
+    <input type="color" data-p="color" value="#ffffff" title="Cor"><input type="number" data-p="width" value="8" min="1" max="80" title="Espessura">
+    <label class="pen-chk"><input type="checkbox" data-p="anim" checked>Animar</label>
+    <button data-p="undo">${ico('undo')}</button><button data-p="done" class="ok">Concluir</button></div>`);
+  const bar = document.querySelector('.pen-bar');
+  bar.addEventListener('click', (e) => { const b = e.target.closest('button[data-p]'); if (!b) return; if (b.dataset.p === 'done') endPen(); else { penUndo(penMode.pen); penSync(); } });
+  bar.querySelector('[data-p="color"]').addEventListener('input', (e) => { const h = e.target.value; penMode.pen.color = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); penSync(); });
+  bar.querySelector('[data-p="width"]').addEventListener('input', (e) => { penMode.pen.width = Math.max(1, +e.target.value || 8); penSync(); });
+  bar.querySelector('[data-p="anim"]').addEventListener('change', (e) => { penMode.pen.animate = e.target.checked; penSync(); });
+  toast('Lápis Tracer: toque para pôr os pontos, arraste ao tocar para curvar, ou arraste o losango amarelo no meio de um trecho. Toque no 1º ponto para fechar.', 'info', 6000);
+}
+function penSync() { if (!penMode) return; const p = penMode.pen; const keep = p.animate; p.animate = false; syncPen(p, penMode.t0); p.animate = keep; store.emit('preview'); drawOverlay(); }
+function penDown(pt, id, toComp) {
+  const k = overlay.width / store.project.width;
+  if (penPointer(penMode.pen, 'down', penLocal(pt), 16 * (window.devicePixelRatio || 1) / Math.max(0.05, k))) { penMode.ptr = id; penMode.toComp = toComp; penSync(); }
+}
+function penMove(pt) { if (penPointer(penMode.pen, 'move', penLocal(pt))) penSync(); }
+function penUp() { penPointer(penMode.pen, 'up'); penMode.ptr = null; penSync(); }
+function drawPenOverlay(ctx, k) {
+  if (!penMode) return;
+  const [cx, cy] = valueAt(penMode.pen.layer.transform.position, store.time);
+  drawPen(ctx, penMode.pen, (q) => [(q[0] + cx) * k, (q[1] + cy) * k]);
+}
+function endPen() {
+  const m = penMode; penMode = null;
+  document.querySelector('.pen-bar')?.remove();
+  if (!m) return;
+  syncPen(m.pen, m.t0); // agora com a animação de desenhar (se ligada)
+  if (!m.pen.layer.props.shapes.length) { store.select(m.pen.layer.id); deleteSelection(); drawOverlay(); return; }
+  store.select(m.pen.layer.id); store.commit('structure'); drawOverlay();
+  toast(m.pen.animate ? 'Traço pronto ✓ Ele se desenha em 1 s a partir da agulha (Trim Paths — mude a duração nos keyframes).' : 'Traço pronto ✓', 'ok', 4000);
 }
 
 // ---- desenho livre / vetorial (como no Alight Motion): cada traço vira um caminho numa camada de formas
@@ -825,6 +874,41 @@ propsInspector = new Inspector(document.getElementById('propsPanel'), store, 'pr
   trackMatte: (layer, mode) => setTrackMatte(layer, mode),
 });
 /** Track Matte (como no AE): a camada logo acima na lista vira a máscara (alfa ou luma) e fica oculta. */
+/** Morph (mistura inteligente) entre 2 camadas: camada de ajuste com o efeito Morph por cima das duas. */
+function morphTransition(dur = 0.8) {
+  const vis = (l) => l && !['audio', 'adjustment', 'camera', 'null'].includes(l.type);
+  let sel = store.selectedLayers().filter(vis);
+  const L = store.layers;
+  if (sel.length === 1) { const i = L.indexOf(sel[0]); const nb = L.slice(i + 1).find(vis); if (nb) sel = [sel[0], nb]; }
+  if (sel.length !== 2) { toast('Selecione 2 camadas (formas, textos, fotos ou vídeos) — segure Shift ou toque longo para selecionar a segunda.', 'warn', 5000); return null; }
+  // A = a que sai (começa antes; empate: a de baixo), B = a que entra
+  let [A, B] = sel;
+  if (B.inPoint < A.inPoint - 1e-6 || (Math.abs(B.inPoint - A.inPoint) < 1e-6 && L.indexOf(B) > L.indexOf(A))) [A, B] = [B, A];
+  let t0, t1;
+  const ov0 = Math.max(A.inPoint, B.inPoint), ov1 = Math.min(A.outPoint, B.outPoint);
+  if (ov1 - ov0 >= 0.2) {
+    t0 = Math.min(Math.max(store.time, ov0), ov1 - 0.2);
+    if (B.inPoint > A.inPoint + 1e-6) t0 = B.inPoint; // B entra depois: o morph começa quando B entra
+    t1 = Math.min(ov1, t0 + dur);
+  } else {
+    // sem sobreposição (corte seco): A segura até o fim do morph e B entra no começo dele
+    t0 = Math.max(B.inPoint, 0); t1 = t0 + dur;
+    A.outPoint = Math.max(A.outPoint, t1);
+  }
+  // fora da janela cada uma aparece sozinha
+  if (A.outPoint > t1 + 1e-6) A.outPoint = t1;
+  if (B.type !== 'video' && B.inPoint < t0 - 1e-6) B.inPoint = t0;
+  const adj = LAYER_FACTORIES.adjustment(store.project);
+  adj.name = `Morph · ${A.name} → ${B.name}`;
+  adj.inPoint = t0; adj.outPoint = t1;
+  adj.effects.push(createEffectInstance('morph', {}, 0, { morphA: A.id, morphB: B.id }));
+  L.splice(Math.min(L.indexOf(A), L.indexOf(B)), 0, adj);
+  store.selectedLayerId = adj.id; store.multi?.clear();
+  store.commit('structure');
+  toast(`Morph criado: “${A.name}” vira “${B.name}” (${(t1 - t0).toFixed(2)} s). Ajuste a curva, o brilho na borda e a mistura em Efeitos.`, 'ok', 5000);
+  return adj;
+}
+
 function setTrackMatte(layer, mode) {
   const L = store.layers, i = L.indexOf(layer);
   if (mode && i < 1) { toast('Para usar Track Matte, coloque a camada da máscara (texto, forma…) logo acima desta na lista, como no After Effects.', 'warn', 5000); return; }
@@ -1110,7 +1194,7 @@ function simpleItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'],
+      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
       ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar']];
@@ -1136,7 +1220,7 @@ function renderToolbar() {
   if (lay && desktop.matches && pcActive()) {
     const have = new Set(lay.map((x) => x[0]));
     const extra = advancedItems(layer, t, many).filter((x) => x[0] !== 'sep' && x[0] !== 'deselect' && !have.has(x[0]) && (have.add(x[0]), true)).map(([c, i, l]) => [c, i, l, false, '']);
-    if (!layer && many < 2) for (const x of [['captions', 'captions', 'Legendas'], ['beat-sync', 'beat', 'Batidas'], ['voice', 'mic', 'Voz'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera'], ['add-brush', 'freehand', 'Desenho'], ['add-vector', 'vector', 'Vetor'], ['tour', 'help', 'Tutorial']]) if (!have.has(x[0])) { have.add(x[0]); extra.push([...x, false, '']); }
+    if (!layer && many < 2) for (const x of [['captions', 'captions', 'Legendas'], ['beat-sync', 'beat', 'Batidas'], ['voice', 'mic', 'Voz'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera'], ['add-brush', 'freehand', 'Desenho'], ['add-vector', 'vector', 'Vetor'], ['pen-tracer', 'freehand', 'Lápis Tracer'], ['pen-tracer', 'freehand', 'Lápis Tracer'], ['tour', 'help', 'Tutorial']]) if (!have.has(x[0])) { have.add(x[0]); extra.push([...x, false, '']); }
     lay = [...lay.filter((x) => x[0] !== 'all-tools'), ...extra];
   }
   const items = lay || (simple ? simpleItems(layer, t, many) : advancedItems(layer, t, many));
@@ -1173,7 +1257,7 @@ function advancedItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
+      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
       ['up', '▲', 'Subir'], ['down', '▼', 'Descer'],
@@ -1879,6 +1963,8 @@ const commands = {
   sequence: () => sequenceLayers(),
   freeze: () => freezeFrame(store.layer()),
   'time-reverse': () => timeReverse(store.layer()),
+  morph: () => morphTransition(),
+  'flow-mograph': () => openFlowMograph({ store, modal, toast }),
   'track-matte': async () => {
     const l = store.layer(); if (!l) return toast('Selecione a camada que vai aparecer DENTRO da máscara.', 'warn');
     const L = store.layers, m = L[L.indexOf(l) - 1];
@@ -1943,6 +2029,7 @@ const commands = {
   'add-brush': () => startDraw(false),
   roto: () => startRoto(),
   'add-vector': () => startDraw(true),
+  'pen-tracer': () => startPen(),
   opacity: () => openProps('blend'),
   'motion-blur': () => {
     const l = store.layer(); if (!l) return toast('Selecione uma camada.', 'warn');

@@ -1890,3 +1890,33 @@ body[data-pc] .crs-coach{left:auto;right:18px;transform:none}
 .aia-add{aspect-ratio:1;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:repeating-conic-gradient(#d9d9de 0 25%,#f2f2f5 0 50%) 0 0/16px 16px;display:grid;place-items:center;padding:8px;cursor:pointer}
 .aia-add img{max-width:100%;max-height:100%;object-fit:contain}
 .aia-dl{font-size:11px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:inherit;cursor:pointer}
+.pen-bar input[type=color] { width: 30px; height: 30px; border: 0; padding: 0; background: none; border-radius: 50%; }
+.pen-bar input[type=number] { width: 52px; height: 30px; border-radius: 999px; border: 0; background: #ffffff1f; color: #fff; text-align: center; }
+.pen-bar .pen-chk { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; }
+/* Flow Mograph (curvas) */
+.flowmg { display: flex; flex-direction: column; gap: 10px; }
+.fm-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.fm-tabs button { white-space: nowrap; font-size: 12px; padding: 5px 9px; border-radius: 999px; }
+.fm-tabs button.on { background: #2d8ceb; color: #fff; border-color: #2d8ceb; }
+.fm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; }
+.fm-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; font-size: 11px; line-height: 1.15; white-space: normal; }
+.fm-card svg { width: 64px; height: 46px; color: #2d8ceb; overflow: visible; }
+.fm-card.on { outline: 2px solid #2d8ceb; }
+.fm-card i { position: absolute; top: 2px; right: 4px; font-style: normal; opacity: .6; }
+.fm-edit { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.fm-graph { width: 240px; max-width: 100%; aspect-ratio: 1; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; touch-action: none; color: #bbb; }
+.fm-curve { stroke: #2d8ceb; stroke-width: 3; stroke-linecap: round; }
+.fm-arm { stroke: #ffb020; stroke-width: 1.5; }
+.fm-h { fill: #ffb020; stroke: #000; stroke-width: 1.5; cursor: grab; }
+.fm-side { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px; }
+.fm-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.fm-nums label { display: flex; flex-direction: column; font-size: 11px; color: #aaa; }
+.fm-nums input { width: 100%; }
+.fm-prev { display: flex; flex-direction: column; gap: 6px; }
+.fm-track { position: relative; height: 26px; border-radius: 6px; background: rgba(255,255,255,.05); overflow: visible; }
+.fm-dot { position: absolute; left: 4px; top: 5px; width: 16px; height: 16px; border-radius: 50%; background: #2d8ceb; animation: fmDot 1.2s linear infinite alternate; }
+.fm-track:first-child { margin-right: 24px; }
+.fm-sq { position: absolute; left: calc(50% - 11px); top: 2px; width: 22px; height: 22px; border-radius: 4px; background: #ffb020; animation: fmSq 1.2s linear infinite alternate; }
+.fm-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.fm-btns button { font-size: 12px; }
+.aia-grid.dark .aia-add{background:repeating-conic-gradient(#1b1b22 0 25%,#26262f 0 50%) 0 0/16px 16px}

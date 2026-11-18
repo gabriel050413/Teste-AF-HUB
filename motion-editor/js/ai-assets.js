@@ -5,6 +5,7 @@ import { modal, toast } from './ui.js';
 import { escapeHtml, download } from './util.js';
 
 let manifest = null;
+const DARK = new Set(['motion', 'hud']); // pacotes com desenhos brancos: fundo escuro na prévia
 async function load() {
   if (!manifest) manifest = await (await fetch('assets/ai/manifest.json')).json();
   return manifest;
@@ -24,13 +25,13 @@ export async function openAiAssets(api) {
   const grid = () => m.items.filter((x) => x.pack === pack).map((x) => `<div class="aia-it"><button class="aia-add" data-add="${x.id}" title="Colocar no projeto"><img src="${x.svg}" alt="" loading="lazy"></button><span>${escapeHtml(x.name)}</span><button class="aia-dl" data-dl="${x.id}" title="Baixar .ai">⤓ .ai</button></div>`).join('');
   await modal('Elementos .ai grátis', `<p class="muted small">${escapeHtml(m.license)} Toque para colocar no projeto ou em ⤓ para baixar o .ai (abre no Illustrator e no After Effects).</p>
     <div class="chips aia-tabs">${Object.entries(m.packs).map(([k, l]) => `<button class="chip ${k === pack ? 'on' : ''}" data-pack="${k}">${escapeHtml(l)}</button>`).join('')}</div>
-    <div class="aia-grid">${grid()}</div>
+    <div class="aia-grid ${DARK.has(pack) ? 'dark' : ''}">${grid()}</div>
     <button class="wide" data-all>⤓ Baixar todos deste pacote</button>`, [{ label: 'Fechar', value: null }], {
     wide: true,
     onMount: (w, close) => {
       const g = w.querySelector('.aia-grid');
       w.querySelectorAll('[data-pack]').forEach((b) => b.addEventListener('click', () => {
-        pack = b.dataset.pack; g.innerHTML = grid();
+        pack = b.dataset.pack; g.innerHTML = grid(); g.classList.toggle('dark', DARK.has(pack));
         w.querySelectorAll('[data-pack]').forEach((o) => o.classList.toggle('on', o === b));
       }));
       g.addEventListener('click', async (e) => {

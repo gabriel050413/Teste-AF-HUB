@@ -194,9 +194,65 @@ add('manga', 'sweat', 'Gota de suor', 300, 400, '<path d="M150 20 C230 150 270 2
 add('manga', 'anger', 'Veia de raiva', 400, 400, '<g stroke="#e00" stroke-width="26" fill="none" stroke-linecap="round"><path d="M80 170 Q150 150 170 80"/><path d="M230 80 Q250 150 320 170"/><path d="M320 230 Q250 250 230 320"/><path d="M170 320 Q150 250 80 230"/></g>')
 add('manga', 'panel-frame', 'Moldura de quadrinho (3 quadros)', 1000, 1400, '<rect width="1000" height="1400" fill="#fff"/><g fill="none" stroke="#000" stroke-width="14"><rect x="40" y="40" width="920" height="420"/><path d="M40 500 h560 l-80 400 h-480z"/><path d="M640 500 h320 v400 h-400z"/><rect x="40" y="940" width="920" height="420"/></g>')
 
+# ------------------------------------------------------------------ Motion design (formas geométricas e gráficos)
+def blob(cx, cy, r, seed, n=9, k=0.22):
+    rnd = random.Random(seed); P = []
+    for i in range(n):
+        a = i / n * 2 * math.pi; rr = r * (1 + (rnd.random() - 0.5) * 2 * k)
+        P.append((cx + math.cos(a) * rr, cy + math.sin(a) * rr))
+    d = ''
+    for i in range(n):
+        p0, p1, p2 = P[i - 1], P[i], P[(i + 1) % n]
+        m0 = ((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2); m1 = ((p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2)
+        d += (f'M{m0[0]:.1f} {m0[1]:.1f}' if i == 0 else '') + f' Q{p1[0]:.1f} {p1[1]:.1f} {m1[0]:.1f} {m1[1]:.1f}'
+    return d + 'z'
+
+
+GR = lambda id_, a, b, x2='1', y2='1': f'<defs><linearGradient id="{id_}" x1="0" y1="0" x2="{x2}" y2="{y2}"><stop offset="0" stop-color="{a}"/><stop offset="1" stop-color="{b}"/></linearGradient></defs>'
+add('motion', 'gradient-blob', 'Blob gradiente (líquido)', 800, 800, GR('gb', '#7b5cff', '#ff4fa3') + f'<path d="{blob(400, 400, 300, 3)}" fill="url(#gb)"/>')
+add('motion', 'blob-duo', 'Blobs duplos', 900, 700, GR('bd', '#00e0ff', '#2b5cff') + GR('bd2', '#ffd23f', '#ff6a3d') + f'<path d="{blob(330, 360, 260, 7)}" fill="url(#bd)"/><path d="{blob(620, 330, 180, 11)}" fill="url(#bd2)" fill-opacity=".92"/>')
+add('motion', 'ring', 'Anel (círculo vazado)', 600, 600, '<circle cx="300" cy="300" r="240" fill="none" stroke="#fff" stroke-width="40"/>')
+add('motion', 'rings', 'Anéis concêntricos', 800, 800, ''.join(f'<circle cx="400" cy="400" r="{60+i*55}" fill="none" stroke="#fff" stroke-width="{14-i}" opacity="{1-i*0.1:.2f}"/>' for i in range(7)))
+add('motion', 'dot-grid', 'Grade de pontos', 800, 800, ''.join(f'<circle cx="{60+x*68}" cy="{60+y*68}" r="9" fill="#fff"/>' for x in range(11) for y in range(11)))
+add('motion', 'halftone', 'Meio-tom (gradiente de pontos)', 1000, 600, ''.join(f'<circle cx="{25+x*50}" cy="{25+y*50}" r="{max(1, 22*(1-x/20)):.1f}" fill="#fff"/>' for x in range(20) for y in range(12)))
+add('motion', 'plus-grid', 'Cruzes (+) espalhadas', 800, 800, ''.join(f'<path d="M{100+x*150} {80+y*150} v40 M{80+x*150} {100+y*150} h40" stroke="#fff" stroke-width="8" stroke-linecap="round"/>' for x in range(5) for y in range(5)))
+add('motion', 'sparkle', 'Brilho 4 pontas', 600, 600, '<g fill="#fff">' + star4(300, 300, 280, 26) + '</g>')
+add('motion', 'sparkles', 'Brilhos (trio)', 900, 700, '<g fill="#fff">' + star4(320, 360, 280, 26) + star4(700, 180, 130, 14) + star4(740, 520, 80, 10) + '</g>')
+add('motion', 'zigzag', 'Zigue-zague', 1000, 160, '<path d="M20 120 ' + ' '.join(f'L{20+(i+1)*60} {40 if i % 2 == 0 else 120}' for i in range(16)) + '" stroke="#fff" stroke-width="22" fill="none" stroke-linejoin="round" stroke-linecap="round"/>')
+add('motion', 'wave-line', 'Linha ondulada suave', 1000, 200, '<path d="M0 100 ' + ' '.join(f'C{i*200+66} {20} {i*200+133} {180} {i*200+200} 100' for i in range(5)) + '" stroke="#fff" stroke-width="18" fill="none" stroke-linecap="round"/>')
+add('motion', 'spiral', 'Espiral', 800, 800, '<path d="M400 400 ' + ' '.join(f'L{400+math.cos(a)*a*14:.1f} {400+math.sin(a)*a*14:.1f}' for a in [i * 0.08 for i in range(1, 330)]) + '" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round"/>')
+add('motion', 'pill', 'Pílula arredondada', 800, 260, GR('pl', '#2b5cff', '#7b5cff', '1', '0') + '<rect x="10" y="10" width="780" height="240" rx="120" fill="url(#pl)"/>')
+add('motion', 'squircle', 'Quadrado arredondado (squircle)', 600, 600, '<path d="M300 20 C520 20 580 80 580 300 C580 520 520 580 300 580 C80 580 20 520 20 300 C20 80 80 20 300 20z" fill="#fff"/>')
+add('motion', 'triangle-outline', 'Triângulo contorno', 700, 620, '<path d="M350 40 L660 580 H40z" fill="none" stroke="#fff" stroke-width="30" stroke-linejoin="round"/>')
+add('motion', 'brackets', 'Colchetes [ ] de destaque', 900, 400, '<path d="M120 30 H40 V370 H120 M780 30 H860 V370 H780" stroke="#fff" stroke-width="26" fill="none" stroke-linecap="square"/>')
+add('motion', 'circle-arrows', 'Setas em círculo (loop)', 600, 600, '<path d="M300 70 A230 230 0 1 1 90 200" stroke="#fff" stroke-width="30" fill="none" stroke-linecap="round"/><path d="M60 110 L90 205 L185 170" stroke="#fff" stroke-width="30" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+add('motion', 'checker', 'Xadrez (faixa)', 1000, 200, ''.join(f'<rect x="{x*50}" y="{y*50}" width="50" height="50" fill="#fff"/>' for x in range(20) for y in range(4) if (x + y) % 2 == 0))
+add('motion', 'grid-perspective', 'Grade em perspectiva (chão 3D)', 1000, 600, ''.join(f'<path d="M500 0 L{-1000+i*200} 600" stroke="#fff" stroke-width="3" opacity=".8"/>' for i in range(16)) + ''.join(f'<path d="M0 {i*i*12} H1000" stroke="#fff" stroke-width="3" opacity=".8"/>' for i in range(1, 8)))
+add('motion', 'sticker-star', 'Selo estrela (sticker)', 700, 700, '<path d="M' + ' L'.join(f'{350+math.cos(i/32*2*math.pi)*(320 if i % 2 == 0 else 280):.0f} {350+math.sin(i/32*2*math.pi)*(320 if i % 2 == 0 else 280):.0f}' for i in range(32)) + 'z" fill="#ffd23f"/>' + t(350, 330, 'NEW', 150, 900, INK, 'middle') + t(350, 450, 'DROP', 96, 800, INK, 'middle'))
+add('motion', 'ticker', 'Faixa de letreiro (marquee)', 1600, 160, '<rect width="1600" height="160" fill="#ffd23f"/>' + t(20, 112, ' ✦ '.join(['NEW EDIT'] * 6), 76, 900, INK))
+add('motion', 'lower-third', 'Lower third (nome + cargo)', 1000, 260, '<rect x="0" y="40" width="16" height="180" fill="#2b5cff"/><rect x="40" y="40" width="720" height="110" fill="#fff"/>' + t(70, 120, 'NOME SOBRENOME', 64, 800) + '<rect x="40" y="150" width="480" height="70" fill="#111"/>' + t(70, 200, 'editor · motion design', 38, 500, '#fff'))
+add('motion', 'number-badge', 'Contador (01)', 400, 400, '<circle cx="200" cy="200" r="180" fill="none" stroke="#fff" stroke-width="12"/>' + t(200, 250, '01', 160, 800, '#fff', 'middle'))
+
+# ------------------------------------------------------------------ HUD / câmera / UI
+add('hud', 'rec-frame', 'Moldura REC (câmera)', 1080, 1920,
+    '<g stroke="#fff" stroke-width="10" fill="none" stroke-linecap="square"><path d="M60 200 V60 H200 M880 60 H1020 V200 M1020 1720 V1860 H880 M200 1860 H60 V1720"/></g>'
+    '<circle cx="110" cy="130" r="20" fill="#ff2d2d"/>' + t(150, 145, 'REC', 48, 800, '#fff') + t(1000, 145, '00:00:24:12', 40, 600, '#fff', 'end')
+    + '<path d="M540 920 v80 M500 960 h80" stroke="#fff" stroke-width="6"/>' + t(80, 1820, '4K  60FPS', 36, 700, '#fff') + '<rect x="840" y="1790" width="110" height="44" rx="8" fill="none" stroke="#fff" stroke-width="5"/><rect x="848" y="1798" width="70" height="28" rx="4" fill="#fff"/>')
+add('hud', 'viewfinder', 'Mira / foco', 600, 600, '<g stroke="#fff" stroke-width="10" fill="none"><path d="M40 160 V40 H160 M440 40 H560 V160 M560 440 V560 H440 M160 560 H40 V440"/><circle cx="300" cy="300" r="60"/></g><path d="M300 210 v40 M300 350 v40 M210 300 h40 M350 300 h40" stroke="#fff" stroke-width="8"/>')
+add('hud', 'crosshair', 'Alvo (crosshair)', 600, 600, '<circle cx="300" cy="300" r="200" fill="none" stroke="#fff" stroke-width="8"/><circle cx="300" cy="300" r="100" fill="none" stroke="#fff" stroke-width="6" stroke-dasharray="20 16"/><path d="M300 40 v140 M300 420 v140 M40 300 h140 M420 300 h140" stroke="#fff" stroke-width="8"/><circle cx="300" cy="300" r="10" fill="#ff2d2d"/>')
+add('hud', 'progress', 'Barra de progresso', 1000, 120, '<rect x="0" y="40" width="1000" height="40" rx="20" fill="#fff" fill-opacity=".25"/><rect x="0" y="40" width="640" height="40" rx="20" fill="#fff"/><circle cx="640" cy="60" r="34" fill="#fff"/>')
+add('hud', 'spinner', 'Carregando (spinner)', 400, 400, ''.join(f'<rect x="188" y="30" width="24" height="90" rx="12" fill="#fff" opacity="{(i+1)/12:.2f}" transform="rotate({i*30} 200 200)"/>' for i in range(12)))
+add('hud', 'play-button', 'Botão play', 500, 500, '<circle cx="250" cy="250" r="230" fill="#fff" fill-opacity=".18" stroke="#fff" stroke-width="10"/><path d="M200 150 L360 250 L200 350z" fill="#fff"/>')
+add('hud', 'like-burst', 'Curtir (coração + estouro)', 600, 600, '<path d="M300 500 C120 380 60 290 60 210 C60 130 120 80 190 80 C240 80 280 110 300 150 C320 110 360 80 410 80 C480 80 540 130 540 210 C540 290 480 380 300 500z" fill="#ff2d55"/>' + ''.join(f'<path d="M{300+math.cos(a)*250:.0f} {290+math.sin(a)*250:.0f} L{300+math.cos(a)*290:.0f} {290+math.sin(a)*290:.0f}" stroke="#ff2d55" stroke-width="16" stroke-linecap="round"/>' for a in [i * math.pi / 4 + 0.39 for i in range(8)]))
+add('hud', 'comment', 'Balão de comentário', 600, 560, '<path d="M300 40 C470 40 560 130 560 250 C560 370 470 460 300 460 C260 460 225 455 195 445 L80 520 L110 400 C60 360 40 310 40 250 C40 130 130 40 300 40z" fill="#fff"/><circle cx="200" cy="250" r="26" fill="#111"/><circle cx="300" cy="250" r="26" fill="#111"/><circle cx="400" cy="250" r="26" fill="#111"/>')
+add('hud', 'follow-pill', 'Botão “Seguir” (pílula)', 600, 200, '<rect x="10" y="10" width="580" height="180" rx="90" fill="#ff2d55"/>' + t(300, 128, '+ Seguir', 84, 800, '#fff', 'middle'))
+add('hud', 'battery-low', 'Bateria fraca', 500, 240, '<rect x="10" y="20" width="420" height="200" rx="40" fill="none" stroke="#fff" stroke-width="16"/><rect x="440" y="80" width="40" height="80" rx="12" fill="#fff"/><rect x="40" y="50" width="80" height="140" rx="16" fill="#ff3b30"/>')
+add('hud', 'cursor-hand', 'Cursor mão (clique)', 500, 600, '<path d="M200 60 a40 40 0 0 1 80 0 v200 a40 40 0 0 1 80 10 a40 40 0 0 1 80 20 v130 c0 110 -70 160 -170 160 h-30 c-80 0 -120 -40 -160 -110 l-60 -110 a40 40 0 0 1 70 -40 l50 60z" fill="#fff" stroke="#000" stroke-width="16" stroke-linejoin="round"/>' + ''.join(f'<path d="M{240+math.cos(a)*90:.0f} {150+math.sin(a)*90:.0f} L{240+math.cos(a)*130:.0f} {150+math.sin(a)*130:.0f}" stroke="#fff" stroke-width="12" stroke-linecap="round"/>' for a in [math.pi * 1.1, math.pi * 1.35, math.pi * 1.65, math.pi * 1.9]))
+add('hud', 'timecode', 'Timecode', 900, 160, '<rect width="900" height="160" rx="20" fill="#000" fill-opacity=".6"/>' + t(450, 112, '00:01:24:08', 92, 700, '#fff', 'middle'))
+
 # ------------------------------------------------------------------ saída
 os.makedirs(ROOT, exist_ok=True)
-manifest = {'packs': {'iphone': 'iPhone / iOS', 'retro': 'Retrô / Y2K', 'mograph': 'Mograph (rabiscos e caixas)', 'manga': 'Mangá'}, 'license': 'Desenhos originais do MotionFrame — livres para usar em edits (uso pessoal e comercial).', 'items': []}
+manifest = {'packs': {'iphone': 'iPhone / iOS', 'retro': 'Retrô / Y2K', 'mograph': 'Mograph (rabiscos e caixas)', 'motion': 'Motion design (formas)', 'hud': 'HUD / câmera / social', 'manga': 'Mangá'}, 'license': 'Desenhos originais do MotionFrame — livres para usar em edits (uso pessoal e comercial).', 'items': []}
 for pack, id_, name, s in items:
     d = os.path.join(ROOT, pack); os.makedirs(d, exist_ok=True)
     open(os.path.join(d, f'{id_}.svg'), 'w').write(s)
