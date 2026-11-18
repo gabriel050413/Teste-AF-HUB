@@ -375,7 +375,7 @@ export class Timeline {
   mgCols(layer) {
     const par = layer.parent ? this.store.layers.find((o) => o.id === layer.parent) : null;
     const hasExpr = Object.values(layer.transform || {}).some((p) => p?.expr && p.exprOn !== false) || !!layer.props?.textExpr || (layer.props?.animators || []).some((a) => (a.selectors || []).some((x) => x.src));
-    return `<span class="mgc"><button class="mg-whip" data-act="whip" title="Pick-whip: arraste até a camada pai" aria-label="Pick-whip">@</button><button class="mg-par ${par ? 'on' : ''}" data-act="parent" title="Pai (parent)">${par ? escapeHtml(par.name) : 'Nenhum'}</button>${hasExpr ? '<i class="mg-expr" title="Tem expressão">=</i>' : ''}${layer.threeD ? '<i class="mg-3d" title="Camada 3D">3D</i>' : ''}</span>`;
+    return `<span class="mgc"><button class="mg-whip" data-act="whip" title="Pick-whip: arraste até a camada pai" aria-label="Pick-whip">@</button><button class="mg-par ${par ? 'on' : ''}" data-act="parent" title="Pai (parent)">${par ? escapeHtml(par.name) : 'Nenhum'}</button>${hasExpr ? '<i class="mg-expr" title="Tem expressão">=</i>' : ''}${layer.type === 'audio' ? '' : layer.type === 'camera' ? '<i class="mg-3d on" title="Câmera 3D">3D</i>' : `<button class="mg-3d ${layer.threeD ? 'on' : ''}" data-act="three" title="Camada 3D (liga/desliga)">3D</button>`}</span>`;
   }
 
   /** Arrastar o @ até outra camada (pick-whip do AE). Linha elástica até o dedo; soltar numa linha liga o pai. */
@@ -586,6 +586,7 @@ export class Timeline {
     const additive = e.shiftKey || e.ctrlKey || e.metaKey || !!this.hooks.multiSelect?.();
     if (act === 'clip' && layer.type === 'text' && !additive && this.hooks.textTap?.(layer)) { e.preventDefault(); return; }
 
+    if (act === 'three') { e.stopPropagation(); if (!store.isSelected(layer.id)) store.select(layer.id); setTimeout(() => this.hooks.cmd?.('toggle-3d'), 0); return; }
     if (act === 'whip') { if (!store.isSelected(layer.id)) store.select(layer.id); this.whipDrag(e, layer); return; }
     if (act === 'parent') { e.stopPropagation(); if (!store.isSelected(layer.id)) store.select(layer.id); setTimeout(() => this.hooks.cmd?.('parent-pick'), 0); return; }
     if (act === 'expand' || act === 'eye' || act === 'name') {

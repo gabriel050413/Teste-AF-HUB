@@ -142,10 +142,57 @@ export function rawValueAt(p, t) {
       const span = b.t - a.t || 1e-9;
       if (a.ease === 'bezier' && Array.isArray(a.bzv) && typeof a.v === 'number') return bezierValue(a, b, (t - a.t) / span);
       const f = easeFn(a, b)((t - a.t) / span);
+      if ((a.sto || b.sti) && Array.isArray(a.v) && Array.isArray(b.v)) return spatialAt(a, b, f);
       return lerp(a.v, b.v, f);
     }
   }
   return last.v;
+}
+
+// ---- caminho curvo entre keyframes de posição (bend / tangentes espaciais do AE): a.sto = alça de saída de a,
+// b.sti = alça de entrada de b (relativas ao ponto). A curva é percorrida por comprimento de arco, então a
+// velocidade continua a da curva de tempo (ease) — curvar o caminho não acelera nem freia o movimento.
+const arcCache = new WeakMap();
+function spatialAt(a, b, f) {
+  const p0 = a.v, p3 = b.v, to = a.sto || [0, 0], ti = b.sti || [0, 0];
+  const p1 = [p0[0] + to[0], p0[1] + to[1]], p2 = [p3[0] + ti[0], p3[1] + ti[1]];
+  const sig = `${p0[0]},${p0[1]},${p3[0]},${p3[1]},${to[0]},${to[1]},${ti[0]},${ti[1]}`;
+  let c = arcCache.get(a);
+  if (!c || c.sig !== sig) {
+    const N = 48, len = [0];
+    let prev = p0;
+    for (let i = 1; i <= N; i++) { const q = bez2(p0, p1, p2, p3, i / N); len.push(len[i - 1] + Math.hypot(q[0] - prev[0], q[1] - prev[1])); prev = q; }
+    c = { sig, len, N }; arcCache.set(a, c);
+  }
+  const total = c.len[c.N];
+  let u = f;
+  if (total > 1e-6 && f > 0 && f < 1) {
+    const target = f * total; let i = 1;
+    while (i < c.N && c.len[i] < target) i++;
+    const l0 = c.len[i - 1], l1 = c.len[i];
+    u = (i - 1 + (l1 > l0 ? (target - l0) / (l1 - l0) : 0)) / c.N;
+  }
+  const q = bez2(p0, p1, p2, p3, u);
+  const out = p0.map((v, k) => (k < 2 ? q[k] : v + ((p3[k] ?? v) - v) * f)); // Z (3D) segue reto
+  return out;
+}
+function bez2(p0, p1, p2, p3, u) {
+  const v = 1 - u, A = v * v * v, B = 3 * v * v * u, C = 3 * v * u * u, D = u * u * u;
+  return [A * p0[0] + B * p1[0] + C * p2[0] + D * p3[0], A * p0[1] + B * p1[1] + C * p2[1] + D * p3[1]];
+}
+/** Pontos do caminho de movimento (para desenhar na prévia). */
+export function motionPathPoints(p, steps = 16) {
+  const out = [];
+  if (!p?.keys || p.keys.length < 2) return out;
+  for (let i = 0; i < p.keys.length - 1; i++) {
+    const a = p.keys[i], b = p.keys[i + 1];
+    for (let s = 0; s < steps; s++) {
+      const u = s / steps;
+      out.push((a.sto || b.sti) && Array.isArray(a.v) ? spatialAt(a, b, u) : lerp(a.v, b.v, u));
+    }
+  }
+  out.push(p.keys[p.keys.length - 1].v);
+  return out;
 }
 
 const EPS = 1e-4;

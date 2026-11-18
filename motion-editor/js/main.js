@@ -15,6 +15,7 @@ import { loadAudio, playAudio, stopAudio, detectBeats, pruneAudio } from './audi
 import { valueAt, setValue, setKey, anim } from './anim.js';
 import { openFlowMograph } from './flow-mograph.js';
 import { openExprReader } from './expr-reader.js';
+import { drawMotionPath, hitMotionPath, bendSegment, straightenSegment, smoothLayer, SMOOTH_PRESETS } from './motion-path.js';
 import { createPen, syncPen, penPointer, penUndo, drawPen } from './pen-tracer.js';
 import { setThreeD } from './three-d.js';
 import { openSceneSetup } from './e3d-scene.js';
@@ -300,6 +301,7 @@ function drawOverlay() {
   drawRotoOverlay(octx, k);
   drawPenOverlay(octx, k);
   const layer = store.layer();
+  if (layer && !store.playing && !penMode && !drawMode && !rotoMode && !(layer.threeD && store.layers.some((l) => l.type === 'camera'))) drawMotionPath(octx, layer, k, window.devicePixelRatio || 1);
   // prévia limpa: a caixa só aparece enquanto você arrasta/redimensiona a camada
   if (!gesture?.moved) return;
   if (!layer || store.playing || !layer.visible || layer.type === 'audio' || layer.type === 'adjustment' || store.time < layer.inPoint || store.time >= layer.outPoint) return;
@@ -475,6 +477,12 @@ overlay.addEventListener('pointerdown', (e) => {
   // tracker aberto: arrastar a caixa do Track Point / cantos das regiões (como no AE)
   const th = trackerPanel.hit(...toComp(e), overlay.width / store.project.width);
   if (th) { trackDrag = { ...th, toComp, id: e.pointerId }; return; }
+  // losango do caminho de movimento: arrastar curva o trecho (bend); toque duplo deixa reto
+  { const L0 = store.layer(), q = toComp(e), mh = L0 && !store.playing ? hitMotionPath(L0, q, (14 * (window.devicePixelRatio || 1)) / (overlay.width / store.project.width)) : null;
+    if (mh) {
+      if (isDoubleTap(`mp${mh.seg}`)) { straightenSegment(L0, mh.seg); store.commit(); drawOverlay(); return; }
+      pathDrag = { layer: L0, seg: mh.seg, id: e.pointerId, toComp, moved: false }; return;
+    } }
   pointers.set(e.pointerId, toComp(e));
   if (pointers.size === 1) {
     const [x, y] = toComp(e);
@@ -489,7 +497,9 @@ overlay.addEventListener('pointerdown', (e) => {
     gesture.pinch = { d0: Math.hypot(b[0] - a[0], b[1] - a[1]), a0: Math.atan2(b[1] - a[1], b[0] - a[0]), s0: valueAt(gesture.layer.transform.scale, store.time), r0: valueAt(gesture.layer.transform.rotation, store.time) };
   }
 });
+let pathDrag = null;
 overlay.addEventListener('pointermove', (e) => {
+  if (pathDrag && e.pointerId === pathDrag.id) { bendSegment(pathDrag.layer, pathDrag.seg, pathDrag.toComp(e)); pathDrag.moved = true; store.emit('preview'); drawOverlay(); return; }
   if (trackDrag && e.pointerId === trackDrag.id) { trackerPanel.drag(trackDrag, ...trackDrag.toComp(e)); drawOverlay(); return; }
   if (penMode?.ptr === e.pointerId) { penMove(penMode.toComp(e)); return; }
   if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('move', drawMode.stroke.toComp(e)); return; }
@@ -521,7 +531,7 @@ const endPointer = (e) => {
     dirty = true;
   }
 };
-overlay.addEventListener('pointerup', (e) => { if (penMode?.ptr === e.pointerId) { penUp(); return; } if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
+overlay.addEventListener('pointerup', (e) => { if (pathDrag && e.pointerId === pathDrag.id) { const m = pathDrag.moved; pathDrag = null; if (m) { store.commit(); toast('Trecho curvado (bend). Toque duplo no losango para deixar reto.', 'info', 2500); } return; } if (penMode?.ptr === e.pointerId) { penUp(); return; } if (rotoMode?.stroke && e.pointerId === rotoMode.stroke.id) { rotoPointer('up', null, e); return; } if (drawMode?.stroke && e.pointerId === drawMode.stroke.id) { drawPointer('up'); return; } if (trackDrag && e.pointerId === trackDrag.id) { trackDrag = null; trackerPanel.endDrag(); dirty = true; return; } endPointer(e); });
 overlay.addEventListener('pointercancel', endPointer);
 
 // ---- editar texto com toque duplo (na prévia ou no clipe da timeline), como em todos os editores
@@ -937,6 +947,48 @@ function anchorCenter() {
   toast('Ponto de ancoragem no centro (a camada não saiu do lugar).', 'ok');
 }
 
+// ---- Suavizar movimento (Null, câmera 3D, qualquer camada): caminho curvo, bend, velocidade contínua, alisar tremida
+async function smoothMotion() {
+  const sel = store.selectedLayers().filter((o) => o.type !== 'audio');
+  if (!sel.length) { toast('Selecione o Null, a câmera ou a camada com keyframes.', 'warn'); return; }
+  const isCam = sel.some((o) => o.type === 'camera');
+  const ALL = [['position', 'Posição (caminho)'], ['posZ', 'Posição Z'], ['poi', 'Ponto de interesse'], ['rotation', 'Rotação'], ['rotX', 'Rotação X'], ['rotY', 'Rotação Y'], ['scale', 'Escala'], ['zoom', 'Zoom'], ['opacity', 'Opacidade']];
+  const has = ALL.filter(([k]) => sel.some((o) => o.transform[k]?.keys?.length >= 2));
+  if (!has.length) { toast('A camada precisa de pelo menos 2 keyframes (posição, Z, rotação…) para suavizar.', 'warn', 4500); return; }
+  const def = isCam ? SMOOTH_PRESETS.camera : SMOOTH_PRESETS.null;
+  const v = await modal('Suavizar movimento', `<p class="muted small">Para Null, câmera 3D e qualquer camada animada. <b>Bend</b> curva o caminho entre os keyframes (também dá para arrastar o losango amarelo no meio de cada trecho, na prévia). <b>Velocidade contínua</b> faz o movimento não parar em cada keyframe — câmera lisa.</p>
+    <div class="chips sm-pre">${Object.entries(SMOOTH_PRESETS).map(([k, x]) => `<button class="chip" data-pre="${k}">${x.label}</button>`).join('')}</div>
+    <label class="sm-row">Curvas automáticas <input type="range" data-o="curves" min="0" max="100" value="${def.curves}"><b></b></label>
+    <label class="sm-row">Bend (arco) <input type="range" data-o="bend" min="-100" max="100" value="${def.bend}"><b></b></label>
+    <label class="sm-row">Alisar tremidas <input type="range" data-o="smooth" min="0" max="8" value="${def.smooth}"><b></b></label>
+    <label class="sm-chk"><input type="checkbox" data-o="rove" ${def.rove ? 'checked' : ''}> Velocidade contínua (não para nos keyframes)</label>
+    <label class="sm-chk"><input type="checkbox" data-o="continuous" ${def.continuous ? 'checked' : ''}> Easy ease suave em todos os keyframes</label>
+    <label class="sm-chk"><input type="checkbox" data-o="ends" ${def.ends ? 'checked' : ''}> Começo e fim suaves</label>
+    <p class="muted small" style="margin:8px 0 2px">Aplicar em:</p>
+    <div class="sm-props">${has.map(([k, l]) => `<label class="sm-chk"><input type="checkbox" data-p="${k}" ${k !== 'opacity' ? 'checked' : ''}> ${l}</label>`).join('')}</div>`,
+  [{ label: 'Cancelar', value: null }, { label: 'Suavizar', primary: true, value: (w) => {
+    const o = {}; w.querySelectorAll('[data-o]').forEach((i) => { o[i.dataset.o] = i.type === 'checkbox' ? i.checked : +i.value; });
+    o.props = [...w.querySelectorAll('[data-p]:checked')].map((i) => i.dataset.p); return o;
+  } }], { onMount: (w) => {
+    const sync = () => w.querySelectorAll('.sm-row').forEach((r) => { r.querySelector('b').textContent = r.querySelector('input').value; });
+    w.querySelectorAll('[data-o]').forEach((i) => i.addEventListener('input', sync)); sync();
+    w.querySelectorAll('[data-pre]').forEach((b) => b.addEventListener('click', () => { const x = SMOOTH_PRESETS[b.dataset.pre]; for (const [k, val] of Object.entries(x)) { const i = w.querySelector(`[data-o="${k}"]`); if (!i) continue; if (i.type === 'checkbox') i.checked = !!val; else i.value = val; } w.querySelector('[data-o="continuous"]').checked = !!x.continuous; sync(); }));
+  } });
+  if (!v || !v.props.length) return;
+  let n = 0; for (const o of sel) n += smoothLayer(o, v).props;
+  store.commit('structure');
+  toast(n ? `Movimento suavizado em ${n} propriedade(s) ✓` : 'Nada para suavizar (as propriedades escolhidas não têm 2+ keyframes).', n ? 'ok' : 'warn');
+}
+/** Liga/desliga camada 3D em qualquer camada (menos áudio; a câmera já é 3D). */
+function toggle3D(force) {
+  const sel = store.selectedLayers().filter((o) => !['audio', 'camera'].includes(o.type));
+  if (!sel.length) { toast('Selecione uma camada.', 'warn'); return; }
+  const on = force ?? !sel.every((o) => o.threeD);
+  for (const o of sel) setThreeD(o, on, anim);
+  store.commit('structure');
+  toast(on ? `Camada 3D ligada em ${sel.length} camada(s): use Posição Z e Rotação X/Y. Adicione uma Câmera para perspectiva.` : 'Camada 3D desligada.', 'ok', 3500);
+}
+
 /** Morph (mistura inteligente) entre 2 camadas: camada de ajuste com o efeito Morph por cima das duas. */
 function morphTransition(dur = 0.8) {
   const vis = (l) => l && !['audio', 'adjustment', 'camera', 'null'].includes(l.type);
@@ -1257,7 +1309,7 @@ function simpleItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['time-reverse', '⇆', 'Reverse'], ['freeze', '❄', 'Congelar quadro'], ['time-remap', '⏱', 'Controle de tempo']] : []),
       ...(t === 'video' ? [['topaz', '✨', 'Melhorar qualidade']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'],
+      ['calibrate', '🎯', 'Igualar cor'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'], ['smooth-motion', 'graph', 'Suavizar movimento'], ['toggle-3d', 'cube', 'Camada 3D'],
       t === 'group' ? ['ungroup', '⊟', 'Desfazer grupo'] : ['group', '⊞', 'Juntar em grupo'],
       ['up', '▲', 'Para frente'], ['down', '▼', 'Para trás'],
       ['toggle-visible', layer.visible ? '👁' : '◌', layer.visible ? 'Ocultar' : 'Mostrar']];
@@ -1320,7 +1372,7 @@ function advancedItems(layer, t, many) {
       ...(t === 'video' || t === 'group' ? [['speed', '⏱', 'Velocidade', true], ...(t === 'video' ? [['topaz', '✨', 'Topaz', true]] : []), ['freeze', '❄', 'Congelar quadro'], ['time-reverse', '⇆', 'Inverter (reverse)'], ['time-remap', '⏱', 'Time Remap']] : []),
       ...(t === 'video' || t === 'audio' ? [['sound', '🔊', 'Som']] : []),
       ...(t === 'video' || t === 'image' ? [['bg-remove', '✂︎', 'Tirar fundo'], ['roto', 'scissors', 'Roto Brush'], ['headbop', 'beat', 'Headbop']] : []),
-      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
+      ['calibrate', '🎯', 'Calibrar CC'], ['track-matte', 'matte', 'Track Matte'], ['morph', '◈', 'Morph (2 camadas)'], ['flow-mograph', '〰', 'Flow Mograph (curvas)'], ['expr-reader', '{}', 'Leitor de expressões'], ['smooth-motion', 'graph', 'Suavizar movimento'], ['toggle-3d', 'cube', 'Camada 3D'], ['props', '☰', 'Propriedades'], ['keys', '📈', 'Keyframes / gráfico'],
       ['split', '✂', 'Dividir'], ['dup', '⧉', 'Duplicar'], ['copy-layer', '⎘', 'Copiar camada'], ...(layerClipboard.length ? [['paste-layer', '📋', 'Colar camada']] : []),
       t === 'group' ? ['ungroup', '⊟', 'Desagrupar'] : ['group', '⊞', 'Pré-compor'],
       ['up', '▲', 'Subir'], ['down', '▼', 'Descer'],
@@ -2027,6 +2079,8 @@ const commands = {
   freeze: () => freezeFrame(store.layer()),
   'time-reverse': () => timeReverse(store.layer()),
   morph: () => morphTransition(),
+  'smooth-motion': () => smoothMotion(),
+  'toggle-3d': () => toggle3D(),
   'parent-pick': () => parentPick(),
   'null-parent': () => nullParent(),
   'easy-ease': () => easyEase(),
