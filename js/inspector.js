@@ -255,7 +255,7 @@ export class Inspector {
       const opts = this.store.layers.filter((o) => o !== layer && !bad.has(o.id) && o.type !== 'audio');
       rows.push(f('Pai (parent)', `<select data-parent><option value="">Nenhum</option>${opts.map((o) => `<option value="${o.id}" ${layer.parent === o.id ? 'selected' : ''}>${escapeHtml(o.name)}</option>`).join('')}</select>`));
     }
-    if (!['audio', 'adjustment', 'camera'].includes(layer.type)) rows.push(f('Camada 3D (câmera)', `<label class="switch"><input type="checkbox" data-three ${layer.threeD ? 'checked' : ''}><i></i></label>`));
+    if (!['audio', 'camera'].includes(layer.type)) rows.push(f('Camada 3D (câmera)', `<label class="switch"><input type="checkbox" data-three ${layer.threeD ? 'checked' : ''}><i></i></label>`));
     rows.push(f('Entrada (s)', `<input type="number" inputmode="decimal" data-layer="inPoint" step="0.01" value="${layer.inPoint.toFixed(2)}">`));
     rows.push(f('Saída (s)', `<input type="number" inputmode="decimal" data-layer="outPoint" step="0.01" value="${layer.outPoint.toFixed(2)}">`));
     const parts = { layer: rows.join(''), sound: '', blendop: '', transform: '' };
@@ -518,7 +518,7 @@ export class Inspector {
     });
     root.querySelector('[data-three]')?.addEventListener('change', (e) => {
       const on = e.target.checked;
-      for (const o of new Set([layer, ...(store.selectedLayers?.() || [])])) if (!['audio', 'adjustment', 'camera'].includes(o.type)) setThreeD(o, on, anim);
+      for (const o of new Set([layer, ...(store.selectedLayers?.() || [])])) if (!['audio', 'camera'].includes(o.type)) setThreeD(o, on, anim);
       store.commit('structure');
     });
     root.querySelector('[data-camdur]')?.addEventListener('change', (e) => { this.camDur = Math.max(0.1, +e.target.value || 2); });

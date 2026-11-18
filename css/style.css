@@ -1950,3 +1950,10 @@ body[data-elayout="mograph"] .topbar .mg-x { font: 700 13px ui-monospace, Menlo,
 body[data-elayout="mograph"] .tl-name .nm { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body[data-elayout="mograph"] .mg-par { min-width: 58px; }
 @media (max-width: 600px) { body[data-elayout="mograph"] .mg-par:not(.on) { display: none; } body[data-elayout="mograph"] .mg-par { min-width: 0; } }
+button.mg-3d { height: 20px; padding: 0 5px; border-radius: 4px; background: transparent; border: 1px solid var(--line); color: var(--muted); font: 700 10px ui-monospace, monospace; }
+button.mg-3d.on, i.mg-3d.on { color: #ffb020; border-color: #ffb020; }
+.sm-row { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 6px 0; }
+.sm-row input { flex: 1; } .sm-row b { width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+.sm-chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
+.sm-props { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.sm-pre { margin-bottom: 6px; }
