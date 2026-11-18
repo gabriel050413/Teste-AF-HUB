@@ -7,7 +7,8 @@ import { TopazPanel } from './topaz-panel.js';
 import { setBgListener, ensureBgModel, bgStatus } from './bgremove.js';
 import { setGLLostListener, glLost, gpuSync } from './gl.js';
 import { createEffectInstance, setPluginLookup, upgradeLayerEffects, applyPreset } from './presets.js';
-import { renderFrame, hitTest, layerCorners, forgetLayer } from './renderer.js';
+import { renderFrame, hitTest, layerCorners, forgetLayer, reparent, layerTransform } from './renderer.js';
+import { applyCurveSelected } from './graph.js';
 import { startRenderWorker, workerEligible } from './render-client.js';
 import { prepare, prepareEpoch, exactFramesReady, pauseAll, setMediaListener, videoThumb, ensureCaches, setCacheListener, cacheStatus, cacheVersion, detectFps, mediaReady, framesDrawable, liveVideoAt } from './media.js';
 import { loadAudio, playAudio, stopAudio, detectBeats, pruneAudio } from './audio.js';
@@ -852,6 +853,7 @@ const timeline = new Timeline(document.getElementById('timeline'), store, {
   onKeyTap: () => { if (sheetPane !== 'keys') openSheet('keys'); },
   onAdd: () => commands.add?.(),
   cmd: (c) => commands[c]?.(),
+  setParent: (layer, np) => { const list = store.isSelected(layer.id) ? store.selectedLayers() : [layer]; const n = setParentOf(list, np); toast(np && n ? `“${layer.name}”${list.length > 1 ? ` e mais ${list.length - 1}` : ''} agora seguem “${np.name}”.` : 'Não dá para ligar (a camada pai já depende desta).', n ? 'ok' : 'warn'); },
   textTap: (layer) => { if (!isDoubleTap(layer.id)) return false; editTextInline(layer); return true; },
 });
 const effectsInspector = new Inspector(document.getElementById('effectsPanel'), store, 'effects', {
@@ -875,6 +877,66 @@ propsInspector = new Inspector(document.getElementById('propsPanel'), store, 'pr
   trackMatte: (layer, mode) => setTrackMatte(layer, mode),
 });
 /** Track Matte (como no AE): a camada logo acima na lista vira a máscara (alfa ou luma) e fica oculta. */
+// ---- ferramentas do layout Mograph (como no After Effects: parent/pick-whip, null pai, easy ease, âncora)
+const isAncestor = (a, b) => { const seen = new Set(); let p = b; while (p && !seen.has(p.id)) { if (p.id === a.id) return true; seen.add(p.id); p = store.layers.find((x) => x.id === p.parent); } return false; };
+/** Liga as camadas ao pai (sem saírem do lugar). Recusa laços (A filho de B filho de A). */
+function setParentOf(list, np) {
+  let n = 0;
+  for (const o of list) { if (o === np || (np && isAncestor(o, np))) continue; reparent(o, np, store.project, store.time); n++; }
+  store.commit('structure');
+  return n;
+}
+async function parentPick() {
+  const sel = store.selectedLayers(); if (!sel.length) { toast('Selecione a camada (ou camadas) que vão seguir o pai.', 'warn'); return; }
+  const opts = store.layers.filter((o) => !sel.includes(o) && !sel.some((x) => isAncestor(x, o)) && o.type !== 'audio');
+  const v = await modal('Parent (pai)', `<p class="muted small">Como o pick-whip do After Effects: a camada passa a seguir a posição, a escala e a rotação do pai, sem sair do lugar. Na timeline do layout Mograph dá para arrastar o <b>@</b> até a camada pai.</p>
+    <div class="menu-list">${['<button data-p="">Nenhum (tirar o pai)</button>', ...opts.map((o) => `<button data-p="${o.id}">${escapeHtml(o.name)} <small class="muted">${o.type}</small></button>`)].join('')}</div>`, [{ label: 'Cancelar', value: null }], { onMount: (w, close) => w.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => close({ id: b.dataset.p }))) });
+  if (!v) return;
+  const np = v.id ? store.layers.find((o) => o.id === v.id) : null;
+  const n = setParentOf(sel, np);
+  toast(np ? `${n} camada(s) agora seguem “${np.name}”.` : 'Pai removido.', 'ok');
+}
+function nullParent() {
+  const sel = store.selectedLayers().filter((o) => o.type !== 'audio'); if (!sel.length) { toast('Selecione as camadas que o Null vai controlar.', 'warn'); return; }
+  const t = store.time;
+  const ps = sel.map((o) => { const m = layerTransform(o, t); return [m.x, m.y]; });
+  const nl = LAYER_FACTORIES.null(store.project);
+  nl.name = `Null · controle (${sel.length})`; nl.inPoint = Math.min(...sel.map((o) => o.inPoint)); nl.outPoint = Math.max(...sel.map((o) => o.outPoint));
+  nl.transform.position = { value: [ps.reduce((a, p) => a + p[0], 0) / ps.length, ps.reduce((a, p) => a + p[1], 0) / ps.length], keys: [] };
+  const L = store.layers; L.splice(Math.min(...sel.map((o) => L.indexOf(o))), 0, nl);
+  for (const o of sel) reparent(o, nl, store.project, t);
+  store.selectedLayerId = nl.id; store.multi?.clear();
+  store.commit('structure');
+  toast(`Null criado e ligado como pai de ${sel.length} camada(s). Anime o Null para mexer em todas juntas.`, 'ok', 4500);
+}
+function easyEase() {
+  if (store.selectedKeys.length) { setEase(store.selectedKeys, 'easeInOut'); store.commit(); toast('Easy Ease nos keyframes selecionados.', 'ok'); return; }
+  const n = applyCurveSelected(store, 'easeInOut');
+  if (n) { store.commit(); toast(`Easy Ease em ${n} trecho(s) da camada.`, 'ok'); } else toast('Selecione keyframes (ou uma camada com keyframes).', 'warn');
+}
+function anchorCenter() {
+  const sel = store.selectedLayers(); if (!sel.length) return toast('Selecione uma camada.', 'warn');
+  for (const o of sel) {
+    let c = [0, 0];
+    if (o.type === 'shape') { // centro da caixa dos caminhos (com a posição dos grupos)
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const walk = (items, off) => { for (const it of items || []) { const o2 = it.tr?.position?.value ? [off[0] + it.tr.position.value[0], off[1] + it.tr.position.value[1]] : off; if (it.t === 'group') walk(it.items, o2); const sh = it.path?.shapes?.[0]; if (sh) for (const p of sh.pts || []) { x0 = Math.min(x0, p[0] + o2[0]); y0 = Math.min(y0, p[1] + o2[1]); x1 = Math.max(x1, p[0] + o2[0]); y1 = Math.max(y1, p[1] + o2[1]); } if (it.size?.value && it.t !== 'group') { const [w, h] = it.size.value, q = it.position?.value || [0, 0]; x0 = Math.min(x0, o2[0] + q[0] - w / 2); x1 = Math.max(x1, o2[0] + q[0] + w / 2); y0 = Math.min(y0, o2[1] + q[1] - h / 2); y1 = Math.max(y1, o2[1] + q[1] + h / 2); } } };
+      walk(o.props.shapes, [0, 0]);
+      if (Number.isFinite(x0)) c = [(x0 + x1) / 2, (y0 + y1) / 2];
+    }
+    const a0 = valueAt(o.transform.anchor, store.time), m = layerTransform(o, store.time);
+    const d = [c[0] - a0[0], c[1] - a0[1]], r = (m.rot * Math.PI) / 180;
+    const dx = d[0] * m.sx, dy = d[1] * m.sy, w = [dx * Math.cos(r) - dy * Math.sin(r), dx * Math.sin(r) + dy * Math.cos(r)];
+    const sh = (v) => [v[0] + w[0], v[1] + w[1], ...v.slice(2)];
+    o.transform.anchor.value = [c[0], c[1], ...(o.transform.anchor.value.slice?.(2) || [])];
+    for (const k of o.transform.anchor.keys || []) k.v = [c[0], c[1], ...k.v.slice(2)];
+    o.transform.position.value = sh(o.transform.position.value);
+    for (const k of o.transform.position.keys || []) k.v = sh(k.v);
+  }
+  store.commit('structure');
+  toast('Ponto de ancoragem no centro (a camada não saiu do lugar).', 'ok');
+}
+
 /** Morph (mistura inteligente) entre 2 camadas: camada de ajuste com o efeito Morph por cima das duas. */
 function morphTransition(dur = 0.8) {
   const vis = (l) => l && !['audio', 'adjustment', 'camera', 'null'].includes(l.type);
@@ -1216,7 +1278,7 @@ function renderToolbar() {
   const many = store.selectedLayers().length;
   applyUIMode();
   const simple = document.body.classList.contains('ui-simple');
-  let lay = simple ? layoutToolItems(layer, many) : null;
+  let lay = simple || editorLayout() === 'mograph' ? layoutToolItems(layer, many) : null;
   // PC: há espaço — em vez do "Mais", a barra mostra todas as ferramentas do MotionFrame (sem repetir as do app)
   if (lay && desktop.matches && pcActive()) {
     const have = new Set(lay.map((x) => x[0]));
@@ -1965,6 +2027,10 @@ const commands = {
   freeze: () => freezeFrame(store.layer()),
   'time-reverse': () => timeReverse(store.layer()),
   morph: () => morphTransition(),
+  'parent-pick': () => parentPick(),
+  'null-parent': () => nullParent(),
+  'easy-ease': () => easyEase(),
+  'anchor-center': () => anchorCenter(),
   'flow-mograph': () => openFlowMograph({ store, modal, toast }),
   'expr-reader': () => openExprReader({ store, modal, toast, pickFiles }),
   'track-matte': async () => {

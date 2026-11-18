@@ -21,6 +21,7 @@ export const LAYOUT_FEATS = {
   blurrr: ['media', 'audio', 'ai', 'text', 'shapes', 'max'],
   alight: ['layers', 'target', 'ai', 'library', 'captions', 'link'],
   ae: ['pointer', 'hand', 'zoom', 'link', 'null', 'move', 'reverse', 'sparkle'],
+  mograph: ['link', 'null', 'freehand', 'key', 'sparkle', 'text'],
 };
 
 const btn = (cmd, icon, label = '', cls = '') => `<button class="lb ${cls}" data-lcmd="${cmd}" ${label ? `title="${esc(label)}"` : ''} aria-label="${esc(label || icon)}">${ico(icon)}</button>`;
@@ -40,6 +41,8 @@ const TOP = {
   alight: (n, sel) => sel
     ? `${btn('deselect', 'back', 'Voltar')}<div class="proj-title" id="projTitle" data-lcmd="props">${esc(sel.name || 'Camada')}</div><span class="lsp"></span>${btn('dup', 'dup', 'Duplicar', 'try')}${btn('del', 'trash', 'Excluir')}${btn('all-tools', 'more', 'Mais', 'circ')}${chip()}`
     : `${btn('home', 'back', 'Voltar')}${title(n)}<span class="lsp"></span>${btn('comp', 'settings', 'Configurações do projeto')}${chip()}<button class="lexp" data-lcmd="export" aria-label="Exportar">${ico('upload')}</button>`,
+  // Mograph: ferramentas de motion design sempre à mão (caneta, formas, texto, null, parent, curvas, expressões)
+  mograph: (n) => `${btn('home', 'home', 'Projetos')}${btn('menu', 'menu', 'Menu')}${title(n)}<span class="mg-tools">${btn('pen-tracer', 'freehand', 'Lápis Tracer (caneta)')}${btn('add-shape', 'shapes', 'Forma')}${btn('add-text', 'text', 'Texto')}${btn('add-null', 'null', 'Null')}${btn('null-parent', 'link', 'Null pai das camadas selecionadas')}${btn('flow-mograph', 'key', 'Flow (curvas)')}<button class="lb mg-x" data-lcmd="expr-reader" title="Leitor de expressões" aria-label="Expressões">{ }</button>${btn('composer', 'sparkle', 'Composer')}</span><span class="lsp"></span>${btn('undo', 'undo', 'Desfazer')}${btn('redo', 'redo', 'Refazer')}${chip()}<button class="export-btn" data-lcmd="export">Exportar</button>`,
   ae: (n) => `<nav class="ae-menu">${['Arquivo:menu', 'Editar:undo', 'Composição:comp', 'Camada:add', 'Efeito:effects', 'Animação:keys', 'Exibir:_max', 'Janela:presets', 'Ajuda:tour'].map((x) => { const [l, c] = x.split(':'); return `<button data-lcmd="${c}">${l}</button>`; }).join('')}</nav>${title(n)}<span class="lsp"></span>${chip()}<button class="export-btn" data-lcmd="export">Fila de render</button>`,
 };
 
@@ -51,6 +54,7 @@ const TRANSPORT = {
   nova: { left: [['undo', 'undo', 'Desfazer'], ['redo', 'redo', 'Refazer'], ['start', 'frameStart', 'Início']], right: [['end', 'frameEnd', 'Fim'], ['add-key', 'addFrame', 'Keyframe'], ['_max', 'fit', 'Ajustar']] },
   alight: { left: [['undo', 'undo', 'Desfazer'], ['redo', 'redo', 'Refazer'], ['start', 'frameStart', 'Início']], right: [['end', 'frameEnd', 'Fim'], ['add-key', 'addFrame', 'Keyframe'], ['_max', 'fit', 'Tela cheia']] },
   ae: null,
+  mograph: { left: [['start', 'frameStart', 'Início'], ['frame-prev', 'stepBack', 'Quadro anterior']], right: [['frame-next', 'stepFwd', 'Próximo quadro'], ['end', 'frameEnd', 'Fim'], ['add-key', 'keyAdd', 'Keyframe'], ['easy-ease', 'key', 'Easy Ease (F9)'], ['keys', 'graph', 'Editor de gráfico']] },
 };
 
 // ---- barra de baixo: [comando, ícone, nome, classe]. Os nomes seguem os apps; "Mais" abre todas as ferramentas do
@@ -76,6 +80,11 @@ const TOOLS = {
     layerTop: [['speed', 'speed', 'Velocidade'], ['split', 'splitL', 'Dividir'], ['trim-start', 'splitA', 'Cortar o início'], ['trim-end', 'splitB', 'Cortar o fim'], ['sound', 'mute', 'Volume']],
     layer: [['props-fill', 'fill', 'Cor e preenchimento'], ['props-border', 'border', 'Borda e sombra'], ['opacity', 'blend', 'Mesclagem e opacidade'], ['props-move', 'move', 'Mover e transformar'], ['keys', 'freehand', 'Editar keyframes'], ['presets', 'star', 'Presets', 'new'], ['effects', 'effects', 'Efeitos'], ['props-mask', 'mask', 'Máscara'], ['roto', 'scissors', 'Roto Brush'], ['composer', 'sparkle', 'Animações'], MORE],
   },
+};
+
+TOOLS.mograph = {
+  none: [['add-text', 'text', 'Texto'], ['add-shape', 'shapes', 'Forma'], ['pen-tracer', 'freehand', 'Lápis Tracer'], ['add-null', 'null', 'Null'], ['add-camera', 'camera', 'Câmera'], ['add-adjustment', 'adjust', 'Ajuste'], ['composer', 'sparkle', 'Composer'], ['ai-assets', 'shapes', 'Elementos .ai'], ['expr-reader', 'code', 'Expressões'], ['flow-mograph', 'key', 'Curvas (Flow)'], ['add-media', 'media', 'Mídia'], MORE],
+  layer: [['deselect', 'back', '', 'lback'], ['parent-pick', 'link', 'Parent (pai)'], ['null-parent', 'null', 'Null pai'], ['keys', 'graph', 'Gráfico'], ['easy-ease', 'key', 'Easy Ease'], ['flow-mograph', 'key', 'Curvas (Flow)'], ['expr-reader', 'code', 'Expressão'], ['composer', 'sparkle', 'Animar'], ['track-matte', 'matte', 'Track Matte'], ['morph', 'transition', 'Morph'], ['anchor-center', 'target', 'Âncora no centro'], ['sequence', 'splitL', 'Sequenciar'], ['group', 'grouping', 'Pré-compor'], ['motion-blur', 'blurFx', 'Motion blur'], ['effects', 'effects', 'Efeitos'], ['props', 'move', 'Transformar'], ['dup', 'dup', 'Duplicar'], ['del', 'trash', 'Excluir'], MORE],
 };
 
 export function initEditorLayouts(cmds) {
@@ -142,6 +151,7 @@ const PANES = {
   blurrr: { props: 'Transformar', effects: 'Fx', browser: 'Fx', presets: 'Preset', trans: 'Transições', keys: 'Keyframes e curvas', composer: 'Animação', topaz: 'Interpolação IA', tracker: 'Rastrear', add: 'Adicionar' },
   nova: { props: 'Movimentação e transformação', effects: 'Efeitos', browser: 'Biblioteca de efeitos', presets: 'Presets', trans: 'Transições', keys: 'Animar', composer: 'Animar', topaz: 'Melhorar qualidade', add: 'Adicionar' },
   alight: { props: 'Mover e transformar', effects: 'Efeitos', browser: 'Adicionar efeito', presets: 'Presets', trans: 'Transições', keys: 'Keyframes', composer: 'Animações', topaz: 'Melhorar qualidade', tracker: 'Rastrear', add: 'Adicionar camada' },
+  mograph: { props: 'Transformar', effects: 'Controles de efeitos', browser: 'Efeitos', presets: 'Presets', trans: 'Transições', keys: 'Editor de gráfico', composer: 'Composer (mograph)', topaz: 'Melhorar qualidade', tracker: 'Rastreador', add: 'Nova camada' },
   ae: { props: 'Linha do tempo · Transformar', effects: 'Controles de efeitos', browser: 'Efeitos e predefinições', presets: 'Predefinições de animação', trans: 'Transições', keys: 'Editor de gráfico', composer: 'Composer', topaz: 'Topaz Video AI', tracker: 'Rastreador', add: 'Nova camada' },
 };
 /** Nome do painel no layout atual (ou null = nome padrão do MotionFrame). */
@@ -151,6 +161,7 @@ export const paneAllowed = () => true; // tudo do MotionFrame existe em todos os
 
 // ---- cores dos clipes na timeline (como cada app pinta vídeo, texto, áudio, efeito…) ----
 const CLIP = {
+  mograph: { text: '#8b5cff', shape: '#ff5c8a', rect: '#ff5c8a', ellipse: '#ff5c8a', null: '#9a97ae', camera: '#ffb020', adjustment: '#5ce1ff', audio: '#3ddc84', group: '#c3a8ff', solid: '#4a4660', video: '#2f6fff', image: '#2f6fff' },
   capcut: { text: '#c9973f', audio: '#1fae78', adjustment: '#7b61ff', rect: '#e0638f', ellipse: '#e0638f', shape: '#e0638f', solid: '#3a3a3a', group: '#5a4bd1', video: '#2b2b2b', image: '#2b2b2b' },
   nova: { text: '#6d4bdc', audio: '#1fb980', adjustment: '#8d6bff', rect: '#6d4bdc', ellipse: '#6d4bdc', shape: '#6d4bdc', solid: '#3b4660', group: '#4b5d86', video: '#1d2536', image: '#1d2536' },
   blurrr: { null: '#ff4d4d', camera: '#ff9a3c', text: '#ffcf4a', audio: '#8fd36b', adjustment: '#cdee4f', rect: '#ff9b6b', ellipse: '#ff9b6b', shape: '#ff9b6b', solid: '#dcdcdc', group: '#b9b9ff', video: '#e6e6e6', image: '#e6e6e6' },
