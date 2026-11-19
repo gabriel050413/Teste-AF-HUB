@@ -1,6 +1,6 @@
 import { Store, LAYER_FACTORIES, RESOLUTIONS, createProject, flatLayers } from './state.js';
 import { compDialog, COMP_PRESETS } from './comp-dialog.js';
-import { HomeScreen, saveBackup, saveProjectData, loadProjectData, loadProjectDataAsync, listProjects, allMediaIds, getSettings, setSettings, settingsDialog } from './projects.js';
+import { HomeScreen, saveBackup, saveProjectData, loadProjectData, loadProjectDataAsync, listProjects, getSettings, setSettings, settingsDialog } from './projects.js';
 import { parseFFX } from './ffx.js';
 import { ffxToPreset } from './presets.js';
 import { TopazPanel } from './topaz-panel.js';
@@ -45,7 +45,7 @@ import { getEffectDef } from './effects.js';
 import { modal, toast, pickFiles, storage } from './ui.js';
 import { syncClipsToBeat, beatEffects, recordVoice, transcribe, buildCaptions, CAPTION_STYLES, projectBeats } from './quick-tools.js';
 import { formatTime, formatSimple, uid, deepClone, escapeHtml } from './util.js';
-import { putMedia, getMedia, pruneMedia, flushMedia, pendingMediaCount, ensurePersistentStorage } from './idb.js';
+import { putMedia, getMedia, flushMedia, pendingMediaCount, ensurePersistentStorage } from './idb.js';
 import { saveFile, registerServiceWorker } from './platform.js';
 import { getGL } from './gl.js';
 import { TrackerPanel } from './tracker-panel.js';
@@ -1459,13 +1459,20 @@ async function expandAi(files) {
   return out;
 }
 
+const FP_KEY = 'motionframe.mediaFp';
 async function importMedia(files) {
   ensurePersistentStorage();
   files = await expandAi(files);
   let seqT = null; // vários clipes de uma vez: um depois do outro (como no CapCut)
   for (let f of files) {
     const isVideo = f.type.startsWith('video/') || /\.(mp4|mov|webm|m4v|mkv)$/i.test(f.name);
-    if (isVideo && /\.(mp4|mov|m4v)$/i.test(f.name)) f = await maybeProxy(f);
+    // o mesmo arquivo importado de novo (mesmo nome, tamanho e data): usa a cópia que já está guardada, em vez de
+    // gravar outra (antes cada importação duplicava o vídeo no aparelho)
+    const fp = `${f.name}|${f.size}|${f.lastModified || 0}`, fpMap = storage.get(FP_KEY, {});
+    const kept = fpMap[fp] ? await getMedia(fpMap[fp]).catch(() => null) : null;
+    const known = kept instanceof Blob ? fpMap[fp] : null;
+    if (known) f = kept instanceof File ? kept : new File([kept], f.name, { type: f.type });
+    else if (isVideo && /\.(mp4|mov|m4v)$/i.test(f.name)) f = await maybeProxy(f);
     if (!isVideo && await isAiFile(f)) { // .ai do Illustrator é PDF: vira PNG com transparência (pdf.js)
       try { f = await aiToPngFile(f); toast(`“${f.name}” importado como imagem (página 1 do .ai).`, 'info', 3000); }
       catch (e) { toast(`Não deu para abrir “${f.name}” (${e?.message || e}).`, 'error', 8000); continue; }
@@ -1473,13 +1480,14 @@ async function importMedia(files) {
     const isAudio = f.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(f.name);
     const isImage = f.type.startsWith('image/');
     if (!isVideo && !isAudio && !isImage) continue;
-    const mediaId = uid('m');
+    const mediaId = known || uid('m');
+    if (!known) { fpMap[fp] = mediaId; const ks = Object.keys(fpMap); if (ks.length > 400) delete fpMap[ks[0]]; storage.set(FP_KEY, fpMap); }
     // vídeo grande: confere o espaço antes e avisa se não der para guardar (senão o projeto reabre com "mídia não encontrada")
     try {
       const est = await navigator.storage?.estimate?.();
-      if (est?.quota && f.size > (est.quota - (est.usage || 0)) * 0.95) toast(`Pouco espaço para guardar “${f.name}” (${Math.round(f.size / 1048576)} MB) no aparelho. Ele funciona agora, mas pode não reabrir depois — libere espaço ou use um arquivo menor.`, 'warn', 9000);
+      if (!known && est?.quota && f.size > (est.quota - (est.usage || 0)) * 0.95) toast(`Pouco espaço para guardar “${f.name}” (${Math.round(f.size / 1048576)} MB) no aparelho. Ele funciona agora, mas pode não reabrir depois — libere espaço ou use um arquivo menor.`, 'warn', 9000);
     } catch { /* sem estimativa */ }
-    putMedia(mediaId, f).then((ok) => { if (!ok) toast(`Não deu para guardar “${f.name}” no aparelho (falta de espaço?). O vídeo funciona agora, mas some ao fechar o app.`, 'warn', 9000); });
+    if (!known) putMedia(mediaId, f).then((ok) => { if (!ok) toast(`Não deu para guardar “${f.name}” no aparelho (falta de espaço?). O vídeo funciona agora, mas some ao fechar o app.`, 'warn', 9000); });
     const src = URL.createObjectURL(f);
     const name = f.name.replace(/\.[^.]+$/, '');
     const { width, height } = store.project;
@@ -1575,8 +1583,20 @@ async function relinkMedia(project) {
 
 /** Apaga só mídias que nenhum projeto usa (chamado ao excluir projeto). Na dúvida, não apaga nada. */
 async function cleanUnusedMedia() {
-  const ids = await allMediaIds();
-  if (ids) pruneMedia(ids);
+  const { analyzeStorage, cleanStorage } = await import('./storage-clean.js');
+  const r = await analyzeStorage();
+  if (r) await cleanStorage(r);
+}
+/** Ao abrir o app (na tela inicial): apaga sozinho vídeos que nenhum projeto usa e restos de projetos excluídos. */
+function autoCleanSoon() {
+  setTimeout(async () => {
+    if (!document.body.classList.contains('at-home')) return;
+    try {
+      const { autoCleanStorage, fmtBytes } = await import('./storage-clean.js');
+      const f = await autoCleanStorage();
+      if (f > 50 * 1048576) toast(`${fmtBytes(f)} de vídeos sem uso liberados do aparelho ✓`, 'ok', 5000);
+    } catch { /* ok */ }
+  }, 4000);
 }
 
 // ------------------------------------------------------------------ projeto
@@ -3353,6 +3373,7 @@ const home = new HomeScreen({
   registerServiceWorker();
   loadSavedFonts().then(() => { frameCacheClear(); store.emit('change'); }).catch(() => {});
   home.show();
+  autoCleanSoon();
   // programa antigo (Electron): avisa uma vez sobre o MotionFrame leve e a transferência
   if (/Electron/i.test(navigator.userAgent)) {
     let seen = false; try { seen = localStorage.getItem('motionframe.leveHint') === '1'; } catch { /* */ }

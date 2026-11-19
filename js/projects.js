@@ -9,7 +9,7 @@ import { putMedia, getMedia, deleteMedia, listKeys } from './idb.js';
 
 // APP_VERSION = número interno, só cresce (o atualizador automático compara por ele — não mexer no formato).
 // APP_LABEL = a versão que aparece para o usuário (v1 = primeira versão depois da distribuição do app).
-export const APP_VERSION = 'v219';
+export const APP_VERSION = 'v220';
 export const APP_LABEL = 'v1.0.0 BETA TEST';
 const INDEX = 'motionframe.projects.v1';
 const KEY = (id) => `motionframe.project.${id}`;
@@ -297,6 +297,7 @@ export async function settingsDialog(presets) {
     <p class="muted small">Placa de vídeo em uso: <b>${escapeHtml(gpu)}</b>${weak ? '<br>⚠️ Parece a placa integrada (mais fraca). Se o PC tem placa dedicada (ex.: RTX), no Windows abra Configurações › Sistema › Tela › Gráficos, adicione o MotionFrame (ou o navegador) e escolha <b>Alto desempenho</b>.' : ''}</p>
     <p class="muted small">Projetos e mídias ficam salvos só neste aparelho (nada é enviado para servidores). Exporte o projeto (.json) para levar para outro aparelho.</p>
     <button class="wide" data-f="recover">🕘 Procurar projetos perdidos (recuperar)</button>
+    <button class="wide" data-f="storage">💾 Armazenamento (ver espaço usado e liberar)</button>
     <button class="wide" data-f="help">❓ Como usar</button>
     <button class="wide danger" data-f="clear">Limpar cache de quadros</button>`,
   [{ label: 'Cancelar', value: null }, { label: 'Salvar', primary: true, value: (w) => ({
@@ -306,11 +307,13 @@ export async function settingsDialog(presets) {
   }) }], {
     onMount: (w, close) => {
       w.querySelector('[data-f="help"]').addEventListener('click', () => close({ help: true }));
+      w.querySelector('[data-f="storage"]').addEventListener('click', () => close({ storage: true }));
       w.querySelector('[data-f="recover"]').addEventListener('click', () => close({ recover: true }));
       w.querySelector('[data-f="clear"]').addEventListener('click', () => close({ clear: true }));
     },
   });
   if (res?.recover) { await recoveryDialog(); return null; }
+  if (res?.storage) { const { storageDialog } = await import('./storage-clean.js'); await storageDialog({ modal, toast }); return null; }
   if (res && !res.help && !res.clear) setSettings({ ...s, ...res });
   return res;
 }
