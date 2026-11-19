@@ -1957,3 +1957,7 @@ button.mg-3d.on, i.mg-3d.on { color: #ffb020; border-color: #ffb020; }
 .sm-chk { display: flex; align-items: center; gap: 8px; font-size: 13px; margin: 4px 0; }
 .sm-props { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .sm-pre { margin-bottom: 6px; }
+/* Armazenamento */
+.st-tab { width: 100%; border-collapse: collapse; margin: 6px 0 10px; }
+.st-tab td { padding: 5px 6px; border-bottom: 1px solid var(--line, rgba(255,255,255,.08)); vertical-align: top; }
+.st-tab td:nth-child(2) { white-space: nowrap; }

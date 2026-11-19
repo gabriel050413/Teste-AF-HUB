@@ -73,3 +73,22 @@ export async function listKeys(prefix = '') {
     });
   } catch { return []; }
 }
+
+/** Tamanho de cada coisa guardada (sem ler o conteúdo dos vídeos: o Blob do IndexedDB só sabe o tamanho). */
+export async function sizesByKey() {
+  try {
+    const d = await db();
+    return await new Promise((res) => {
+      const out = new Map();
+      const req = d.transaction('media', 'readonly').objectStore('media').openCursor();
+      req.onsuccess = () => {
+        const c = req.result;
+        if (!c) { res(out); return; }
+        const v = c.value;
+        out.set(String(c.key), v instanceof Blob ? v.size : typeof v === 'string' ? v.length * 2 : v?.byteLength || 0);
+        c.continue();
+      };
+      req.onerror = () => res(out);
+    });
+  } catch { return new Map(); }
+}
